@@ -2,9 +2,5 @@ build/
 out/
 
 
-vcpkg_installed/
-vcpkg/downloads/
-vcpkg/buildtrees/
-vcpkg/packages/
-vcpkg/installed/
-vcpkg/docs/
+vcpkg/
+!vcpkg.json
