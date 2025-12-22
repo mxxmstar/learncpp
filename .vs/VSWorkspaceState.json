@@ -1,0 +1,23 @@
+{
+  "DevContainersInfoBarHidden": true,
+  "OutputFoldersPerTargetSystem": {
+    "Local Machine": [
+      "out\\build\\x64-Debug",
+      "out\\install\\x64-Debug"
+    ],
+    "192.168.117.131": [
+      "out\\build\\x64-Debug",
+      "out\\install\\x64-Debug"
+    ]
+  },
+  "ActiveTargetSystem": "Local Machine",
+  "ExpandedNodes": [
+    "",
+    "\\bin",
+    "\\src",
+    "\\vcpkg\\scripts\\azure-pipelines",
+    "\\vcpkg\\scripts\\azure-pipelines\\owners-db"
+  ],
+  "SelectedNode": "\\test",
+  "PreviewInSolutionExplorer": false
+}
