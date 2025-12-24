@@ -20,7 +20,18 @@ endif()
 find_package(spdlog CONFIG REQUIRED)
 # 2. 查找 Boost，并指定需要的组件（asio 是 header-only，system 需要链接）
 find_package(Boost REQUIRED COMPONENTS asio system)
-add_executable(${PROJECT_NAME} src/main.cpp)
+
+# 添加源文件
+set (SOURCES
+    src/main.cpp
+    src/log/logger.cpp
+    src/net/asio_io_context_pool.cpp
+)
+
+
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE include)
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
