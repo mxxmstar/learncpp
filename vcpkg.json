@@ -2,6 +2,9 @@
   "name": "my-cross-platform-app",
   "version-string": "0.1.0",
   "dependencies": [
-    "spdlog"
+    "spdlog",
+    "boost-asio",
+    "boost-beast",
+    "boost-system"    
   ]
 }
