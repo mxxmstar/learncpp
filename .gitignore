@@ -1,6 +1,7 @@
 build/
 out/
 bin/
+logs/
 
 vcpkg/
 !vcpkg.json
