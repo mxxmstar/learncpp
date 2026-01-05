@@ -2,6 +2,10 @@ build/
 out/
 bin/
 logs/
+log/
 
 vcpkg/
 !vcpkg.json
+!test/log/
+!src/log/
+!include/log/
