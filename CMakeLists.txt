@@ -4,6 +4,9 @@ project(MySelfContainedApp LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 添加编译开关来控制是否构建测试
+option(BUILD_TESTS "Build tests" ON)
+
 # 设置可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
@@ -22,11 +25,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS asio system)
 
 # 添加源文件
-set (SOURCES
-    src/main.cpp
-    src/log/logger.cpp
-    src/net/asio_io_context_pool.cpp
-)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -40,3 +39,22 @@ target_link_libraries(${PROJECT_NAME}
         Boost::system
 
 )
+
+# 创建一个库，以便测试可以链接到它
+file(GLOB_RECURSE LIB_SOURCES "src/log/*.cpp" "src/net/*.cpp")
+add_library(myapp_lib ${LIB_SOURCES})
+target_include_directories(myapp_lib PUBLIC include)
+target_link_libraries(myapp_lib
+    PUBLIC
+        spdlog::spdlog
+        Boost::asio
+        Boost::system
+)
+
+# 如果启用测试构建，则添加测试
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(test)
+endif()
+
+
