@@ -45,6 +45,10 @@ void Logger::SetFormat(const std::string& format) {
     spd_logger_->set_pattern(format);
 }
 
+void Logger::Flush() {
+    spd_logger_->flush();
+}
+
 void Logger::buildSinks(const LoggerConfig& config, std::vector<spdlog::sink_ptr>& sinks) {
     // 主日志 sink（按天轮转）
     if (config.write_to_main_log) {

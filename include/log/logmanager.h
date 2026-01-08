@@ -20,13 +20,12 @@ public:
     /// @brief 注册一个logger
     /// @param name logger名称
     /// @param log_file 日志文件名
-    /// @return 注册的logger指针
-    std::shared_ptr<spdlog::logger> RegisterLogger(const LoggerConfig& config);
+    void RegisterLogger(const LoggerConfig& config);
 
     /// @brief 获取一个logger
     /// @param name logger名称
     /// @return logger指针
-    std::shared_ptr<spdlog::logger> GetLogger(const std::string& name);        
+    std::shared_ptr<Logger> GetLogger(const std::string& name);        
 
     /// @brief 删除一个logger
     void RemoveLogger(const std::string& name);
@@ -40,9 +39,9 @@ public:
     /// @brief 关闭日志系统
     void Shutdown();
 
-    inline std::shared_ptr<spdlog::logger> getMainLogger() { return loggers_["main"]; }
+    inline std::shared_ptr<Logger> getMainLogger() { return loggers_["main"]; }
 
-    inline std::shared_ptr<spdlog::logger> getErrorLogger() { return loggers_["error"]; }
+    inline std::shared_ptr<Logger> getErrorLogger() { return loggers_["error"]; }
     
     
 private:    
@@ -50,7 +49,7 @@ private:
     ~LogManager() = default;
 
     /// @brief 已注册的logger集合
-    std::unordered_map<std::string, std::shared_ptr<spdlog::logger>> loggers_;
+    std::unordered_map<std::string, std::shared_ptr<Logger>> loggers_;
     /// @brief 互斥锁
     mutable std::mutex mutex_;
 
@@ -63,3 +62,106 @@ private:
     spdlog::sink_ptr error_sink_;
     
 };
+
+static inline const char* extract_filename(const char* file_path) {
+    const char* last_slash = strrchr(file_path, '/');
+    return last_slash ? last_slash + 1 : file_path;
+}
+
+#define LOG_MAIN LogManager::getInstance().getMainLogger()
+#define LOG_ERROR LogManager::getInstance().getErrorLogger()
+
+// 使用可变参数宏确保格式化字符串和参数被正确传递给spdlog
+#define LOG_MAIN_DEBUG(...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->debug(__VA_ARGS__); \
+} while(0)
+
+#define LOG_MAIN_INFO(...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->info(__VA_ARGS__); \
+} while(0)
+
+#define LOG_MAIN_WARN(...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->warn(__VA_ARGS__); \
+} while(0)
+
+#define LOG_MAIN_ERROR(...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->error(__VA_ARGS__); \
+} while(0)
+
+#define LOG_MAIN_CRITICAL(...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->critical(__VA_ARGS__); \
+} while(0)
+
+#define LOG_ERROR_DEBUG(...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->debug(__VA_ARGS__); \
+} while(0)
+
+#define LOG_ERROR_INFO(...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->info(__VA_ARGS__); \
+} while(0)
+
+#define LOG_ERROR_WARN(...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->warn(__VA_ARGS__); \
+} while(0)
+
+#define LOG_ERROR_ERROR(...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->error(__VA_ARGS__); \
+} while(0)
+
+#define LOG_ERROR_CRITICAL(...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->critical(__VA_ARGS__); \
+} while(0)
+
+
+
+// 包含文件名和行号的日志宏
+#define LOG_MAIN_DEBUG_FL(filename, line, ...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->debug("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_MAIN_INFO_FL(filename, line, ...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->info("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_MAIN_WARN_FL(filename, line, ...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->warn("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_MAIN_ERROR_FL(filename, line, ...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->error("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_MAIN_CRITICAL_FL(filename, line, ...) do { \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->critical("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_ERROR_DEBUG_FL(filename, line, ...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->debug("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_ERROR_INFO_FL(filename, line, ...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->info("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_ERROR_WARN_FL(filename, line, ...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->warn("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_ERROR_ERROR_FL(filename, line, ...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->error("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_ERROR_CRITICAL_FL(filename, line, ...) do { \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->critical("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+} while(0)
+
+#define LOG_MAIN_DEBUG_AT(...) LOG_MAIN_DEBUG_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_MAIN_INFO_AT(...) LOG_MAIN_INFO_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_MAIN_WARN_AT(...) LOG_MAIN_WARN_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_MAIN_ERROR_AT(...) LOG_MAIN_ERROR_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_MAIN_CRITICAL_AT(...) LOG_MAIN_CRITICAL_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR_DEBUG_AT(...) LOG_ERROR_DEBUG_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR_INFO_AT(...) LOG_ERROR_INFO_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR_WARN_AT(...) LOG_ERROR_WARN_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR_ERROR_AT(...) LOG_ERROR_ERROR_FL(__FILE__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR_CRITICAL_AT(...) LOG_ERROR_CRITICAL_FL(__FILE__, __LINE__, __VA_ARGS__)

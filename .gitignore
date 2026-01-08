@@ -4,6 +4,7 @@ bin/
 logs/
 log/
 
+include/ylt/
 vcpkg/
 !vcpkg.json
 !test/log/
