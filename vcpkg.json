@@ -5,6 +5,8 @@
     "spdlog",
     "boost-asio",
     "boost-beast",
-    "boost-system"    
+    "boost-system",
+    "boost-uuid",
+    "async-simple"
   ]
 }

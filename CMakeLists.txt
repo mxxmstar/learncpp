@@ -22,7 +22,9 @@ endif()
 # 1. 查找 spdlog（无额外组件）
 find_package(spdlog CONFIG REQUIRED)
 # 2. 查找 Boost，并指定需要的组件（asio 是 header-only，system 需要链接）
-find_package(Boost REQUIRED COMPONENTS asio system)
+find_package(Boost REQUIRED COMPONENTS asio system uuid)
+# 3. 查找 async_simple
+find_package(async_simple CONFIG REQUIRED)
 
 # 添加源文件
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -37,7 +39,8 @@ target_link_libraries(${PROJECT_NAME}
         spdlog::spdlog
         Boost::asio
         Boost::system
-
+        Boost::uuid
+        async_simple::async_simple
 )
 
 # 创建一个库，以便测试可以链接到它
@@ -49,6 +52,8 @@ target_link_libraries(myapp_lib
         spdlog::spdlog
         Boost::asio
         Boost::system
+        Boost::uuid
+        async_simple::async_simple
 )
 
 # 如果启用测试构建，则添加测试

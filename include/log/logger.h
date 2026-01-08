@@ -44,14 +44,14 @@ public:
     explicit Logger(const LoggerConfig& config);
     ~Logger() = default;
 
-    std::shared_ptr<spdlog::logger> GetLogger() { return spd_logger_; }
+    std::shared_ptr<spdlog::logger> GetSpdLogger() { return spd_logger_; }
 
     void SetLevel(spdlog::level::level_enum level);
 
     spdlog::level::level_enum GetLevel() const;
 
     void SetFormat(const std::string& format);
-
+    void Flush();
 private:
 
     /// @brief 构建日志器的 sinks

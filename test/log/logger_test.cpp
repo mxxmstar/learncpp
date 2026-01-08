@@ -6,7 +6,7 @@ int main() {
     try {
         LoggerConfig config;
         config.name = "test_logger";
-        config.log_dir = "./log";
+        config.log_dir = "./logs";
         config.level = spdlog::level::debug;
         config.write_to_console = true;
         config.write_to_main_log = true;
@@ -14,7 +14,7 @@ int main() {
 
         Logger logger(config);
 
-        auto spd_logger = logger.GetLogger();
+        auto spd_logger = logger.GetSpdLogger();
         std::cout << "Logger initialized" << std::endl;
 
         spd_logger->info("Test message");

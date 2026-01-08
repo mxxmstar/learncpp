@@ -95,6 +95,24 @@ if [ "$CLEAN_BUILD" = true ]; then
     rm -rf ./*
 fi
 
+# 如果是清理构建，则执行 build-vcpkg.sh 脚本
+if [ "$CLEAN_BUILD" = true ]; then
+    echo -e "${GREEN}Running vcpkg configuration script...${NC}"
+    cd ..
+    if [ -f "build-vcpkg.sh" ]; then
+        chmod +x build-vcpkg.sh
+        ./build-vcpkg.sh
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}build-vcpkg.sh failed${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}build-vcpkg.sh script not found${NC}"
+        exit 1
+    fi
+    cd "$BUILD_DIR"
+fi
+
 # 配置项目（如果CMakeFiles不存在或执行清理构建）
 if [ ! -f "Makefile" ] || [ ! -d "CMakeFiles" ] || [ "$CLEAN_BUILD" = true ]; then
     echo -e "${GREEN}Configuring project...${NC}"
