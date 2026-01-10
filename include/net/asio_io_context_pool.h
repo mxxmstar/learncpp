@@ -7,7 +7,8 @@ class AsioIOContextPool {
 public:
     using IOContext = boost::asio::io_context;
     using WorkGuard = boost::asio::executor_work_guard<IOContext::executor_type>;
-    
+    /// @brief 获取单例 
+    static AsioIOContextPool& GetInstance();
     /// @brief 禁止拷贝和赋值
     AsioIOContextPool(const AsioIOContextPool&) = delete;
     AsioIOContextPool& operator=(const AsioIOContextPool&) = delete;
