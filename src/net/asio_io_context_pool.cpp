@@ -1,9 +1,17 @@
 #include "net/asio_io_context_pool.h"
+#include "log/logmanager.h"
 #include <exception>
+
+AsioIOContextPool& AsioIOContextPool::GetInstance() {
+    static AsioIOContextPool instance;
+    LOG_MAIN_INFO_AT("AsioIOContextPool instance created, address: {}", (void*)&instance);
+    return instance;
+}
+
 AsioIOContextPool::AsioIOContextPool(std::size_t size) : io_contexts_(size)
-    , work_guards_(), threads_(), next_io_context_(0), is_running_(false) 
+    , work_guards_(), threads_(), next_io_context_(0), is_running_(true) 
 {
-    if (size == 0) size == 1;
+    if (size == 0) size = 1;
     for (size_t i = 0; i < size; ++i){
         work_guards_.emplace_back(boost::asio::make_work_guard(io_contexts_[i]));
     }
@@ -28,7 +36,7 @@ AsioIOContextPool::~AsioIOContextPool() {
 }
 
 boost::asio::io_context& AsioIOContextPool::GetIOContext() {
-    if (is_running_.load() == true) {
+    if (is_running_.load() == false) {
         throw std::runtime_error("AsioIOContextPool has been stopped");
     }
     // 轮询获取io_context
