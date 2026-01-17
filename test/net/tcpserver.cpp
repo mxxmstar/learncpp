@@ -4,7 +4,7 @@
 #include "log/logmanager.h"
 #include <iostream>
 #include <memory>
-
+#include <string>
 using namespace boost::asio::ip;
 
 class EchoSession : public AsioTCPSession {
@@ -15,6 +15,7 @@ public:
 protected:
     void OnBytes(const uint8_t* data, size_t size) override {
         // 回显数据
+        std::cout << "Received: " << std::string(reinterpret_cast<const char*>(data), size) << std::endl;
         Send(data, size);
     }
 
@@ -38,8 +39,8 @@ public:
                 
                 LOG_MAIN_INFO_AT("New echo session created: {}", session->GetSessionID());
            });
-}
-void Start() {
+    }
+    void Start() {
         server_.Start();
     }
     
@@ -60,7 +61,7 @@ int main() {
         boost::asio::io_context main_io_context;
         
         // 创建工作池
-        auto& worker_pool = AsioIOContextPool::GetInstance();
+        auto& worker_pool = AsioIOContextPool::GetInstance(AsioIOContextPool::ServiceType::TCP);
         
         // 创建Echo服务器，监听端口8888
         EchoTCPServer server(main_io_context, worker_pool, 8888);

@@ -6,6 +6,7 @@ log/
 
 include/ylt/
 vcpkg/
+file.txt
 !vcpkg.json
 !test/log/
 !src/log/

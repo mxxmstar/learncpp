@@ -23,7 +23,7 @@ void AsioTCPServer::Stop() {
 }
 
 void AsioTCPServer::SetAcceptHandler(AcceptHandler handler) {
-    accept_handler_ = handler;
+    accept_handler_ = std::move(handler);
 }
 
 void AsioTCPServer::DoAccept() { 
