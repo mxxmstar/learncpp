@@ -22,7 +22,7 @@ endif()
 # 1. 查找 spdlog（无额外组件）
 find_package(spdlog CONFIG REQUIRED)
 # 2. 查找 Boost，并指定需要的组件（asio 是 header-only，system 需要链接）
-find_package(Boost REQUIRED COMPONENTS asio system uuid)
+find_package(Boost REQUIRED COMPONENTS asio system uuid json)
 # 3. 查找 async_simple
 find_package(async_simple CONFIG REQUIRED)
 
@@ -40,6 +40,7 @@ target_link_libraries(${PROJECT_NAME}
         Boost::asio
         Boost::system
         Boost::uuid
+        Boost::json
         async_simple::async_simple
 )
 
@@ -53,6 +54,7 @@ target_link_libraries(myapp_lib
         Boost::asio
         Boost::system
         Boost::uuid
+        Boost::json
         async_simple::async_simple
 )
 
