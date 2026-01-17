@@ -2,10 +2,22 @@
 #include "log/logmanager.h"
 #include <exception>
 
-AsioIOContextPool& AsioIOContextPool::GetInstance() {
-    static AsioIOContextPool instance;
-    LOG_MAIN_INFO_AT("AsioIOContextPool instance created, address: {}", (void*)&instance);
-    return instance;
+AsioIOContextPool& AsioIOContextPool::GetInstance(ServiceType type) {
+    switch (type) {
+        case ServiceType::HTTP:
+            static auto http_instance = Create(4);
+            return *http_instance;
+        case ServiceType::TCP:
+            static auto tcp_instance = Create(4);
+            return *tcp_instance;
+        default:
+            static auto default_instance = Create(4);
+            return *default_instance;
+    }    
+}
+
+std::unique_ptr<AsioIOContextPool> AsioIOContextPool::Create(int size) {
+    return std::unique_ptr<AsioIOContextPool>(new AsioIOContextPool(size));
 }
 
 AsioIOContextPool::AsioIOContextPool(std::size_t size) : io_contexts_(size)

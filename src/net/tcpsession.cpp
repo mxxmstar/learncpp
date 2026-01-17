@@ -5,14 +5,15 @@
 #include "log/logmanager.h"
 
 static constexpr std::size_t kReadBufferSize = 16 * 1024;
+using tcp = boost::asio::ip::tcp;
 
-AsioTCPSession::AsioTCPSession(net::io_context& ioc) : socket_(ioc), strand_(socket_.get_executor()), read_buffer_(kReadBufferSize)
+AsioTCPSession::AsioTCPSession(net::io_context& ioc) : socket_(ioc), read_buffer_(kReadBufferSize)
 {
     boost::uuids::uuid  a_uuid = boost::uuids::random_generator()();
 	session_id_ = boost::uuids::to_string(a_uuid);
 }
 
-AsioTCPSession::AsioTCPSession(tcp::socket socket) : socket_(std::move(socket)), strand_(socket_.get_executor()), read_buffer_(kReadBufferSize)
+AsioTCPSession::AsioTCPSession(tcp::socket socket) : socket_(std::move(socket)), read_buffer_(kReadBufferSize)
 {
     boost::uuids::uuid  a_uuid = boost::uuids::random_generator()();
 	session_id_ = boost::uuids::to_string(a_uuid);
@@ -27,11 +28,8 @@ void AsioTCPSession::Start() {
     if (!running_.compare_exchange_strong(expected, true)) {
         LOG_MAIN_DEBUG_AT("session is running");
         return;
-    }
-    
-    boost::asio::post(strand_, [self = shared_from_this()]() {
-        self->AsyncRead();
-    });
+    }    
+    AsyncRead();    
 }
 
 void AsioTCPSession::Stop() {
@@ -40,12 +38,36 @@ void AsioTCPSession::Stop() {
         LOG_MAIN_DEBUG_AT("session is closed");
         return;
     }
-    boost::asio::post(strand_, [self = shared_from_this()]() {
-        boost::system::error_code ec;
-        self->socket_.shutdown(tcp::socket::shutdown_type::shutdown_both, ec);
-        self->socket_.close(ec);
-        self->running_ = false;
-        self->OnClose();
+
+    boost::system::error_code ec;
+    socket_.cancel(ec);
+    socket_.shutdown(tcp::socket::shutdown_type::shutdown_both, ec);
+    socket_.close(ec);
+    running_ = false;
+    OnClose();
+}
+
+void AsioTCPSession::Send(const std::string& data) {
+    Send(reinterpret_cast<const uint8_t*>(data.data()), data.size());   
+}
+
+void AsioTCPSession::Send(const uint8_t* data, size_t size) {
+    if (!data || size == 0 || !running_) {
+        return;
+    }
+
+    auto buf = std::make_shared<std::vector<uint8_t>>(data, data + size);
+    auto self = shared_from_this();
+    boost::asio::post(socket_.get_executor(), [this, self, buf, size]() {
+        if (closed_) {
+            return;
+        }
+        LOG_MAIN_DEBUG_AT("session {} send {} bytes, data: {}", session_id_, size, std::string(reinterpret_cast<const char*>(buf->data()), size));
+        send_queue_.emplace(buf);
+        if (!writing_) {
+            writing_ = true;
+            AsyncWrite();
+        }
     });
 }
 
@@ -57,7 +79,7 @@ void AsioTCPSession::AsyncRead() {
     auto self = shared_from_this();
     socket_.async_read_some(
         boost::asio::buffer(read_buffer_), 
-        boost::asio::bind_executor(strand_, [this, self](boost::system::error_code ec, std::size_t bytes_transferred) { 
+        [this, self](boost::system::error_code ec, std::size_t bytes_transferred) { 
             if (ec || bytes_transferred == 0) {
                 LOG_MAIN_CRITICAL_AT("session {} async_read_some error: {}", session_id_, ec.message());
                 Stop();
@@ -67,7 +89,7 @@ void AsioTCPSession::AsyncRead() {
             OnBytes(read_buffer_.data(), bytes_transferred);
             // 继续读取
             AsyncRead();
-        })
+        }
     );
 }
 
@@ -77,8 +99,9 @@ void AsioTCPSession::AsyncWrite() {
     }
 
     auto self = shared_from_this();
-    boost::asio::async_write(socket_, send_queue_.front().GetAsioConstBuffer(),
-        boost::asio::bind_executor(strand_, [this, self](boost::system::error_code ec, std::size_t bytes_transferred) { 
+    auto& buf = send_queue_.front();
+    boost::asio::async_write(socket_, boost::asio::buffer(*buf),
+        [this, self](boost::system::error_code ec, std::size_t bytes_transferred) { 
             if (ec) {
                 LOG_MAIN_CRITICAL_AT("session {} async_write error: {}", session_id_, ec.message());
                 Stop();
@@ -88,42 +111,43 @@ void AsioTCPSession::AsyncWrite() {
             send_queue_.pop();
             if (!send_queue_.empty()) {
                 AsyncWrite();
+            } else {
+                writing_ = false;   // 队列非空，重置发送标志
             }
-        })
+        }
     );
 }
 
+int AsioTCPSession::NativeFd() {
+    return socket_.native_handle();
+}
+
+tcp::socket AsioTCPSession::DetachSocket() {
+    StopRead();
+    running_ = false;
+    return std::move(socket_);
+}
+
+void AsioTCPSession::StopRead() {
+    boost::system::error_code ec;
+    socket_.cancel(ec);
+}
+
 void AsioTCPSession::OnBytes(const uint8_t* data, size_t size) {
-    
+    if (data_handler_) {
+        data_handler_(data, size);
+    }
 }
 
 void AsioTCPSession::OnClose() {
-    
+    if (close_handler_) {
+        close_handler_();
+    }
 }
 
 void AsioTCPSession::OnError(boost::system::error_code ec) {
     LOG_MAIN_ERROR_AT("session {} error: {}", session_id_, ec.message());
     Stop();
-}
-
-void AsioTCPSession::Send(std::shared_ptr<std::vector<uint8_t>> buf) {
-    Send(buf->data(), buf->size());   
-}
-
-void AsioTCPSession::Send(const uint8_t* data, size_t size) {
-    if (!data || size == 0 || !running_) {
-        return;
-    }
-
-    auto buf = std::make_shared<std::vector<uint8_t>>(data, data + size);
-    auto self = shared_from_this();
-    boost::asio::post(strand_, [this, self, buf]() {
-        bool idle = send_queue_.empty();
-        send_queue_.emplace(buf);
-        if (idle) {
-            AsyncWrite();
-        }
-    });
 }
 
 bool AsioTCPSession::IsRunning() const {
@@ -150,4 +174,12 @@ int16_t AsioTCPSession::GetRemotePort() const {
         return -1;
     }
     return socket_.remote_endpoint().port();
+}
+
+void AsioTCPSession::SetDataHandler(DataHandler handler) {
+    data_handler_ = std::move(handler);
+}
+
+void AsioTCPSession::SetCloseHandler(CloseHandler handler) {
+    close_handler_ = std::move(handler);
 }
