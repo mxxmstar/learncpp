@@ -17,7 +17,9 @@ foreach(test_file ${TEST_SOURCES})
             spdlog::spdlog
             Boost::asio
             Boost::system
+            Boost::json
             async_simple::async_simple
+
     )
     
     # 添加测试
