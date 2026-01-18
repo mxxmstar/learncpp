@@ -10,6 +10,9 @@
     "boost-json",
     "zlmediakit",
     "ffmpeg",
+    "openssl",
+    "nlohmann-json",
+    "yaml-cpp",
     "async-simple"
   ]
 }

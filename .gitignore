@@ -11,3 +11,5 @@ file.txt
 !test/log/
 !src/log/
 !include/log/
+
+.vs/

@@ -4,15 +4,18 @@
 
 AsioIOContextPool& AsioIOContextPool::GetInstance(ServiceType type) {
     switch (type) {
-        case ServiceType::HTTP:
+        case ServiceType::HTTP: {
             static auto http_instance = Create(4);
             return *http_instance;
-        case ServiceType::TCP:
+        }
+        case ServiceType::TCP: {
             static auto tcp_instance = Create(4);
             return *tcp_instance;
-        default:
+        }
+        default: {
             static auto default_instance = Create(4);
             return *default_instance;
+        }
     }    
 }
 
