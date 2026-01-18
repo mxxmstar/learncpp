@@ -1,0 +1,8 @@
+{
+  "CurrentProjectSetting": "x64-Debug",
+  "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.compilerPath": "/usr/bin/g++",
+    "cmake.configureArgs": [
+        "-DCMAKE_CXX_STANDARD=20"
+    ]
+}
