@@ -45,7 +45,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 # 创建一个库，以便测试可以链接到它
-file(GLOB_RECURSE LIB_SOURCES "src/log/*.cpp" "src/net/*.cpp")
+file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
 add_library(myapp_lib ${LIB_SOURCES})
 target_include_directories(myapp_lib PUBLIC include)
 target_link_libraries(myapp_lib
