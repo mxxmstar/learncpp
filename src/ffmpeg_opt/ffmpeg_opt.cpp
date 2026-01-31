@@ -1,5 +1,6 @@
 #include "ffmpeg_opt/ffmpeg_opt.h"
 #include "log/logmanager.h"
+#include "file_opt.h"
 #include <sstream>
 #include <filesystem>
 
@@ -17,6 +18,7 @@ bool FFmpegStream::ConvertRTSPToHLS(const std::string& rtsp_url, const std::stri
 bool FFmpegStream::ConvertUSBCameraToHLS(const std::string& usb_camera_index, const std::string& output_url) {
     // std::string additional_params = "-f dshow -i video=\"USB2.0 UVC Camera\":audio=\"USB2.0 UVC Camera\"";
     // return ConvertStream(usb_camera_index, InputStreamType::USB_CAMERA, output_url, OutputStreamType::HLS, additional_params);
+	return true;
 }
 
 bool FFmpegStream::ConvertStream(const std::string& input_src, InputStreamType input_type, const std::string& output_dst, OutputStreamType output_type, const std::string& extra_params) { 
@@ -33,6 +35,7 @@ bool FFmpegStream::ConvertStream(const std::string& input_src, InputStreamType i
         }
     }    
     int result = std::system(command.c_str());
+    
     return result == 0;
 }
 
@@ -49,18 +52,28 @@ std::string FFmpegStream::GetFFmpegPath() {
 #else
     exec_path = std::filesystem::path("tools") / "linux" / "ffmpeg_8_0" / "ffmpeg";
 #endif
+    LOG_MAIN_INFO_AT("FFmpegStream::GetFFmpegPath, exec_path: {}", exec_path.string());
+	// auto abs_path = std::filesystem::absolute(exec_path);
+    // LOG_MAIN_INFO_AT("FFmpegStream::GetFFmpegPath, abs_path: {}", abs_path.string());
+    std::filesystem::path parent_path = std::filesystem::current_path().parent_path();
+    exec_path = parent_path / exec_path;
+    LOG_MAIN_INFO_AT("FFmpegStream::GetFFmpegPath, exec_path: {}", exec_path.string());
     if (std::filesystem::exists(exec_path)) {
         return exec_path.string();
     }
     return "";
 }
 
-std::string FFmpegStream::buildCommand(const std::string& input_src, InputStreamType input_type, const std::string& output_dst, OutputStreamType output_type, const std::string& extra_params = "") {
+std::string FFmpegStream::buildCommand(const std::string& input_src, InputStreamType input_type, const std::string& output_dst, OutputStreamType output_type, const std::string& extra_params) {
     std::string ffmpeg_path = GetFFmpegPath();
     std::ostringstream cmd;
+    if (ffmpeg_path.empty()) {
+        return "";
+    }
     cmd << "\"" << ffmpeg_path << "\" "
         << buildInputParams(input_src, input_type) << " "
         << buildOutputParams(output_dst, output_type, extra_params);
+    LOG_MAIN_INFO_AT("FFmpegStream::buildCommand, cmd: {}", cmd.str());
     return cmd.str();
 }
 

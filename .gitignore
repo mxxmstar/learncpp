@@ -13,3 +13,10 @@ file.txt
 !include/log/
 
 .vs/
+manual_download/
+hls/
+.vs/VSWorkspaceState.json
+.vs/slnx.sqlite
+.vs/ProjectSettings.json
+.vs/cmake.db
+

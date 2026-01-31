@@ -8,6 +8,7 @@
     "boost-system",
     "boost-uuid",
     "boost-json",
+    "boost-process",
     "zlmediakit",
     "ffmpeg",
     "openssl",

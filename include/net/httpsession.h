@@ -28,6 +28,6 @@ private:
     http::response<http::string_body> rsp_;
     /// @brief 超时定时器，60秒未收到请求则关闭连接
     net::steady_timer deadline_timer_ { socket_.get_executor(), std::chrono::seconds(60) };
-    std::string url_;
+    // std::string url_;
 };
 
