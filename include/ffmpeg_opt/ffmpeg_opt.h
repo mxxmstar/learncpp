@@ -1,17 +1,6 @@
 #pragma once
 #include <string>
 
-#ifdef _WIN32
-#define FFMPEG_OPT_WINDOWS
-extern const char *FFMPEG_PATH;
-extern const char *FFPLAY_PATH;
-extern const char *FFPROBE_PATH;
-#else
-#define FFMPEG_OPT_LINUX
-extern const char *FFMPEG_PATH;
-extern const char *FFPLAY_PATH;
-extern const char *FFPROBE_PATH;
-#endif
 enum class InputStreamType {
     USB_CAMERA,
     FILE,
@@ -33,9 +22,6 @@ enum class OutputStreamType {
 
 class FFmpegStream {
 public:
-
-    // 执行自定义FFmpeg命令
-    static bool ExecuteCommand(const std::string& command);
 
     ///@brief 获取FFmpeg路径
     static std::string GetFFmpegPath();

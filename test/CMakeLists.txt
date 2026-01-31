@@ -18,6 +18,7 @@ foreach(test_file ${TEST_SOURCES})
             Boost::asio
             Boost::system
             Boost::json
+            Boost::process
             async_simple::async_simple
 
     )

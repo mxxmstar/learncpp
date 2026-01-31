@@ -1,26 +1,29 @@
 #pragma once
-#include "log/logmanager.h"
-#include "net/httpserver.h"
-#include "net/httpsession.h"
-#include "net/httprouter.h"
 #include <memory>
+#include <string>
+#include <functional>
 #include <boost/json.hpp>
-#include <boost/asio.hpp>
+#include <boost/beast.hpp>
 
-namespace json = boost::json;
-class ZLMHookServer {
+namespace Json = boost::json;
+namespace http = boost::beast::http;
+/// @brief ZLMediaKit Hook 服务处理，用于接收 ZLMediaKit 的事件回调
+/// 接收ZLM发送的 HTTP 请求; parse JSON; 抛事件
+class ZLMHookHandler {
 public:
-    ZLMHookServer(uint16_t port);
+    using EventHandler = std::function<void(
+        const std::string& event,
+        const Json::value& payload)>;
 
-    void Start();
-    void Stop();
+    explicit ZLMHookHandler(const std::string& secret, EventHandler cb);
+    bool HandleRequest(
+        const http::request<http::string_body>& req,
+		http::response<http::string_body>& res);
 private:
-    void DoAccept();
-    void RegisterHooks();
-    boost::asio::io_context& accept_ioc_;
-    AsioIOContextPool& worker_pool_;
-    boost::asio::ip::tcp::acceptor acceptor_;
-    std::atomic<bool> running_{false};
-
+    std::string secret_;
+	EventHandler cb_;
+	void sendForbiddenResponse(http::response<http::string_body>& res);
+	void sendBadResponse(http::response<http::string_body>& res);	
 };
+
 

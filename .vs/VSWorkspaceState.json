@@ -13,11 +13,14 @@
   "ActiveTargetSystem": "Local Machine",
   "ExpandedNodes": [
     "",
-    "\\bin",
+    "\\include",
+    "\\include\\ffmpeg_opt",
     "\\src",
-    "\\vcpkg\\scripts\\azure-pipelines",
-    "\\vcpkg\\scripts\\azure-pipelines\\owners-db"
+    "\\src\\ffmpeg_opt",
+    "\\test",
+    "\\test\\boost",
+    "\\test\\ffmpeg"
   ],
-  "SelectedNode": "\\test",
+  "SelectedNode": "\\CMakeLists.txt",
   "PreviewInSolutionExplorer": false
 }
