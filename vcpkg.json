@@ -9,11 +9,22 @@
     "boost-uuid",
     "boost-json",
     "boost-process",
+    "boost-mysql",
     "zlmediakit",
     "ffmpeg",
     "openssl",
     "nlohmann-json",
     "yaml-cpp",
+    "libdatachannel",
+    "opencv",
+    "opus",
+    "opengl",
+    "sdl2",
+    "mysql-connector-cpp",
+    "libpq",
+    "libpqxx",
+    "sqlitecpp",
+    "grpc",
     "async-simple"
   ]
 }

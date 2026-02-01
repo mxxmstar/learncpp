@@ -1,5 +1,9 @@
 #include "net/httpsession.h"
 #include "log/logmanager.h"
+#include "net/httprouter.h"
+
+#include <boost/json.hpp>
+#include <set>
 AsioHttpSession::AsioHttpSession(tcp::socket&& socket)
     : socket_(std::move(socket)) {
 
@@ -78,7 +82,47 @@ void AsioHttpSession::HandleRequest() {
     if (req_.method() == boost::beast::http::verb::post) {
         rsp_.result(boost::beast::http::status::ok);
         rsp_.body() = "POST request received";
-        // TODO: 处理POST请求
+        
+        std::string sign_header;
+        if (auto it = req_.find("sign"); it != req_.end()) {
+            sign_header = it->value();            
+        }
+
+        // 交给路由器 HttpRouter 处理
+        boost::json::object rsp_obj;
+        if (!sign_header.empty()) {            
+            HttpRouter::GetInstance().DispatchRequest(
+                req_.target(), 
+                req_.body(), 
+                sign_header, 
+                rsp_obj
+            );
+        } else {
+            HttpRouter::GetInstance().DispatchRequest(
+                req_.target(), 
+                req_.body(), 
+                rsp_obj
+            );
+        }
+        
+        
+
         AsyncWrite();
     }
+}
+
+bool AsioHttpSession::NeedAuthenticate(const std::string& path) {
+    // 需要认证的路由
+    static const std::set<std::string> auth_paths = {
+        "/zlmediakit/"
+        "/zlm/"
+        "/zlmediakit/api/"
+        "/zlm/api/"
+    };
+    for (const auto& p : auth_paths) {
+        if (path.find(p) == 0) {
+            return true;
+        }
+    }
+    return false;
 }

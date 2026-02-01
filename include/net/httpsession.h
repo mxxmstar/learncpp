@@ -19,7 +19,7 @@ private:
     void AsyncCheckDeadline();
 
     void HandleRequest();
-
+    bool NeedAuthenticate(const std::string& path);
     
 
     tcp::socket socket_;

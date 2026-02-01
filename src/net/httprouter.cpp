@@ -22,7 +22,7 @@ void HttpRouter::DispatchRequest(const std::string& path, const std::string& bod
 	}
     const auto& route_handler = it->second;
     if (route_handler.api_key.has_value()) {
-        //TODO: ÑéÖ¤api_key
+        //TODO: éªŒè¯api_key
         if (body.empty()) {
             rsp["code"] = -1;
             rsp["msg"] = "missing raw body for sign check";
@@ -57,7 +57,7 @@ void HttpRouter::DispatchRequest(const std::string& path, const std::string& bod
 	}
 }
 
-void HttpRouter::DispatchRequest(const std::string& path, const boost::json::object& req, boost::json::object& rsp) { 
+void HttpRouter::DispatchRequest(const std::string& path, const std::string& req, boost::json::object& rsp) { 
     auto it = routes_.find(path);
     if (it == routes_.end()) {
         rsp["code"] = 404;
@@ -68,7 +68,21 @@ void HttpRouter::DispatchRequest(const std::string& path, const boost::json::obj
 	const auto& route_handler = it->second;
     
     try {
-        route_handler.handler(req, rsp);
+        boost::json::value jv = boost::json::parse(req);
+        if (!jv.is_object()) {
+            rsp["code"] = 400;
+            rsp["msg"] = "invalid request body";
+            return;
+        }
+        const auto& req_obj = jv.as_object();
+
+        try {
+            route_handler.handler(req_obj, rsp);
+        } catch (std::exception& e) {
+            rsp["code"] = 500;
+            rsp["msg"] = std::string("exception: ") + e.what();
+        }
+        
     } catch (std::exception& e) {
         rsp["code"] = 500;
 		rsp["msg"] = std::string("exception: ") + e.what();

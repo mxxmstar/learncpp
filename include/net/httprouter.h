@@ -21,7 +21,7 @@ public:
 	///@brief 分发请求（带签名）
     void DispatchRequest(const std::string& path, const std::string& body, const std::string& sign_header, boost::json::object& rsp);
     /// @brief 分发请求（不带签名）
-    void DispatchRequest(const std::string& path, const boost::json::object& req, boost::json::object& rsp);
+    void DispatchRequest(const std::string& path, const std::string& req, boost::json::object& rsp);
 
  private:
     HttpRouter() = default;

@@ -43,29 +43,30 @@ private:
     /// @brief 启动 ZLMediaKit 进程（非调试模式: 运行在子进程中）
     bool startZLMProcessNormal();
 
-	void onProcessExit(int exit_code, const std::error_code& ec);    
+    void onProcessExit(int exit_code, const std::error_code& ec);    
 private:
     boost::asio::io_context& ctx_;
     Config config_;
     std::atomic<ServiceStatus> status_{ServiceStatus::STATUS_STOPPED};    
-	/// @brief ZLMediaKit 进程对象,使用std::optional包装以支持延迟初始化
-    std::optional<boost::process::process> zlm_process_;    
+    /// @brief ZLMediaKit 进程对象,使用std::optional包装以支持延迟初始化
+    std::optional<boost::process::process> zlm_process_;
 };
 
-//class ZLMManager {
-//public:
-//    bool Start();
-//    void Stop();
-//
-//private:
-//    void handleZLMEvent(const std::string& event,
-//                        const Json::value& data);
-//
-//private:
-//    ZLMProcessManager process_;
-//    ZLMApiClient api_;
-//    ZLMHookHandler hook_;
-//};
+class ZLMManager {
+public:
+   bool Start();
+   void Stop();
+
+private:
+    void RegisterRoutes();
+    void handleZLMEvent(const std::string& event,
+                       const Json::value& data);
+
+private:
+   ZLMProcessManager process_;
+   ZLMApiClient api_;
+   ZLMHookHandler hook_;
+};
 
 
 

@@ -16,6 +16,7 @@
 #include <iostream>
 #include <filesystem>
 #include "zlmediakit/zlm_manager.h"
+#include "log/logmanager.h"
 namespace bp = boost::process;
 
 std::string GetZlmPath() {
@@ -67,15 +68,21 @@ void testZlmManager() {
     boost::asio::io_context ctx;
     ZLMProcessManager::Config cfg;
     cfg.debug_terminal = true;
-    ZLMProcessManager zlm_mgr(ctx, cfg);
-    if (zlm_mgr.Start()) {
+    //ZLMProcessManager zlm_mgr(ctx, cfg);
+    // 使用 shared_ptr 管理生命周期
+    auto zlm_mgr = std::make_shared<ZLMProcessManager>(ctx, cfg);
+    if (zlm_mgr->Start()) {
         std::cout << "ZLM Process started successfully." << std::endl;
+        ctx.run();  // 让 io_context 运行，保持程序运行
     } else {
         std::cout << "Failed to start ZLM Process." << std::endl;
     }
 }
 
 int main() {
+    LogManager& log_manager = LogManager::getInstance();
+        log_manager.Init();
+        std::cout << "LogManager initialized" << std::endl;
     /*boost::asio::io_context ctx;
     boost::process::process proc(ctx,
         "c:\\windows\\system32\\ping.exe",
