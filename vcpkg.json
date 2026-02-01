@@ -10,6 +10,7 @@
     "boost-json",
     "boost-process",
     "boost-mysql",
+    "boost-process",
     "zlmediakit",
     "ffmpeg",
     "openssl",
