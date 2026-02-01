@@ -66,6 +66,7 @@ void ZLMHookHandler::OnPublish(const boost::json::object& req, boost::json::obje
     }
 }
 
+///////////////TODO: result同意统一返回200, 错误码由ErrorCode.h定义
 void ZLMHookHandler::sendForbiddenResponse(http::response<http::string_body>& rsp) {
     rsp.result(http::status::forbidden);
     rsp.set(http::field::content_type, "application/json");

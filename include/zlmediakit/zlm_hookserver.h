@@ -12,8 +12,9 @@ namespace http = boost::beast::http;
 /// 接收ZLM发送的 HTTP 请求; parse JSON; 抛事件
 class ZLMHookHandler {
 public:
+    // TODO: 修改回调
     using EventHandler = std::function<void(
-        const std::string& event,
+        const std::string& req,
         const Json::value& payload)>;
 
     explicit ZLMHookHandler(const std::string& secret, EventHandler cb);

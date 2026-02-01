@@ -71,11 +71,11 @@ namespace Net {
 // #define NET_ERROR_HTTP_PARSE_JSON_FAILED   0x0301010A   // HTTP解析JSON失败
     namespace Http {
         static constexpr uint16_t HttpModule = 0x101;  // HTTP模块标识
-        static constexpr uint32_t InvalidRequest      = 0x31010001;  // HTTP请求无效
-        static constexpr uint32_t InvalidResponse     = 0x31010002;  // HTTP响应无效
+        static constexpr uint32_t InvalidRequest      = 0x0001;  // HTTP请求无效
+        static constexpr uint32_t InvalidResponse     = 0x0002;  // HTTP响应无效
 
-        static constexpr uint32_t ParseJsonFailed    = 0x31010030;  // HTTP解析JSON失败
-        static constexpr uint32_t MissingJsonField   = 0x31010031;  // HTTP请求体中缺少字段
+        static constexpr uint32_t ParseJsonFailed    = 0x0030;  // HTTP解析JSON失败
+        static constexpr uint32_t MissingJsonField   = 0x0031;  // HTTP请求体中缺少字段
     }
 }
 
@@ -89,6 +89,7 @@ namespace Media {
 // #define MEDIA_ERROR_RTSP_SETUP_FAILED   0x03010207  // RTSP设置失败
     namespace Zlmediakit {
         static constexpr uint16_t ZlmModule = 0x201;  // ZLMediaKit模块标识
+        //static constexpr uint16_t NoError = 0x0000; // ZLM无错误
         static constexpr uint32_t UnknowError  = 0x0001;  // 未知错误
         static constexpr uint32_t InternalError     = 0x0002;   // 内部错误
         static constexpr uint32_t HookSecretMismatch = 0x0003;  // ZLM Hook密钥不匹配
@@ -147,5 +148,15 @@ constexpr uint32_t MakeErrorCode(uint8_t err_type, uint16_t module_id, uint16_t 
 constexpr uint32_t MakeZlmErrorCode(uint16_t code) {
     return MakeErrorCode(Type::Error, Media::Zlmediakit::ZlmModule, code);
 }
+
+constexpr uint32_t MakeZlmSuccessCode(uint16_t code = static_cast<uint16_t>(0)) {
+    return MakeErrorCode(Type::Success, Media::Zlmediakit::ZlmModule, code);
+}
+
+constexpr uint32_t MakeHttpErrorCode(uint16_t code) {
+    return MakeErrorCode(Type::Error, Net::Http::HttpModule, code);
+}
+
+
 
 }

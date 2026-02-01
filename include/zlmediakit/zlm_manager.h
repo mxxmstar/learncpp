@@ -64,8 +64,8 @@ private:
 
 private:
    ZLMProcessManager process_;
-   ZLMApiClient api_;
-   ZLMHookHandler hook_;
+   ZLMApiClient api_client_;
+   ZLMHookHandler hook_handler_;
 };
 
 
