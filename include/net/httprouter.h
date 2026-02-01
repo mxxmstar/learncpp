@@ -4,16 +4,8 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <optional>
-#include <string>
 class HttpRouter {
 public:
-    struct RouteHandler {
-        using Handler = std::function<void(const boost::json::object&, boost::json::object&)>;
-        Handler handler;
-        ///@brief 路由验证密钥，若有值则表示该路由为安全路由
-		std::optional<std::string> api_key;
-    };
     struct RouteHandler {
         using Handler = std::function<void(const boost::json::object&, boost::json::object&)>;
         Handler handler;
