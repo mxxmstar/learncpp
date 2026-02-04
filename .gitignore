@@ -12,6 +12,7 @@ file.txt
 !src/log/
 !include/log/
 
+.idea/
 .vs/
 manual_download/
 hls/

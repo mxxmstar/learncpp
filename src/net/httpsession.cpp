@@ -72,6 +72,7 @@ void AsioHttpSession::HandleRequest() {
     rsp_.keep_alive(false);
     rsp_.set(boost::beast::http::field::server, BOOST_BEAST_VERSION_STRING);
     rsp_.set(boost::beast::http::field::access_control_allow_origin, "*");
+    LOG_MAIN_INFO_AT("HandleRequest: {}", req_.target());
     if (req_.method() == boost::beast::http::verb::get) {
         rsp_.result(boost::beast::http::status::ok);
         rsp_.body() = "Hello, World!";
@@ -87,7 +88,7 @@ void AsioHttpSession::HandleRequest() {
         if (auto it = req_.find("sign"); it != req_.end()) {
             sign_header = it->value();            
         }
-
+        LOG_MAIN_INFO_AT("sign_header: {}", sign_header);
         // 交给路由器 HttpRouter 处理
         boost::json::object rsp_obj;
         if (!sign_header.empty()) {            

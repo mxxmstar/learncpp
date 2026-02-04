@@ -12,16 +12,16 @@ bool ZLMHookHandler::HandleRequest(const http::request<http::string_body>& req, 
         auto req_obj = boost::json::parse(req.body()).as_object();
 
         // 验证密钥
-        if (!req_obj.contains("secret")) {
-            LOG_MAIN_ERROR_AT("Missing secret in zlm hook request");
-            sendBadResponse(rsp);
-            return false;
-        }        
-        if (req_obj["secret"].as_string().c_str() != secret_) {
-            LOG_MAIN_ERROR_AT("Invalid secret in zlm hook request");
-            sendForbiddenResponse(rsp);
-            return false;
-        }
+        // if (!req_obj.contains("secret")) {
+        //     LOG_MAIN_ERROR_AT("Missing secret in zlm hook request");
+        //     sendBadResponse(rsp);
+        //     return false;
+        // }        
+        // if (req_obj["secret"].as_string().c_str() != secret_) {
+        //     LOG_MAIN_ERROR_AT("Invalid secret in zlm hook request");
+        //     sendForbiddenResponse(rsp);
+        //     return false;
+        // }
 
         // 验证事件
         if (!req_obj.contains("event")) {
@@ -32,11 +32,17 @@ bool ZLMHookHandler::HandleRequest(const http::request<http::string_body>& req, 
         std::string event = req_obj["event"].as_string().c_str();
         boost::json::object rsp_obj;
 
+        LOG_MAIN_INFO_AT("Received ZLM hook event: {}", event);
+
         // 处理事件
-        if (event == "on_publish") {
-
+        if (event == "on_server_start") {
+            OnStart(req_obj, rsp_obj);
+        } else if (event == "on_keepalive") {
+            OnKeepalive(req_obj, rsp_obj);
+        } else if (event == "on_publish") {
+            OnPublish(req_obj, rsp_obj);
         } else if (event == "on_play") {
-
+            OnPlay(req_obj, rsp_obj);
         } else {
             LOG_MAIN_ERROR_AT("Unknown event in zlm hook request", event);
             sendErrorResponse(rsp);
@@ -58,11 +64,72 @@ bool ZLMHookHandler::HandleRequest(const http::request<http::string_body>& req, 
     }
 }
 
+
+bool ZLMHookHandler::HandleJsonRequest(const boost::json::object& req_obj, boost::json::object& rsp_obj) {
+    try { 
+        // 解析请求
+        if (!req_obj.contains("event")) {
+            LOG_MAIN_ERROR_AT("Missing event in zlm hook request");
+            rsp_obj["code"] = 400;  // TODO: 错误码
+            rsp_obj["msg"] = "missing event";
+            return false;
+        }
+        auto event = req_obj.at("event").as_string().c_str();
+        //std::string event = req_obj["event"].as_string().c_str();
+        LOG_MAIN_INFO_AT("Received ZLM hook event: {}", event);
+
+        // 处理事件
+        if (event == "on_server_started") {
+            LOG_MAIN_INFO_AT("ZLMediaKit server started: {}", boost::json::serialize(req_obj));
+            OnStart(req_obj, rsp_obj);
+        }
+    } catch (const std::out_of_range& e) {
+        LOG_MAIN_ERROR_AT("Missing required field in zlm hook request: {}", e.what());
+        rsp_obj["code"] = 400;
+        rsp_obj["msg"] = "Missing required field";
+        return false;
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("Failed to parse zlm hook request: {}", e.what());
+        rsp_obj["code"] = 500;
+        rsp_obj["msg"] = "Internal server error";
+        return false;
+    }
+    return true;
+}
+
+
+void ZLMHookHandler::OnStart(const boost::json::object& req, boost::json::object& rsp) {
+    try {
+        rsp["code"] = 200;
+        rsp["msg"] = "server start";
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("OnStart exception: {}", e.what());
+    }
+}
+
+void ZLMHookHandler::OnKeepalive(const boost::json::object& req, boost::json::object& rsp) {
+    try { 
+        rsp["code"] = 200;
+        rsp["msg"] = "keepalive";
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("OnKeepalive exception: {}", e.what());
+    }
+}
+
 void ZLMHookHandler::OnPublish(const boost::json::object& req, boost::json::object& rsp) {
     try { 
     } catch (const std::exception& e) {
         LOG_MAIN_ERROR_AT("OnPlulish exception: {}", e.what());
         
+    }
+}
+
+void ZLMHookHandler::OnPlay(const boost::json::object& req, boost::json::object& rsp) {
+    try { 
+        rsp["code"] = 200;
+        rsp["msg"] = "play";
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("OnPlay exception: {}", e.what());
     }
 }
 
