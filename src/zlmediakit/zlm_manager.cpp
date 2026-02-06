@@ -211,33 +211,6 @@ bool ZLMManager::Start()
 void ZLMManager::RegisterRoutes() {
     std::string zlm_key = "zlmediakit"; // 假设这是从配置文件或环境变量中获取的
 
-    hook_handler_ = ZLMHookHandler {
-        zlm_key,
-        [this](const std::string& req, const boost::json::value& payload) {
-        }
-    };
-
-    // 注册安全路由 /hook
-    HttpRouter::GetInstance().RegisterSecureRoute("/zlmediakit/hook",
-        zlm_key,
-        [this](const boost::json::object& req, boost::json::object& rsp) {
-            try {
-                // TODO: 处理 ZLMediaKit 的 Hook 请求
-            } catch (std::exception& e) {
-                LOG_MAIN_ERROR_AT("exception: {}", e.what());
-                rsp["code"] = ErrorCode::MakeZlmErrorCode(ErrorCode::Media::Zlmediakit::UnknowError);
-                rsp["message"] = e.what();
-            }
-        }
-    );
-
-    // 注册普通路由
-    HttpRouter::GetInstance().RegisterRoute("/zlmediakit/health",
-        [](const boost::json::object& req, boost::json::object& rsp) {
-            // TODO: 处理 ZLMediaKit 的健康检查请求
-            // 简单的健康检查响应
-            rsp["code"] = ErrorCode::MakeZlmSuccessCode(); 
-            rsp["message"] = "ZLMediaKit is running";
-        }
-    );
+    hook_handler_ = ZLMHookHandler { zlm_key };   
+    hook_handler_.RegisterRoutes();
 }

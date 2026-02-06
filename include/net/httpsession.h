@@ -19,7 +19,6 @@ private:
     void AsyncCheckDeadline();
 
     void HandleRequest();
-    bool NeedAuthenticate(const std::string& path);
     
 
     tcp::socket socket_;
@@ -27,7 +26,6 @@ private:
     http::request<http::string_body> req_;
     http::response<http::string_body> rsp_;
     /// @brief 超时定时器，60秒未收到请求则关闭连接
-    net::steady_timer deadline_timer_ { socket_.get_executor(), std::chrono::seconds(60) };
-    // std::string url_;
+    net::steady_timer deadline_timer_ { socket_.get_executor(), std::chrono::seconds(60) };    
 };
 

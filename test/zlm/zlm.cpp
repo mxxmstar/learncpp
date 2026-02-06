@@ -10,14 +10,10 @@ int main() {
 
     std::cout << "Initializing ZLMediaKit Hook Server Test..." << std::endl;
     
-    try {
-
-        auto r = HttpRouter::GetInstance();
-        r.RegisterRoute("/hook/server_started", [](const boost::json::object& req_obj, boost::json::object& rsp_obj){
-            rsp_obj["code"] = 200;
-            rsp_obj["msg"] = "server_started";
-            std::cout << "server_started" << std::endl;
-        });
+    try {        
+        // 创建 Hook 处理器，使用默认密钥
+        ZLMHookHandler hook_handler("test_secret");
+        hook_handler.RegisterRoutes();
 
         // 创建主io_context
         boost::asio::io_context main_io_context;
@@ -32,11 +28,7 @@ int main() {
         server.Start();
 
         // 运行主io_context
-        main_io_context.run();
-        
-        // 创建 Hook 处理器，使用默认密钥
-        ZLMHookHandler hook_handler("test_secret", nullptr);
-        
+        main_io_context.run();                
         
     
         

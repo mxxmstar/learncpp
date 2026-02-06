@@ -72,58 +72,35 @@ void AsioHttpSession::HandleRequest() {
     rsp_.keep_alive(false);
     rsp_.set(boost::beast::http::field::server, BOOST_BEAST_VERSION_STRING);
     rsp_.set(boost::beast::http::field::access_control_allow_origin, "*");
-    LOG_MAIN_INFO_AT("HandleRequest: {}", req_.target());
+    // LOG_MAIN_INFO_AT("HandleRequest: {}", req_.target());
+    
+    // LOG_MAIN_INFO_AT("All headers:");
+    // for (auto const& field : req_) {
+    //     LOG_MAIN_INFO_AT("  {}: {}", field.name_string(), field.value());
+    // }
+    // LOG_MAIN_INFO_AT("Request Body: {}", req_.body());
+
     if (req_.method() == boost::beast::http::verb::get) {
         rsp_.result(boost::beast::http::status::ok);
-        rsp_.body() = "Hello, World!";
-        // TODO: 处理GET请求
-        AsyncWrite();
-    }
-
-    if (req_.method() == boost::beast::http::verb::post) {
-        rsp_.result(boost::beast::http::status::ok);
-        rsp_.body() = "POST request received";
-        
-        std::string sign_header;
-        if (auto it = req_.find("sign"); it != req_.end()) {
-            sign_header = it->value();            
-        }
-        LOG_MAIN_INFO_AT("sign_header: {}", sign_header);
-        // 交给路由器 HttpRouter 处理
         boost::json::object rsp_obj;
-        if (!sign_header.empty()) {            
-            HttpRouter::GetInstance().DispatchRequest(
-                req_.target(), 
-                req_.body(), 
-                sign_header, 
-                rsp_obj
-            );
-        } else {
-            HttpRouter::GetInstance().DispatchRequest(
-                req_.target(), 
-                req_.body(), 
-                rsp_obj
-            );
-        }
-        
-        
+        rsp_obj["code"] = 0;
+        rsp_obj["msg"] = "success";
+        rsp_.body() = boost::json::serialize(rsp_obj);
+        // TODO: 处理GET请求
+
+        AsyncWrite();
+    }
+
+    if (req_.method() == boost::beast::http::verb::post) {                                                                       
+        // 交给路由器 HttpRouter 处理
+        boost::json::object rsp_obj;        
+        HttpRouter::GetInstance().DispatchRequest(req_, rsp_obj);        
+        std::string rsp_str = boost::json::serialize(rsp_obj);
+        rsp_.body() = rsp_str;
+        rsp_.result(boost::beast::http::status::ok);
+        LOG_MAIN_INFO_AT("Response Body: {}", rsp_str);
 
         AsyncWrite();
     }
 }
 
-bool AsioHttpSession::NeedAuthenticate(const std::string& path) {
-    // 需要认证的路由
-    static const std::set<std::string> auth_paths = {
-        "/zlmediakit/"
-        "/zlm/"
-        "/zlmediakit/api/"
-        "/zlm/api/"
-    };
-    for (const auto& p : auth_paths) {
-        if (path.find(p) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
