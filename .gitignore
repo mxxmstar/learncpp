@@ -21,3 +21,10 @@ hls/
 .vs/ProjectSettings.json
 .vs/cmake.db
 
+*.log
+*.pdb
+*.ilk
+tools/win32/zlmediakit/www/
+tools/win32/zlmediakit/www/live/
+tools/win32/zlmediakit/www/live/proxy_cam1/
+tools/win32/zlmediakit/www/live/proxy_cam1/hls.m3u8
