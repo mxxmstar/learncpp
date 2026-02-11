@@ -71,9 +71,17 @@ namespace Net {
 // #define NET_ERROR_HTTP_PARSE_JSON_FAILED   0x0301010A   // HTTP解析JSON失败
     namespace Http {
         static constexpr uint16_t HttpModule = 0x101;  // HTTP模块标识
-        static constexpr uint32_t InvalidRequest      = 0x0001;  // HTTP请求无效
-        static constexpr uint32_t InvalidResponse     = 0x0002;  // HTTP响应无效
+        static constexpr uint32_t NetworkError = 0x0001;  // 网络错误模块标识
+        static constexpr uint32_t ResolveFailed       = 0x0002; // 解析域名失败
+        static constexpr uint32_t ConnectFailed      = 0x0003;  // 连接失败
+        static constexpr uint32_t ConnectTimeout     = 0x0004;  // 连接超时
+        static constexpr uint32_t WriteFailed        = 0x0004;  // HTTP写入失败
+        static constexpr uint32_t ReadFailed          = 0x0005; // HTTP读取失败
 
+        static constexpr uint32_t InvalidRequest      = 0x0011;  // HTTP请求无效
+        static constexpr uint32_t InvalidResponse     = 0x0012;  // HTTP响应无效
+        
+        
         static constexpr uint32_t ParseJsonFailed    = 0x0030;  // HTTP解析JSON失败
         static constexpr uint32_t MissingJsonField   = 0x0031;  // HTTP请求体中缺少字段
     }

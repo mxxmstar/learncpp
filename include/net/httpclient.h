@@ -83,13 +83,16 @@ public:
 private:
     struct RequestData {
         CompleteHandler handler;
-        int timeout_ms;
+        /// @brief 开始时间
+        std::chrono::steady_clock::time_point start_time;
+        /// @brief 超时时间
+        std::chrono::milliseconds timeout_ms;
         http::request<http::string_body> req;
         http::response<http::string_body> rsp;
         beast::flat_buffer buffer;
         std::shared_ptr<tcp::socket> socket;
         std::shared_ptr<boost::asio::steady_timer> timer;
-        bool completed = false;
+        std::atomic<bool> completed{ false };
     };
 
     void startResolve(std::shared_ptr<RequestData> req_data, const std::string& url);

@@ -1,7 +1,11 @@
 ﻿#include "net/httpclient.h"
 #include "log/logmanager.h"
+#include "common/errcode.h"
 #include <ctime>
 #include <thread>
+
+namespace HttpErrCode =  ErrorCode::Net::Http;
+
 AsioSyncHttpClient::AsioSyncHttpClient(const std::string& host, uint16_t port) : host_(host), port_(port)
 {
 }
@@ -115,7 +119,10 @@ AsioAsyncHttpClient::~AsioAsyncHttpClient()
 void AsioAsyncHttpClient::PostJson(const std::string& url, const boost::json::object& req_obj, CompleteHandler handler, int timeout_ms) {
     auto req_data = std::make_shared<RequestData>();
     req_data->handler = handler;
-    req_data->timeout_ms = timeout_ms;
+    // 记录开始时间
+    req_data->start_time = std::chrono::steady_clock::now();
+    // 设置超时时间
+    req_data->timeout_ms = std::chrono::milliseconds(timeout_ms);
     req_data->socket = std::make_shared<tcp::socket>(ioc_);
     req_data->timer = std::make_shared<net::steady_timer>(ioc_);
 
@@ -137,7 +144,10 @@ void AsioAsyncHttpClient::PostJson(const std::string& url, const boost::json::ob
 void AsioAsyncHttpClient::GetJson(const std::string& url, CompleteHandler handler, int timeout_ms) {
     auto req_data = std::make_shared<RequestData>();
     req_data->handler = handler;
-    req_data->timeout_ms = timeout_ms;
+    // 记录开始时间
+    req_data->start_time = std::chrono::steady_clock::now();
+    // 设置超时时间
+    req_data->timeout_ms = std::chrono::milliseconds(timeout_ms);
     req_data->socket = std::make_shared<tcp::socket>(ioc_);
     req_data->timer = std::make_shared<net::steady_timer>(ioc_);
 
@@ -153,6 +163,7 @@ void AsioAsyncHttpClient::GetJson(const std::string& url, CompleteHandler handle
 }
 
 void AsioAsyncHttpClient::startResolve(std::shared_ptr<RequestData> req_data, const std::string& url) {
+    // 开始超时定时器
     startTimeout(req_data);
     auto self = shared_from_this();
     resolver_.async_resolve(
@@ -163,36 +174,32 @@ void AsioAsyncHttpClient::startResolve(std::shared_ptr<RequestData> req_data, co
     );
 }
 
-void AsioAsyncHttpClient::handleResolve(std::shared_ptr<RequestData> req_data, beast::error_code ec, tcp::resolver::results_type results) { 
-    boost::json::object rsp_obj;    
+void AsioAsyncHttpClient::handleResolve(std::shared_ptr<RequestData> req_data, beast::error_code ec, tcp::resolver::results_type results) {     
     if (ec) {
         // 取消超时定时器
         req_data->timer->cancel();
 
         LOG_MAIN_ERROR_AT("Failed to resolve url {}:{}", host_, port_);
+        boost::json::object rsp_obj;
         rsp_obj["code"] = ec.value();
-        rsp_obj["msg"] = ec.message();        
+        rsp_obj["msg"] = ec.message();
         req_data->handler(false, rsp_obj);
+        req_data->completed = true;
         return;
     }
-
-    // 解析成功，取消超时定时器,连接阶段重新设置超时
-    req_data->timer->cancel();
-    startConnect(req_data, results);
     
+    startConnect(req_data, results);
 }
 
-void AsioAsyncHttpClient::startConnect(std::shared_ptr<RequestData> req_data, tcp::resolver::results_type endpoints) {
-    // 重新设置连接阶段的超时
-    req_data->timer->expires_after(std::chrono::microseconds(req_data->timeout_ms));
-    auto self = shared_from_this();
+void AsioAsyncHttpClient::startConnect(std::shared_ptr<RequestData> req_data, tcp::resolver::results_type endpoints) {    
+    auto self = shared_from_this();    
     net::async_connect(
         *req_data->socket,
         endpoints,        
         [self, req_data](beast::error_code ec, tcp::resolver::results_type::endpoint_type endpoint) {
             self->handleConnect(req_data, ec, endpoint);
         }
-    );
+    );    
 }
 
 void AsioAsyncHttpClient::handleConnect(std::shared_ptr<RequestData> req_data, beast::error_code ec, tcp::resolver::results_type::endpoint_type endpoint) {
@@ -205,17 +212,14 @@ void AsioAsyncHttpClient::handleConnect(std::shared_ptr<RequestData> req_data, b
         rsp_obj["code"] = ec.value();
         rsp_obj["msg"] = ec.message();
         req_data->handler(false, rsp_obj);
+        req_data->completed = true;
         return;
     }
-
-    // 连接成功，取消连接阶段的超时定时器，发送请求阶段会重新设置超时
-    req_data->timer->cancel();
+    
     startWrite(req_data);
 }
 
-void AsioAsyncHttpClient::startWrite(std::shared_ptr<RequestData> req_data) {
-    // 重新设置发送请求阶段的超时
-    req_data->timer->expires_after(std::chrono::microseconds(req_data->timeout_ms));
+void AsioAsyncHttpClient::startWrite(std::shared_ptr<RequestData> req_data) {    
     auto self = shared_from_this();
     http::async_write(
         *req_data->socket, req_data->req,
@@ -226,23 +230,23 @@ void AsioAsyncHttpClient::startWrite(std::shared_ptr<RequestData> req_data) {
 }
 
 void AsioAsyncHttpClient::handleWrite(std::shared_ptr<RequestData> req_data, beast::error_code ec, std::size_t bytes_transferred) { 
-    if (ec) { 
+    if (ec) {
+        // 取消超时定时器
+        req_data->timer->cancel();
+
         LOG_MAIN_ERROR_AT("Failed to write request to url {}:{}", host_, port_);
         boost::json::object rsp_obj;
         rsp_obj["code"] = ec.value();
         rsp_obj["msg"] = ec.message();
         req_data->handler(false, rsp_obj);
+        req_data->completed = true;
         return;
     }
 
-    // 发送成功，取消发送请求阶段的超时定时器，接收响应阶段会重新设置超时
-    req_data->timer->cancel();
     startRead(req_data);
 }
 
-void AsioAsyncHttpClient::startRead(std::shared_ptr<RequestData> req_data) { 
-    // 重新设置接收响应阶段的超时
-    req_data->timer->expires_after(std::chrono::microseconds(req_data->timeout_ms));
+void AsioAsyncHttpClient::startRead(std::shared_ptr<RequestData> req_data) {     
     auto self = shared_from_this();    
     http::async_read(
         *req_data->socket,req_data->buffer, req_data->rsp,
@@ -253,12 +257,16 @@ void AsioAsyncHttpClient::startRead(std::shared_ptr<RequestData> req_data) {
 }
 
 void AsioAsyncHttpClient::handleRead(std::shared_ptr<RequestData> req_data, beast::error_code ec, std::size_t bytes_transferred) { 
-    if (ec) { 
+    if (ec) {
+        // 取消超时定时器
+        req_data->timer->cancel();
+
         LOG_MAIN_ERROR_AT("Failed to read response from url {}:{}", host_, port_);
         boost::json::object rsp_obj;
         rsp_obj["code"] = ec.value();
         rsp_obj["msg"] = ec.message();
         req_data->handler(false, rsp_obj);
+        req_data->completed = true;
         return;
     }
     // 接收成功，取消接收响应阶段的超时定时器，请求完成
@@ -283,6 +291,8 @@ void AsioAsyncHttpClient::handleRead(std::shared_ptr<RequestData> req_data, beas
             // TODO
             req_data->handler(true, rsp_obj);
         }
+        // 请求完成
+        req_data->completed = true;
     }
     catch (const std::exception& e) {
         LOG_MAIN_ERROR_AT("Failed to parse HTTP response body: {}", e.what());
@@ -294,11 +304,21 @@ void AsioAsyncHttpClient::handleRead(std::shared_ptr<RequestData> req_data, beas
 }
 
 void AsioAsyncHttpClient::startTimeout(std::shared_ptr<RequestData> req_data) {
-    req_data->timer->expires_after(std::chrono::milliseconds(req_data->timeout_ms));
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - req_data->start_time);
+    auto remaining = req_data->timeout_ms - elapsed;
+    
+    if (remaining.count() <= 0) {
+        handleTimeout(req_data, {});
+        return;
+    }
 
-    auto self = shared_from_this();
+    req_data->timer->expires_after(remaining);
+    auto self = weak_from_this();
     req_data->timer->async_wait([self, req_data](beast::error_code ec) {
-        self->handleTimeout(req_data, ec);
+        if (auto ptr = self.lock()) {
+            ptr->handleTimeout(req_data, ec);
+        }        
     });
 }
 
