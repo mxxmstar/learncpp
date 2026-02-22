@@ -71,7 +71,7 @@ public:
     /// @brief 异步POST JSON请求
     /// @param url 请求URL
     /// @param req_obj 请求JSON对象
-    /// @param handler 请求完成回调函数    
+    /// @param handler 请求完成回调函数
     /// @param timeout_ms 超时时间，单位毫秒    
     void PostJson(const std::string& url, const boost::json::object& req_obj, CompleteHandler handler, int timeout_ms = ASYNC_TIMEOUT_MS);
 
