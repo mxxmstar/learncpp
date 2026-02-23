@@ -21,6 +21,7 @@ foreach(test_file ${TEST_SOURCES})
             Boost::process
             Boost::pool
             async_simple::async_simple
+            yaml-cpp::yaml-cpp
 
     )
     

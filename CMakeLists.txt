@@ -25,6 +25,8 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool)
 # 3. 查找 async_simple
 find_package(async_simple CONFIG REQUIRED)
+# 4. 查找 yaml-cpp
+find_package(yaml-cpp CONFIG REQUIRED)
 
 # 添加源文件
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -50,6 +52,7 @@ if(WIN32)
             Boost::process
             Boost::pool
             async_simple::async_simple
+            yaml-cpp::yaml-cpp
             ntdll
             user32
             shell32
@@ -65,6 +68,7 @@ else()
             Boost::process
             Boost::pool
             async_simple::async_simple
+            yaml-cpp::yaml-cpp
     )
 endif()
 
@@ -87,6 +91,7 @@ if(WIN32)
             Boost::json
             Boost::process
             async_simple::async_simple
+            yaml-cpp::yaml-cpp
             ntdll
             user32
             shell32
@@ -101,6 +106,7 @@ else()
             Boost::json
             Boost::process
             async_simple::async_simple
+            yaml-cpp::yaml-cpp
     )
 endif()
 
