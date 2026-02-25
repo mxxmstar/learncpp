@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 添加编译开关来控制是否构建测试
 option(BUILD_TESTS "Build tests" ON)
+option(BUILD_RTSP_SERVER "Build RTSP server module" ON)
 
 # 设置可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -27,6 +28,14 @@ find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool)
 find_package(async_simple CONFIG REQUIRED)
 # 4. 查找 yaml-cpp
 find_package(yaml-cpp CONFIG REQUIRED)
+# 5. 查找 FFmpeg（用于视频编解码模块） fmpeg 包使用的是传统的 FindFFMPEG 模块，而不是现代的 Config 模式。
+find_package(ffmpeg REQUIRED)
+
+# 独立模块（带 m_ 前缀，不编译到主程序）
+if(BUILD_RTSP_SERVER)
+    add_subdirectory(m_video_codec)
+    add_subdirectory(m_rtsp_server)
+endif()
 
 # 添加源文件
 file(GLOB_RECURSE SOURCES "src/*.cpp")

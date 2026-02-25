@@ -15,5 +15,4 @@ private:
     AsioIOContextPool& worker_pool_;
     boost::asio::ip::tcp::acceptor acceptor_;
     std::atomic<bool> running_{false};
-    
 };
