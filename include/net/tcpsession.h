@@ -28,6 +28,8 @@ public:
     std::string GetSessionID() const;
     std::string GetRemoteAddress() const override;
     int16_t GetRemotePort() const override;
+    std::string GetLocalAddress() const override;
+    int16_t GetLocalPort() const override;
 
     void SetDataHandler(DataHandler handler) override;
     void SetCloseHandler(CloseHandler handler) override;

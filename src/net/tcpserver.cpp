@@ -47,3 +47,32 @@ void AsioTCPServer::DoAccept() {
         DoAccept();
     });
 }
+
+std::string AsioTCPServer::GetServerIp() const {
+    try {
+        auto endpoint = acceptor_.local_endpoint();
+        return endpoint.address().to_string();
+    } catch (std::exception& e) {
+        LOG_MAIN_ERROR_AT("AsioTCPServer::GetServerIp()", "Exception: %s", e.what());
+        return "0.0.0.0";
+    }
+}
+
+uint16_t AsioTCPServer::GetServerPort() const { 
+    try {
+        auto endpoint = acceptor_.local_endpoint();
+        return endpoint.port();
+    } catch (std::exception& e) {
+        LOG_MAIN_ERROR_AT("AsioTCPServer::GetServerPort()", "Exception: %s", e.what());
+        return 0;
+    }
+}
+
+boost::asio::ip::tcp::endpoint AsioTCPServer::GetServerEndpoint() const {
+    try {
+        return acceptor_.local_endpoint();
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("AsioTCPServer::GetLocalEndpoint() failed: {}", e.what());
+        return boost::asio::ip::tcp::endpoint();
+    }
+}

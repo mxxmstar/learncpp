@@ -15,6 +15,11 @@ public:
     void Stop();
 
     void SetAcceptHandler(AcceptHandler handler);
+
+    std::string GetServerIp() const;
+    uint16_t GetServerPort() const;
+
+    boost::asio::ip::tcp::endpoint GetServerEndpoint() const;
 private:    
     void DoAccept();
 

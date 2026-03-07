@@ -176,6 +176,24 @@ int16_t AsioTCPSession::GetRemotePort() const {
     return socket_.remote_endpoint().port();
 }
 
+std::string AsioTCPSession::GetLocalAddress() const {
+    boost::system::error_code ec;
+    auto endpoint = socket_.local_endpoint(ec);
+    if (ec) {
+        return "";
+    }
+    return endpoint.address().to_string();
+}
+
+int16_t AsioTCPSession::GetLocalPort() const {
+    boost::system::error_code ec;
+    auto endpoint = socket_.local_endpoint(ec);
+    if (ec) {
+        return -1;
+    }
+    return endpoint.port();
+}
+
 void AsioTCPSession::SetDataHandler(DataHandler handler) {
     data_handler_ = std::move(handler);
 }

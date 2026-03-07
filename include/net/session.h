@@ -19,6 +19,8 @@ public:
     virtual bool IsRunning() const = 0;
     virtual std::string GetRemoteAddress() const = 0;
     virtual int16_t GetRemotePort() const = 0;
+    virtual std::string GetLocalAddress() const = 0;
+    virtual int16_t GetLocalPort() const = 0;
 
     virtual void SetDataHandler(DataHandler handler) = 0;
     virtual void SetCloseHandler(CloseHandler handler) = 0;

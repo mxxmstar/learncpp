@@ -1,6 +1,7 @@
 #include "log/logmanager.h"
 #include <iostream>
-
+#include <thread>
+#include <chrono>
 
 
 
@@ -38,5 +39,8 @@ int main() {
     LOG_ERROR_INFO_AT("这是一条错误信息日志, {}", 123);
     LOG_ERROR_WARN_AT("这是一条错误警告日志, {}", 123);
     LOG_ERROR_CRITICAL_AT("这是一条错误严重错误日志, {}", 123);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    spdlog::drop_all();
     return 0;
 }

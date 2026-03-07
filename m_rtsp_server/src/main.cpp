@@ -1,33 +1,82 @@
+#include "net/tcpserver.h"
+#include "net/tcpsession.h"
+#include "net/asio_io_context_pool.h"
+#include "log/logmanager.h"
+#include <spdlog/spdlog.h>
 #include <iostream>
-#include <rtsp_session.h>
+#include <memory>
+#include <string>
+#include <thread>
+#include <chrono>
+#include "rtsp_log.h"
+#include "rtsp_session.h"
+#include "rtsp_server.h"
+using namespace boost::asio::ip;
+
+//class EchoSession : public AsioTCPSession {
+//public:
+//    explicit EchoSession(tcp::socket socket)
+//        : AsioTCPSession(std::move(socket)) {}
+//
+//protected:
+//    void OnBytes(const uint8_t* data, size_t size) override {
+//        // ÂõûÊòæÊï∞ÊçÆ
+//        std::cout << "Received: " << std::string(reinterpret_cast<const char*>(data), size) << std::endl;
+//        Send(data, size);
+//    }
+//
+//    void OnClose() override {
+//        LOG_MAIN_INFO_AT("EchoSession closed: {}", GetSessionID());
+//    }
+//
+//};
+//
+//class EchoTCPServer {
+//public:
+//    EchoTCPServer(boost::asio::io_context& io_context, AsioIOContextPool& worker_pool, uint16_t port)
+//        : server_(io_context, worker_pool, port) {
+//        server_.SetAcceptHandler([this, &worker_pool](tcp::socket socket) {
+//            // ‰ªéÂ∑•‰ΩúÊ±†‰∏≠Ëé∑Âèñ‰∏Ä‰∏™io_contextÁî®‰∫éÂ§ÑÁêÜÊ≠§ËøûÊé•
+//            auto& io_context = worker_pool.GetIOContext();
+//
+//            // ÂàõÂª∫EchoSessionÂπ∂ÂêØÂä®
+//            auto session = std::make_shared<EchoSession>(std::move(socket));
+//            session->Start();
+//
+//            LOG_MAIN_INFO_AT("New echo session created: {}", session->GetSessionID());
+//            });
+//    }
+//    void Start() {
+//        server_.Start();
+//    }
+//
+//    void Stop() {
+//        server_.Stop();
+//    }
+//
+//private:
+//    AsioTCPServer server_;
+//};
 
 int main() {
-    //try {
-    //    LogManager& log_manager = LogManager::getInstance();
-    //    log_manager.Init();
-    //    std::cout << "LogManager initialized" << std::endl;
-    //    // ¥¥Ω®÷˜io_context
-    //    boost::asio::io_context main_io_context;
+    RtspLogger& logger = RtspLogger::GetInstance();
+    logger.Init();
+	LOG_RTSP_INFO_AT("RTSP server started");
+    LOG_RTSP_INFO_AT("RTSP server started");
 
-    //    // ¥¥Ω®π§◊˜≥ÿ
-    //    auto& worker_pool = AsioIOContextPool::GetInstance(AsioIOContextPool::ServiceType::TCP);
 
-    //    // ¥¥Ω®Echo∑˛ŒÒ∆˜£¨º‡Ã˝∂Àø⁄8888
-    //    EchoTCPServer server(main_io_context, worker_pool, 8888);
+        // ÂàõÂª∫‰∏ªio_context
+    boost::asio::io_context main_io_context;
 
-    //    // ∆Ù∂Ø∑˛ŒÒ∆˜
-    //    server.Start();
+    // ÂàõÂª∫Â∑•‰ΩúÊ±†
+    auto& worker_pool = AsioIOContextPool::GetInstance(AsioIOContextPool::ServiceType::TCP);
 
-    //    std::cout << "Echo server started on port 8888" << std::endl;
+	mx::RtspServer server(main_io_context, worker_pool, 8554);
+    server.Start();
 
-    //    // ‘À––÷˜io_context
-    //    main_io_context.run();
+	main_io_context.run();
 
-    //}
-    //catch (const std::exception& e) {
-    //    std::cerr << "Exception: " << e.what() << std::endl;
-    //}
-    M_RTSPSession s;
-    std::cout << "111" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    spdlog::drop_all();
     return 0;
 }

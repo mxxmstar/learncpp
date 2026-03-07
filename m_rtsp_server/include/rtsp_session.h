@@ -2,23 +2,41 @@
 #include <string>
 #include "net/tcpserver.h"
 #include "net/tcpsession.h"
-#include "net/httpsession.h"
-#include "net/httpserver.h"
+#include "rtsp_protocol.h"
+namespace mx {
 
-class M_RTSPSession : public AsioHttpSession {
+class RtspSession : public AsioTCPSession {
 public:
-    explicit M_RTSPSession(tcp::socket socket)
-        : AsioHttpSession(std::move(socket)) {}
+    explicit RtspSession(tcp::socket socket);
 
 protected:
-    void OnBytes(const uint8_t* data, size_t size) override {
-        // 回显数据
-        /*std::cout << "Received: " << std::string(reinterpret_cast<const char*>(data), size) << std::endl;
-        Send(data, size);*/
-    }
+    void OnBytes(const uint8_t* data, size_t size) override;
 
-    void OnClose() override {
-       /* LOG_MAIN_INFO_AT("EchoSession closed: {}", GetSessionID());*/
-    }
+    void OnClose() override;    
 
+private:
+	//RtspSessionContext context_;
+	/// @brief 处理RTSP请求
+	void handleRtspRequest(const std::string& request);
+    
+    /// @brief 构建RTSP响应
+    std::string buildResponse(const RtspResponse& response, std::string cseq);
+
+    /// @brief 处理OPTIONS请求
+    std::string handleOptions(const std::map<std::string, std::string>& headers);
+    /// @brief 处理DESCRIBE请求
+    std::string handleDescribe(const std::map<std::string, std::string>& headers);
+    /// @brief 处理SETUP请求
+    std::string handleSetup(const std::map<std::string, std::string>& headers);
+    /// @brief 处理PLAY请求
+    std::string handlePlay(const std::map<std::string, std::string>& headers);
+    /// @brief 处理TEARDOWN请求
+    std::string handleTeardown(const std::map<std::string, std::string>& headers);
+    /// @brief 处理PAUSE请求
+    std::string handlePause(const std::map<std::string, std::string>& headers);
+
+    std::string version_;
+    RtspSessionContext context_;
 };
+
+}

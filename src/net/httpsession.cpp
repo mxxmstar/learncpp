@@ -5,7 +5,7 @@
 #include <boost/json.hpp>
 #include <set>
 AsioHttpSession::AsioHttpSession(tcp::socket&& socket)
-    : socket_(std::move(socket)) {
+    : IAsioSession(std::move(socket)) {
 
 }
 
@@ -26,8 +26,14 @@ void AsioHttpSession::AsyncRead() {
                     LOG_MAIN_ERROR_AT("AsyncRead error: {}, bytes_transferred: {}", ec.message(), bytes_transferred);
                     return;
                 }
-                self->HandleRequest();
-                self->AsyncCheckDeadline();
+                /*self->HandleRequest();
+                self->AsyncCheckDeadline();*/
+                // 使用dynamic_pointer_cast转换为派生类指针
+                auto http_self = std::dynamic_pointer_cast<AsioHttpSession>(self);
+                if (http_self) {
+                    http_self->HandleRequest();
+                    http_self->AsyncCheckDeadline();
+                }
             } catch (std::exception& e) {
                 LOG_MAIN_ERROR_AT("AsyncRead error: {}", e.what());
             }        
@@ -45,8 +51,11 @@ void AsioHttpSession::AsyncWrite() {
                     LOG_MAIN_ERROR_AT("AsyncWrite error: {}, bytes_transferred: {}", ec.message(), bytes_transferred);
                     return;
                 }
-                self->socket_.cancel(); // 取消所有待处理的异步操作
-                self->deadline_timer_.cancel(); // 停止定时器
+                //self->socket_.cancel(); // 取消所有待处理的异步操作
+                //self->deadline_timer_.cancel(); // 停止定时器
+                auto http_self = std::dynamic_pointer_cast<AsioHttpSession>(self);
+                http_self->socket_.cancel();
+                http_self->deadline_timer_.cancel();
             } catch (std::exception& e) {
                 LOG_MAIN_ERROR_AT("AsyncWrite error: {}", e.what());
             }
