@@ -25,7 +25,7 @@
     "mysql-connector-cpp",
     "libpq",
     "libpqxx",
-    "sqlitecpp",
+    "sqlitecpp",    
     "grpc",
     "async-simple"
   ]
