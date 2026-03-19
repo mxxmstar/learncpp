@@ -5,11 +5,15 @@
 #include <functional>
 #include <memory>
 #include <string>
+namespace rtp {
 class MediaSource :public std::enable_shared_from_this<MediaSource> {
 public:
     using Ptr = std::shared_ptr<MediaSource>;
     using SendFrameCallback = std::function<bool (MediaChannelId channel_id, RtpPacket pkt)>;
     
+    /// @brief 构造函数
+    MediaSource() = default;
+
     // 禁止拷贝和移动
     MediaSource(const MediaSource&) = delete;
     MediaSource& operator=(const MediaSource&) = delete;
@@ -41,8 +45,7 @@ public:
     }
 
 protected:
-    /// @brief 构造函数
-    MediaSource() = default;
+    
     MediaType media_type_ = NONE;
     // 负载类型
     uint32_t  payload_ = 0;
@@ -55,3 +58,4 @@ protected:
         return const_cast<MediaSource*>(this)->shared_from_this();
     }
 };
+}

@@ -10,6 +10,7 @@
 #include <boost/asio.hpp>
 #include "rtp/h264source.h"
 #include "rtp/media.h"
+namespace rtp {
 
 class AsioRtpTransport;
 class AsioMediaSession : public std::enable_shared_from_this<AsioMediaSession> {
@@ -146,3 +147,4 @@ private:
     std::mutex mutex_;
 	std::unordered_set<std::string> addrs_;
 };
+}

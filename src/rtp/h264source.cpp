@@ -1,6 +1,6 @@
 #include "rtp/h264source.h"
 #include <chrono>
-
+namespace rtp {
 H264Source::H264Source(uint32_t frame_rate) : frame_rate_(frame_rate) {
     media_type_ = H264;
     payload_ = 96;
@@ -27,7 +27,11 @@ std::string H264Source::GetMediaDescription(uint16_t port) {
 }
 
 std::string H264Source::GetAttribute() {
-    return "a=rtpmap:" + std::to_string(payload_) + " H264/" + std::to_string(clock_rate_) + "\r\n";
+    auto str = "a=rtpmap:" + std::to_string(payload_) + " H264/" + std::to_string(clock_rate_) + "\r\n";
+    str += "a=fmtp:" + std::to_string(payload_) + ";packetization-mode=1;" + "profile-level-id=64001f;" \
+        + "sprop-parameter-sets=Z00AKpZQFAe2AtwEBAaQeJQ==,aO48gA==";
+    return str;
+   
 }
 
 bool H264Source::HandleFrame(MediaChannelId channelId, AVFrame frame) { 
@@ -121,4 +125,6 @@ bool H264Source::HandleFrame(MediaChannelId channelId, AVFrame frame) {
 uint32_t H264Source::GetTimestamp() {
     auto ts = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::steady_clock::now());
     return static_cast<uint32_t>((ts.time_since_epoch().count() + 500) / 1000 * 90);    //(clock_rate_ / 1000)
+}
+
 }

@@ -133,6 +133,10 @@ void AsioTCPSession::StopRead() {
     socket_.cancel(ec);
 }
 
+boost::asio::io_context& AsioTCPSession::GetIOContext() {
+    return static_cast<boost::asio::io_context&>(socket_.get_executor().context());
+}
+
 void AsioTCPSession::OnBytes(const uint8_t* data, size_t size) {
     if (data_handler_) {
         data_handler_(data, size);

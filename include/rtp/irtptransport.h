@@ -3,6 +3,8 @@
 #include <string>
 #include "rtp/media.h"
 #include "rtp/rtp.h"
+namespace rtp {
+
 /// @brief RTP传输接口定义
 class IRtpTransport {
 public:
@@ -25,7 +27,7 @@ public:
     /// @brief 获取对端端口号
     virtual uint16_t GetPeerPort() const = 0;
     /// @brief 获取会话ID
-    virtual uint32_t GetSessionId() const = 0;
+    //virtual uint32_t GetSessionId() const = 0;
 
     virtual void Start() = 0;
     virtual void Stop() = 0;    
@@ -34,3 +36,4 @@ public:
     /// @brief 发送RTP包
     virtual int SendRtpPacket(MediaChannelId channel_id, RtpPacket pkt) = 0;
 };
+}

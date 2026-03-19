@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include <memory>
-
+namespace rtp {
 /* 支持的媒体类型 */
 enum MediaType
 {
@@ -40,8 +40,7 @@ struct AVFrame
 
 static const int MAX_MEDIA_CHANNEL = 2;
 
-enum MediaChannelId
-{
+enum MediaChannelId {
 	channel_0,
 	channel_1
 };
@@ -49,4 +48,4 @@ enum MediaChannelId
 typedef uint32_t MediaSessionId;
 
 
-
+}

@@ -1,5 +1,7 @@
 #include "rtp/mediasession.h"
 #include "rtp/rtptransport.h"
+namespace rtp {
+
 static const int DEFAULT_MULTICAST_PORT = 5000;
 
 AsioMediaSession::AsioMediaSession(boost::asio::io_context& io_context, std::string url_suffix)
@@ -313,4 +315,6 @@ void AsioMediaSession::DispatchToClients(MediaChannelId channel_id, RtpPacket pa
             }
         }
     }
+}
+
 }

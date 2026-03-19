@@ -1,22 +1,29 @@
 #pragma once
 #include "rtp/irtptransport.h"
+#include "rtp/rtpsender.h"
 #include <boost/asio.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <memory>
 #include <map>
 #include <mutex>
 #include <array>
+
+namespace rtp {
 /**
  * @brief ASIO 实现的 RTP 传输类
  * @details 该类实现了 IRtpTransport 接口，使用 ASIO 库进行 RTP 传输。
- * @details 管理 RTP 和 RTCP socket，以及 RTP 包的发送。
+ * @details 只负责 RTP 包头填充和统计,不管理任何 socket    
+ * @details 所有发送通过外部传入的 IRtpSender 完成，实现了与传输层的解耦。
  */
 class AsioRtpTransport : public IRtpTransport, public std::enable_shared_from_this<AsioRtpTransport> {
 public:
     using Ptr = std::shared_ptr<AsioRtpTransport>;
-    explicit AsioRtpTransport(boost::asio::io_context& io_context,
-                              boost::asio::ip::tcp::socket& rtsp_socket);
+    explicit AsioRtpTransport(boost::asio::io_context& io_context);
     ~AsioRtpTransport() override;
+
+    /// @brief 设置 RTP 发送器
+    /// @param sender RTP 发送器    
+    void SetSender(IRtpSender::Ptr sender);
 
     // ========== 禁止拷贝 ==========
     AsioRtpTransport(const AsioRtpTransport&) = delete;
@@ -31,7 +38,6 @@ public:
     std::string GetPeerIp() const override;
     uint16_t GetPeerPort() const override;
     uint32_t GetNativeHandle() const;
-    // uint32_t GetSessionId() const override;
 
     void Start() override;
     void Stop() override;
@@ -41,43 +47,35 @@ public:
 
     bool SetRtpOverTcp(MediaChannelId channel_id, uint16_t rtp_channel, uint16_t rtcp_channel);
 
-    bool SetRtpOverUdp(MediaChannelId channel_id, uint16_t rtp_port, uint16_t rtcp_port);
+    /// @brief 设置 RTP -over-UDP 传输
+    /// @param channel_id 媒体通道 ID
+    /// @param rtp_port 对端 RTP 端口号
+    /// @param rtcp_port 对端 RTCP 端口号    
+    bool SetRtpOverUdp(MediaChannelId channel_id, uint16_t peer_rtp_port, uint16_t peer_rtcp_port);
 
-    bool SetRtpOverMulticast(MediaChannelId channel_id, const std::string& ip, uint16_t port);
+    /// @brief 配置 RTP -over-Multicast 传输
+    /// @param channel_id 媒体通道 ID
+    /// @param peer_ip 对端 IP 地址
+    /// @param peer_port 对端端口号    
+    bool SetRtpOverMulticast(MediaChannelId channel_id, const std::string& peer_ip, uint16_t peer_port);
 
     std::string GetRtpInfo(const std::string& rtsp_url) const;
 
 
 private:
-    int SendRtpOverTcp(MediaChannelId channel_id, RtpPacket pkt);
-    int SendRtpOverUdp(MediaChannelId channel_id, RtpPacket pkt);
+    int SendRtp(MediaChannelId channel_id, RtpPacket pkt);
     void FillRtpHeader(MediaChannelId channel_id, RtpPacket& pkt);
 
     boost::asio::io_context& io_context_;
-    ///@brief RTSP 服务器 socket（不拥有所有权）
-    boost::asio::ip::tcp::socket& rtsp_socket_;
+    IRtpSender::Ptr sender_;    
 
-    // uint32_t session_id_;   ///<@brief RTP ID
-    std::string peer_rtsp_ip_;   ///<@brief 对端 RTSP IP
-    uint16_t peer_rtsp_port_;     ///<@brief 对端 RTSP 端口
-
-    TransportMode transport_mode_ = TransportMode::RTP_OVER_TCP;
     bool is_multicast_ = false;
     bool is_closed_ = false;
 
-    std::string multicast_ip_;
-    uint16_t multicast_port_[MAX_MEDIA_CHANNEL];
-    
-    ///@brief RTP socket 对象（拥有所有权）
-    std::array<std::unique_ptr<boost::asio::ip::udp::socket>, MAX_MEDIA_CHANNEL> rtp_sockets_;
-    ///@brief RTCP socket 对象（拥有所有权）
-    std::array<std::unique_ptr<boost::asio::ip::udp::socket>, MAX_MEDIA_CHANNEL> rtcp_sockets_;
-
-    // 对端 UDP endpoint 数组
-    std::array<boost::asio::ip::udp::endpoint, MAX_MEDIA_CHANNEL> peer_rtp_endpoints_;
-    std::array<boost::asio::ip::udp::endpoint, MAX_MEDIA_CHANNEL> peer_rtcp_endpoints_;
     MediaChannelInfo media_info_[MAX_MEDIA_CHANNEL];
 
     SendCallback send_callback_;
     mutable std::mutex mutex_;
 };
+
+}

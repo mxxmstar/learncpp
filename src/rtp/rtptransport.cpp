@@ -1,22 +1,16 @@
 #include "rtp/rtptransport.h"
-
-AsioRtpTransport::AsioRtpTransport(boost::asio::io_context& io_context, boost::asio::ip::tcp::socket& rtsp_socket)
-    : io_context_(io_context), rtsp_socket_(rtsp_socket)
+namespace rtp{
+AsioRtpTransport::AsioRtpTransport(boost::asio::io_context& io_context)
+    : io_context_(io_context)
 {
-    // 获取对端信息
-    auto peer_endpoint = rtsp_socket.remote_endpoint();
-    peer_rtsp_ip_ = peer_endpoint.address().to_string();
-    peer_rtsp_port_ = peer_endpoint.port();
-
-    // 初始化对端 RTP 和 RTCP endpoint
-    for (int i = 0; i < MAX_MEDIA_CHANNEL; i++) {        
-        peer_rtp_endpoints_[i] = boost::asio::ip::udp::endpoint(peer_endpoint.address(), 0);
-        peer_rtcp_endpoints_[i] = boost::asio::ip::udp::endpoint(peer_endpoint.address(), 0);
-    }
 }
 
 AsioRtpTransport::~AsioRtpTransport() { 
     Stop();
+}
+
+void AsioRtpTransport::SetSender(IRtpSender::Ptr sender) {
+    sender_ = std::move(sender);    
 }
 
 void AsioRtpTransport::SetClockRate(MediaChannelId channel_id, uint32_t clock_rate) {
@@ -53,11 +47,15 @@ bool AsioRtpTransport::IsMulticast() const {
 }
 
 std::string AsioRtpTransport::GetPeerIp() const { 
-    return peer_rtsp_ip_;
+    return sender_->GetPeerIp();
 }
 
 uint16_t AsioRtpTransport::GetPeerPort() const { 
-    return peer_rtsp_port_;
+    return sender_->GetPeerPort();
+}
+
+uint32_t AsioRtpTransport::GetNativeHandle() const {
+    return 0;
 }
 
 void AsioRtpTransport::Start() {
@@ -69,20 +67,6 @@ void AsioRtpTransport::Stop() {
     if (is_closed_) {
         return;
     }
-    
-    // 关闭所有socket
-    for (int i = 0; i < MAX_MEDIA_CHANNEL; i++) {
-        if (rtp_sockets_[i] && rtp_sockets_[i]->is_open()) {
-            boost::system::error_code ec;
-            rtp_sockets_[i]->close(ec);
-            rtp_sockets_[i].reset();
-        }
-        if (rtcp_sockets_[i] && rtcp_sockets_[i]->is_open()) {
-            boost::system::error_code ec;
-            rtcp_sockets_[i]->close(ec);
-            rtcp_sockets_[i].reset();
-        }
-    }
     is_closed_ = true;
 }
 
@@ -91,19 +75,19 @@ bool AsioRtpTransport::IsClosed() const {
 }
 
 int AsioRtpTransport::SendRtpPacket(MediaChannelId channel_id, RtpPacket pkt) { 
-    if (is_closed_ || send_callback_ == nullptr) {
+    if (is_closed_ || sender_ == nullptr) {
         return -1;
     }
-
-    if (transport_mode_ == TransportMode::RTP_OVER_TCP) {
-        return SendRtpOverTcp(channel_id, std::move(pkt));
+    
+    int ret = SendRtp(channel_id, std::move(pkt));
+    if (ret < 0) {
+        return -1;
     }
-
-    if (transport_mode_ == TransportMode::RTP_OVER_UDP) { 
-        return SendRtpOverUdp(channel_id, std::move(pkt));
-    }
-
-    return -1;
+    
+    media_info_[channel_id].packet_count++;
+    media_info_[channel_id].octet_count += pkt.size;
+    
+    return 0;
 }
 
 bool AsioRtpTransport::SetRtpOverTcp(MediaChannelId channel_id, uint16_t rtp_channel, uint16_t rtcp_channel) { 
@@ -111,100 +95,35 @@ bool AsioRtpTransport::SetRtpOverTcp(MediaChannelId channel_id, uint16_t rtp_cha
     if (channel_id < 0 || channel_id >= MAX_MEDIA_CHANNEL) {
         return false;
     }
-    // 保存通道号
-    media_info_[channel_id].local_rtp_channel = rtp_channel;
-    media_info_[channel_id].local_rtcp_channel = rtcp_channel;
-    media_info_[channel_id].is_setup = true;
-
-    transport_mode_ = TransportMode::RTP_OVER_TCP;
+    
+    auto& info = media_info_[channel_id];
+    info.SetTcpMode(rtp_channel, rtcp_channel);
     return true;
 }
 
-bool AsioRtpTransport::SetRtpOverUdp(MediaChannelId channel_id, uint16_t rtp_port, uint16_t rtcp_port) { 
+bool AsioRtpTransport::SetRtpOverUdp(MediaChannelId channel_id, uint16_t peer_rtp_port, uint16_t peer_rtcp_port) { 
     std::lock_guard<std::mutex> lock(mutex_);
     if (channel_id < 0 || channel_id >= MAX_MEDIA_CHANNEL) {
         return false;
     }
-
-    try {
-        transport_mode_ = TransportMode::RTP_OVER_UDP;
-
-        // 创建socket
-        rtp_sockets_[channel_id] = std::make_unique<boost::asio::ip::udp::socket>(io_context_);
-        rtcp_sockets_[channel_id] = std::make_unique<boost::asio::ip::udp::socket>(io_context_);
-        rtp_sockets_[channel_id]->open(boost::asio::ip::udp::v4());
-        rtcp_sockets_[channel_id]->open(boost::asio::ip::udp::v4());
-
-        // 绑定到端口 0，让操作系统自动分配
-        rtp_sockets_[channel_id]->bind(
-            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 0));
-        rtcp_sockets_[channel_id]->bind(
-            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 0));
-
-        // 设置对端地址
-        auto peer_endpoint = rtsp_socket_.remote_endpoint();
-        peer_rtp_endpoints_[channel_id] = boost::asio::ip::udp::endpoint(
-            peer_endpoint.address(), rtp_port);
         
-        peer_rtcp_endpoints_[channel_id] = boost::asio::ip::udp::endpoint(
-            peer_endpoint.address(), rtcp_port);
+    auto& info = media_info_[channel_id];
+    info.SetUdpMode(peer_rtp_port, peer_rtcp_port, sender_->GetLocalPort(), sender_->GetLocalPort() + 1);    
         
-        
-         // 获取操作系统分配的端口，保存到media_info_
-        boost::system::error_code ec;
-        auto local_rtp_endpoint = rtp_sockets_[channel_id]->local_endpoint(ec);
-        auto local_rtcp_endpoint = rtcp_sockets_[channel_id]->local_endpoint(ec);
-        if (ec) {
-            return false;
-        }
-        
-        media_info_[channel_id].local_rtp_port = local_rtp_endpoint.port();
-        media_info_[channel_id].local_rtcp_port = local_rtcp_endpoint.port();
-        media_info_[channel_id].is_setup = true;        
-    } catch (std::exception& e) {
-        return false;
-    }
     return true;
 }
 
-bool AsioRtpTransport::SetRtpOverMulticast(MediaChannelId channel_id, const std::string& ip, uint16_t port) { 
+bool AsioRtpTransport::SetRtpOverMulticast(MediaChannelId channel_id, const std::string& peer_ip, uint16_t peer_port) { 
     std::lock_guard<std::mutex> lock(mutex_);
     if (channel_id < 0 || channel_id >= MAX_MEDIA_CHANNEL) {
         return false;
     }
-    try { 
-        transport_mode_ = TransportMode::RTP_OVER_MULTICAST;
-        is_multicast_ = true;
-        multicast_ip_ = ip;
-        multicast_port_[channel_id] = port;
-
-        // 创建 RTP socket
-        rtp_sockets_[channel_id] = std::make_unique<boost::asio::ip::udp::socket>(io_context_);        
-        rtp_sockets_[channel_id]->open(boost::asio::ip::udp::v4());        
-
-        boost::asio::ip::address multicast_address = boost::asio::ip::make_address(ip);
-        rtp_sockets_[channel_id]->set_option(boost::asio::ip::multicast::join_group(multicast_address));
-
-
-        // 创建 RTCP socket（可选，根据实际需求）
-        rtcp_sockets_[channel_id] = std::make_unique<boost::asio::ip::udp::socket>(io_context_);
-        rtcp_sockets_[channel_id]->open(boost::asio::ip::udp::v4());
-        rtcp_sockets_[channel_id]->bind(
-            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), port + 1));
         
-        peer_rtp_endpoints_[channel_id] = boost::asio::ip::udp::endpoint(
-            multicast_address, port);
-
-        // ✅ 保存本地端口（多播模式下通常不需要）
-        // boost::system::error_code ec;
-        // auto local_endpoint = rtp_sockets_[channel_id]->local_endpoint(ec);
-        // if (!ec) {
-        //     media_info_[channel_id].local_rtp_port = local_endpoint.port();
-        // }
-        media_info_[channel_id].is_setup = true;
-    } catch (std::exception& e) { 
-        return false;
-    }
+    is_multicast_ = true;    
+    
+    auto& info = media_info_[channel_id];
+    info.SetMulticastMode(peer_ip, peer_port);
+    
     return true;
 }
 
@@ -222,7 +141,6 @@ std::string AsioRtpTransport::GetRtpInfo(const std::string& rtsp_url) const {
                 rtp_info += ",";
             }
 
-            // 根据 clock_rate 计算时间戳
             uint32_t rtptime = static_cast<uint32_t>(ts * media_info_[i].clock_rate / 1000);
             char buf[256] = {0};
             snprintf(buf, sizeof(buf), 
@@ -235,55 +153,17 @@ std::string AsioRtpTransport::GetRtpInfo(const std::string& rtsp_url) const {
     return rtp_info;    
 }
 
-int AsioRtpTransport::SendRtpOverTcp(MediaChannelId channel_id, RtpPacket pkt) { 
+int AsioRtpTransport::SendRtp(MediaChannelId channel_id, RtpPacket pkt) { 
+    if (!sender_) {
+        return -1;
+    }
+
     FillRtpHeader(channel_id, pkt);
     
-    uint8_t* ptr = pkt.data.get();
-    // TCP需要添加4字节帧头部进行数据包定界
-    ptr[0] = '$';   // 帧头标识, RTP/RTCP 数据帧
-    ptr[1] = static_cast<uint8_t>(channel_id);  // 通道号
-    ptr[2] = static_cast<uint8_t>(((pkt.size - 4) & 0xFF00) >> 8);  // 数据长度高8位
-    ptr[3] = static_cast<uint8_t>((pkt.size - 4) & 0xFF);  // 数据长度低8位
-
-    boost::system::error_code ec;
-    boost::asio::write(rtsp_socket_, boost::asio::buffer(ptr, pkt.size), ec);
-    if (ec) {
+    int ret = sender_->Send(channel_id, pkt);
+    if (ret < 0) {
         return -1;
     }
-
-    media_info_[channel_id].packet_count++;
-    media_info_[channel_id].octet_count += pkt.size;
-
-    return 0;
-}
-
-int AsioRtpTransport::SendRtpOverUdp(MediaChannelId channel_id, RtpPacket pkt) { 
-    if (channel_id >= MAX_MEDIA_CHANNEL) {
-        return -1;
-    }
-
-    if (rtp_sockets_[channel_id] == nullptr || rtp_sockets_[channel_id]->is_open() == false) {
-        return -1;
-    }
-
-    FillRtpHeader(channel_id, pkt);
-
-    uint8_t* ptr = pkt.data.get();
-    // UDP不需要添加4字节帧头部进行数据包定界,但是空出4字节进行对齐
-    auto size = pkt.size - 4;
-
-    boost::system::error_code ec;
-    rtp_sockets_[channel_id]->send_to(
-        boost::asio::buffer(ptr, size),
-        peer_rtp_endpoints_[channel_id],
-        0, ec);
-
-    if (ec) {
-        return -1;
-    }
-
-    media_info_[channel_id].packet_count++;
-    media_info_[channel_id].octet_count += size;
 
     return 0;
 }
@@ -291,7 +171,6 @@ int AsioRtpTransport::SendRtpOverUdp(MediaChannelId channel_id, RtpPacket pkt) {
 void AsioRtpTransport::FillRtpHeader(MediaChannelId channel_id, RtpPacket& pkt) { 
     auto& info = media_info_[channel_id];
 
-    // 跳过4字节对齐
     RtpHeader* header = reinterpret_cast<RtpHeader*>(pkt.data.get() + 4);
     header->version = RTP_VERSION;
     header->padding = 0;
@@ -303,4 +182,4 @@ void AsioRtpTransport::FillRtpHeader(MediaChannelId channel_id, RtpPacket& pkt) 
     header->ts = htonl(pkt.timestamp);
     header->ssrc = htonl(info.rtp_header.ssrc);
 }
-
+}

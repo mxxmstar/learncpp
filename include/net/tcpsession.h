@@ -39,18 +39,22 @@ public:
     tcp::socket DetachSocket();
     /// @brief 停止 AsyncRead
     void StopRead();
+    /// @brief 获取 io_context
+    boost::asio::io_context& GetIOContext();
 
 protected:
     void AsyncRead();
     void AsyncWrite();
 
+    tcp::socket socket_;
+
 private:
-    // 子类只关心“收到字节”
+    // 子类只关心"收到字节"
     void OnBytes(const uint8_t* data, std::size_t size) override;
     void OnClose() override;
     void OnError(boost::system::error_code ec);
             
-    tcp::socket socket_;
+    
     std::vector<uint8_t> read_buffer_;
     std::string session_id_;
     std::atomic<bool> closed_{ false };
