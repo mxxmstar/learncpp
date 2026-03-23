@@ -9,8 +9,8 @@ foreach(test_file ${TEST_SOURCES})
     get_filename_component(test_name ${test_file} NAME_WE)
     set(test_target_name "test_${test_name}")
     
-    add_executable(${test_target_name} ${test_file} "rtsp/rtsp.cpp")
-    target_include_directories(${test_target_name} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    add_executable(${test_target_name} ${test_file})
+    target_include_directories(${test_target_name} PRIVATE ${CMAKE_SOURCE_DIR}/include ${FFMPEG_INCLUDE_DIRS})
     target_link_libraries(${test_target_name} 
         PRIVATE 
             myapp_lib
@@ -22,7 +22,7 @@ foreach(test_file ${TEST_SOURCES})
             Boost::pool
             async_simple::async_simple
             yaml-cpp::yaml-cpp
-
+            ${FFMPEG_LIBRARIES}
     )
     
     # 添加测试

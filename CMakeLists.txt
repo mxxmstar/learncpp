@@ -5,8 +5,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 添加编译开关来控制是否构建测试
-option(BUILD_TESTS "Build tests" ON)
-option(BUILD_RTSP_SERVER "Build RTSP server module" ON)
+option(BUILD_TESTS "Build tests" OFF)
+option(BUILD_RTSP_SERVER "Build RTSP server module" OFF)
 
 # 设置可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -43,6 +43,14 @@ file(GLOB_RECURSE SOURCES "src/*.cpp")
 # 定义预处理器宏来解决 WinSock 冲突
 if(WIN32)
     add_compile_definitions(WIN32_LEAN_AND_MEAN NOMINMAX)
+endif()
+
+# 添加 FFmpeg 所需的宏定义
+add_compile_definitions(__STDC_CONSTANT_MACROS)
+add_compile_definitions(__STDC_LIMIT_MACROS)
+
+if(MSVC)
+    add_compile_options(/Zm500) # 将内存上限提高到默认值的 200%
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES} "src/zlmediakit/zlm_hookserver.cpp")
