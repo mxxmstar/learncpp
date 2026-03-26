@@ -32,3 +32,12 @@ media:
   secret: your_secret
   rtmp_port: 1935
   rtsp_port: 554
+
+websocket:
+  host: 127.0.0.1
+  port: 8081
+  heartbeat_interval: 10
+  timeout: 30
+
+camera:
+  db_path: ./data/camera.db

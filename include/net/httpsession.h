@@ -4,10 +4,13 @@
 #include <boost/beast.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/uuid_generators.hpp>
+
 namespace beast = boost::beast;
 namespace http = beast::http;
 using tcp = boost::asio::ip::tcp;
-namespace net = boost::asio;
+using steady_timer = boost::asio::steady_timer;
+
+namespace Net {
 
 class IAsioSession : public std::enable_shared_from_this<IAsioSession>
 {
@@ -44,6 +47,7 @@ private:
     http::request<http::string_body> req_;
     http::response<http::string_body> rsp_;
     /// @brief 超时定时器，60秒未收到请求则关闭连接
-    net::steady_timer deadline_timer_ { socket_.get_executor(), std::chrono::seconds(60) };    
+    steady_timer deadline_timer_ { socket_.get_executor(), std::chrono::seconds(60) };    
 };
 
+}

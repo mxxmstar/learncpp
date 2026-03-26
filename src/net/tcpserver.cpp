@@ -2,6 +2,8 @@
 #include "log/logmanager.h"
 #include "net/asio_io_context_pool.h"
 
+namespace Net {
+
 AsioTCPServer::AsioTCPServer(boost::asio::io_context& io_context, AsioIOContextPool& worker_pool, uint16_t port)
     : accept_ioc_(io_context), worker_pool_(worker_pool),
       acceptor_(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)) 
@@ -75,4 +77,6 @@ boost::asio::ip::tcp::endpoint AsioTCPServer::GetServerEndpoint() const {
         LOG_MAIN_ERROR_AT("AsioTCPServer::GetLocalEndpoint() failed: {}", e.what());
         return boost::asio::ip::tcp::endpoint();
     }
+}
+
 }

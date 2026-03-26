@@ -10,10 +10,13 @@
 
 namespace beast = boost::beast;
 namespace http = beast::http;
-namespace net = boost::asio;
 using tcp = boost::asio::ip::tcp;
+using IoContext = boost::asio::io_context;
 constexpr int ASYNC_TIMEOUT_MS = 5000;
 constexpr int SYNC_TIMEOUT_MS = 30000;
+
+namespace Net {
+
 class AsioSyncHttpClient {
 public:
     explicit AsioSyncHttpClient(const std::string& host, uint16_t port);
@@ -48,7 +51,7 @@ private:
     uint16_t port_;
     
     /// @brief 连接到服务器
-    bool connect(tcp::socket& socket, net::io_context& ioc);
+    bool connect(tcp::socket& socket, IoContext& ioc);
     /// @brief 异步发送请求
     /// @param socket 套接字
     /// @param method 请求方法，如GET、POST等
@@ -65,7 +68,7 @@ class AsioAsyncHttpClient : public std::enable_shared_from_this<AsioAsyncHttpCli
 public:
     using CompleteHandler = std::function<void(bool success, boost::json::object& rsp_obj)>;
     using TimeoutHandler = std::function<void()>;
-    explicit AsioAsyncHttpClient(net::io_context& ioc, const std::string& host, uint16_t port);
+    explicit AsioAsyncHttpClient(IoContext& ioc, const std::string& host, uint16_t port);
     ~AsioAsyncHttpClient();
 
     /// @brief 异步POST JSON请求
@@ -107,7 +110,7 @@ private:
     void handleTimeout(std::shared_ptr<RequestData> req_data, beast::error_code ec);
 
     /// @brief 异步IO上下文
-    net::io_context& ioc_;
+    IoContext& ioc_;
     /// @brief 解析主机名和端口号
     tcp::resolver resolver_;
     /// @brief 主机名
@@ -115,3 +118,5 @@ private:
     /// @brief 端口号
     uint16_t port_;
 };
+
+}

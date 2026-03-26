@@ -1,22 +1,22 @@
 #include "net/asio_io_context_pool.h"
 #include "log/logmanager.h"
 #include <exception>
-
+namespace Net {
 AsioIOContextPool& AsioIOContextPool::GetInstance(ServiceType type) {
     switch (type) {
-        case ServiceType::HTTP: {
-            static auto http_instance = Create(4);
-            return *http_instance;
-        }
-        case ServiceType::TCP: {
-            static auto tcp_instance = Create(4);
-            return *tcp_instance;
-        }
-        default: {
-            static auto default_instance = Create(4);
-            return *default_instance;
-        }
-    }    
+    case ServiceType::HTTP: {
+        static auto http_instance = Create(4);
+        return *http_instance;
+    }
+    case ServiceType::TCP: {
+        static auto tcp_instance = Create(4);
+        return *tcp_instance;
+    }
+    default: {
+        static auto default_instance = Create(4);
+        return *default_instance;
+    }
+    }
 }
 
 std::unique_ptr<AsioIOContextPool> AsioIOContextPool::Create(int size) {
@@ -24,25 +24,27 @@ std::unique_ptr<AsioIOContextPool> AsioIOContextPool::Create(int size) {
 }
 
 AsioIOContextPool::AsioIOContextPool(std::size_t size) : io_contexts_(size)
-    , work_guards_(), threads_(), next_io_context_(0), is_running_(true) 
+    , work_guards_(), threads_(), next_io_context_(0), is_running_(true)
 {
     if (size == 0) size = 1;
-    for (size_t i = 0; i < size; ++i){
+    for (size_t i = 0; i < size; ++i) {
         work_guards_.emplace_back(boost::asio::make_work_guard(io_contexts_[i]));
     }
 
     threads_.reserve(size);
-    for (std::size_t i = 0; i < size; ++i){
+    for (std::size_t i = 0; i < size; ++i) {
         threads_.emplace_back([this, i]() {
             try {
                 // 运行io_context   
                 io_contexts_[i].run();
-            } catch (const std::exception& e) {
-                // Handle exceptions as needed
-            } catch (...) {
-                
             }
-        });
+            catch (const std::exception& e) {
+                // Handle exceptions as needed
+            }
+            catch (...) {
+
+            }
+            });
     }
 }
 
@@ -75,4 +77,5 @@ void AsioIOContextPool::Stop() {
     for (auto& thread : threads_) {
         thread.join();
     }
+}
 }

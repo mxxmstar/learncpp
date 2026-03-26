@@ -5,8 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 添加编译开关来控制是否构建测试
-option(BUILD_TESTS "Build tests" OFF)
-option(BUILD_RTSP_SERVER "Build RTSP server module" OFF)
+option(BUILD_TESTS "Build tests" ON)
 
 # 设置可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -15,7 +14,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
     set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
     # 默认安装到项目内的 vcpkg_installed/
-    set(VCPKG_INSTALLED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed")
+    # set(VCPKG_INSTALLED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed")
 endif()
 
 # 查找依赖
@@ -23,18 +22,21 @@ endif()
 # 1. 查找 spdlog（无额外组件）
 find_package(spdlog CONFIG REQUIRED)
 # 2. 查找 Boost，并指定需要的组件（asio 是 header-only，system 需要链接）
-find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool)
+find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool filesystem)
 # 3. 查找 async_simple
 find_package(async_simple CONFIG REQUIRED)
 # 4. 查找 yaml-cpp
 find_package(yaml-cpp CONFIG REQUIRED)
 # 5. 查找 FFmpeg（用于视频编解码模块） fmpeg 包使用的是传统的 FindFFMPEG 模块，而不是现代的 Config 模式。
 find_package(ffmpeg REQUIRED)
-
-# 独立模块（带 m_ 前缀，不编译到主程序）
-if(BUILD_RTSP_SERVER)
-    add_subdirectory(m_video_codec)
-    add_subdirectory(m_rtsp_server)
+# 6. 尝试查找 SQLite
+find_package(sqlite3 CONFIG)
+# 设置 SQLite3 库路径（供测试使用）
+if(WIN32)
+    set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
+    if(NOT EXISTS "${SQLITE3_LIB_PATH}")
+        set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib/sqlite3.lib")
+    endif()
 endif()
 
 # 添加源文件
@@ -53,7 +55,7 @@ if(MSVC)
     add_compile_options(/Zm500) # 将内存上限提高到默认值的 200%
 endif()
 
-add_executable(${PROJECT_NAME} ${SOURCES} "src/zlmediakit/zlm_hookserver.cpp")
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 
@@ -70,6 +72,8 @@ if(WIN32)
             Boost::pool
             async_simple::async_simple
             yaml-cpp::yaml-cpp
+            # sqlite3
+            "${SQLITE3_LIB_PATH}"
             ntdll
             user32
             shell32
@@ -86,12 +90,13 @@ else()
             Boost::pool
             async_simple::async_simple
             yaml-cpp::yaml-cpp
+            sqlite3
     )
 endif()
 
 # 创建一个库，以便测试可以链接到它
 file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
-add_library(myapp_lib ${LIB_SOURCES} "src/zlmediakit/zlm_httpclient.cpp" "src/zlmediakit/zlm_hookserver.cpp")
+add_library(myapp_lib ${LIB_SOURCES})
 target_include_directories(myapp_lib PUBLIC include)
 
 # 设置预处理器定义
@@ -99,6 +104,10 @@ if(WIN32)
     target_compile_definitions(myapp_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
 if(WIN32)
+    set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
+    if(NOT EXISTS "${SQLITE3_LIB_PATH}")
+        set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib/sqlite3.lib")
+    endif()
     target_link_libraries(myapp_lib
         PUBLIC
             spdlog::spdlog
@@ -109,6 +118,8 @@ if(WIN32)
             Boost::process
             async_simple::async_simple
             yaml-cpp::yaml-cpp
+            # sqlite3
+            "${SQLITE3_LIB_PATH}"
             ntdll
             user32
             shell32
@@ -124,12 +135,15 @@ else()
             Boost::process
             async_simple::async_simple
             yaml-cpp::yaml-cpp
+            sqlite3
     )
 endif()
 
 # 如果启用测试构建，则添加测试
 if(BUILD_TESTS)
     enable_testing()
+    # 传递 SQLite3 库路径给测试
+    set(SQLITE3_LIB_PATH_TEST "${SQLITE3_LIB_PATH}" CACHE PATH "SQLite3 library path for tests")
     add_subdirectory(test)
 endif()
 

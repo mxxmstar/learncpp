@@ -1,9 +1,9 @@
 #include "net/httprouter.h"
 #include "log/logmanager.h"
 #include <exception>
-
+namespace Net {
 static const std::vector<std::string> SIGNATURE_HEADERS = {
-    "sign", 
+    "sign",
     "X-Sign"
 };
 
@@ -21,7 +21,7 @@ void HttpRouter::RegisterModuleRoute(const std::string& module, ModuleHandler ha
     module_routes_[module] = std::move(handler);
 }
 
-void HttpRouter::DispatchRequest(const http::request<http::string_body>& req, boost::json::object& rsp) { 
+void HttpRouter::DispatchRequest(const http::request<http::string_body>& req, boost::json::object& rsp) {
     // 先验签
     if (!getSignature(req).empty()) {
         if (validateSignature(req) == false) {
@@ -34,7 +34,7 @@ void HttpRouter::DispatchRequest(const http::request<http::string_body>& req, bo
     std::string path = std::string(req.target());
     LOG_MAIN_INFO_AT("DispatchRequest path: {}", path);
     auto [module, module_path] = identifyModuleAndPath(path);
-    
+
     // 模块路由
     if (!module.empty()) {
         auto it = module_routes_.find(module);
@@ -66,7 +66,7 @@ void HttpRouter::DispatchRequest(const http::request<http::string_body>& req, bo
             return;
         }
     }
-    
+
     // 普通路由
     auto it_router = routes_.find(path);
     if (it_router != routes_.end()) {
@@ -94,7 +94,7 @@ void HttpRouter::DispatchRequest(const http::request<http::string_body>& req, bo
             rsp["code"] = 500;
             rsp["msg"] = std::string("exception: ") + e.what();
         }
-    }    
+    }
 }
 
 std::string HttpRouter::getSignature(const http::request<http::string_body>& req) {
@@ -128,4 +128,5 @@ std::pair<std::string, std::string> HttpRouter::identifyModuleAndPath(const std:
     }
 
     return { "", full_path };
+}
 }

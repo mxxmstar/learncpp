@@ -2,7 +2,7 @@
 #include <boost/asio.hpp>
 #include <vector>
 #include <thread>
-
+namespace Net {
 /// @brief io_context线程池,启用多个线程，每个线程运行一个io_context实例
 class AsioIOContextPool {
 public:
@@ -25,17 +25,18 @@ public:
     /// @return io_context 实例
     boost::asio::io_context& GetIOContext();
 
-    
+
     /// @brief 停止线程池
     void Stop();
 
 private:
     explicit AsioIOContextPool(std::size_t pool_size = std::thread::hardware_concurrency());
-    
+
     std::vector<IOContext> io_contexts_;
     std::vector<WorkGuard> work_guards_;
     std::vector<std::thread> threads_;
-    std::atomic<std::size_t> next_io_context_{0};
-    std::atomic<bool> is_running_{false};
-    
+    std::atomic<std::size_t> next_io_context_{ 0 };
+    std::atomic<bool> is_running_{ false };
+
 };
+}

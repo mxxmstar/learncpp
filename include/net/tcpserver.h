@@ -3,8 +3,9 @@
 #include <memory>
 #include <functional>
 
-class Session;
+namespace Net {
 class AsioIOContextPool;
+
 class AsioTCPServer {
 public:
     using AcceptHandler = std::function<void(boost::asio::ip::tcp::socket)>;
@@ -29,3 +30,5 @@ private:
     std::atomic<bool> running_{false};
     AcceptHandler accept_handler_;
 };
+
+}

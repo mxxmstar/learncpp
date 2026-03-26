@@ -49,12 +49,25 @@ struct MediaConfig {
     int rtsp_port = 554;
 };
 
+struct WebSocketConfig {
+    std::string host = "127.0.0.1";
+    uint16_t port = 8081;
+    int heartbeat_interval = 10;
+    int timeout = 30;
+};
+
+struct CameraConfig {
+    std::string db_path = "./data/camera.db";
+};
+
 struct AppConfig {
     ServerConfig server;
     LogConfig log;
     DatabaseConfig database;
     ThreadPoolConfig thread_pool;
     MediaConfig media;
+    WebSocketConfig websocket;
+    CameraConfig camera;
 };
 
 class ConfigManager {

@@ -1,7 +1,8 @@
 #pragma once
 #include <boost/asio.hpp>
 #include "net/asio_io_context_pool.h"
-namespace net = boost::asio;
+
+namespace Net {
 
 class AsioHttpServer {
 public:
@@ -16,3 +17,5 @@ private:
     boost::asio::ip::tcp::acceptor acceptor_;
     std::atomic<bool> running_{false};
 };
+
+}

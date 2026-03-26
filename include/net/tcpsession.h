@@ -6,15 +6,14 @@
 #include "session.h"
 #include "databuffer.h"
 
-
-namespace net = boost::asio;
+namespace Net {
 
 class AsioTCPSession : public Session, public std::enable_shared_from_this<AsioTCPSession>
 {
 public:
     using tcp = boost::asio::ip::tcp;
 
-    explicit AsioTCPSession(net::io_context& ioc);
+    explicit AsioTCPSession(boost::asio::io_context& ioc);
     explicit AsioTCPSession(tcp::socket socket);
     ~AsioTCPSession();
 
@@ -66,3 +65,4 @@ private:
     CloseHandler close_handler_;
 };
 
+}

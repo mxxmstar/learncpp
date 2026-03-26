@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <openssl/md5.h>
-
+using namespace Net;
 ZLMApiClient::ZLMApiClient(boost::asio::io_context& io_ctx, const Config& cfg)
     : io_context_(io_ctx), config_(cfg) {
 }

@@ -7,23 +7,23 @@
 #include <utility>
 namespace beast = boost::beast;
 namespace http = beast::http;
-
+namespace Net {
 class HttpRouter {
-public:    
+public:
     using RouteHandler = std::function<void(const boost::json::object&, boost::json::object&)>;
     using ModuleHandler = std::function<void(const std::string&, const boost::json::object&, boost::json::object&)>;
     static HttpRouter& GetInstance();
 
     /// @brief 注册普通路由
     void RegisterRoute(const std::string& path, RouteHandler handler);
-    
+
     /// @brief 注册模块路由处理器
-    void RegisterModuleRoute(const std::string& module, ModuleHandler handler);       
+    void RegisterModuleRoute(const std::string& module, ModuleHandler handler);
 
     /// @brief 分发请求
     void DispatchRequest(const http::request<http::string_body>& req, boost::json::object& rsp);
-    
- private:
+
+private:
     HttpRouter() = default;
 
     /// @brief 获取请求签名
@@ -38,5 +38,6 @@ public:
 
     /// @brief 模块处理器
     std::map<std::string, ModuleHandler> module_routes_;
-    
+
 };
+}

@@ -7,7 +7,20 @@
 #include <unordered_set>
 #include <atomic>
 
-class PooledHttpClient;
+namespace Net {
+/**
+ * @brief 池化客户端, 包含一个异步http客户端和一些状态信息
+ */
+struct PooledClient {
+    std::shared_ptr<AsioAsyncHttpClient> client;
+    std::chrono::steady_clock::time_point last_used;
+    std::size_t request_count = 0;
+    bool in_use = false;
+    void PostJson(const std::string& url, const boost::json::object& req_obj, 
+                  AsioAsyncHttpClient::CompleteHandler handler, int timeout_ms = 5000);
+    void GetJson(const std::string& url, AsioAsyncHttpClient::CompleteHandler handler, 
+                 int timeout_ms = 5000);
+};
 
 class HttpClientPool {
 public:
@@ -32,28 +45,19 @@ public:
     static HttpClientPool& GetInstance();
 
     void Init(boost::asio::io_context& io_context, const Config& config);
-    std::shared_ptr<PooledHttpClient> Acquire();
+    std::shared_ptr<PooledClient> Acquire();
+    void Release(std::shared_ptr<PooledClient> client);
     void Stop();
     PoolStats GetStats() const;
-
+    
 private:
-    /**
-     * @brief 池化客户端, 包含一个异步http客户端和一些状态信息
-     */
-    struct PooledClient {
-        std::shared_ptr<AsioAsyncHttpClient> client;
-        std::chrono::steady_clock::time_point last_used;
-        std::size_t request_count = 0;
-        bool in_use = false;
-    };
-
     HttpClientPool() = default;
     ~HttpClientPool();
     HttpClientPool(const HttpClientPool&) = delete;
     HttpClientPool& operator=(const HttpClientPool&) = delete;
 
     std::shared_ptr<PooledClient> CreatePooledClient();
-    void ReleaseClient(std::shared_ptr<PooledClient> client);
+    void ReturnClient(std::shared_ptr<PooledClient> client);
     void CleanupExpiredClients();
     bool IsClientExpired(const std::shared_ptr<PooledClient>& client) const;
 
@@ -66,27 +70,7 @@ private:
     std::atomic<std::size_t> created_count_{0};
     std::atomic<std::size_t> destroyed_count_{0};
     std::atomic<bool> stopped_{false};
-
-    friend class PooledHttpClient;
+    
 };
 
-/// @brief 
-class PooledHttpClient {
-public:
-    using CompleteHandler = std::function<void(bool success, const boost::json::object& rsp_obj)>;
-
-    PooledHttpClient(std::shared_ptr<HttpClientPool::PooledClient> client, HttpClientPool* pool);
-    ~PooledHttpClient();
-
-    void PostJson(const std::string& url, const boost::json::object& req_obj, CompleteHandler handler, int timeout_ms = 5000);
-    void GetJson(const std::string& url, CompleteHandler handler, int timeout_ms = 5000);
-    bool IsValid() const;
-    std::size_t GetRequestCount() const;
-
-private:
-    void Release();
-
-    std::shared_ptr<HttpClientPool::PooledClient> client_;
-    HttpClientPool* pool_ = nullptr;
-    bool released_ = false;
-};
+}

@@ -1,10 +1,9 @@
 ﻿#include "net/httpclient.h"
 #include "log/logmanager.h"
-#include "common/errcode.h"
 #include <ctime>
 #include <thread>
 
-namespace HttpErrCode =  ErrorCode::Net::Http;
+namespace Net {
 
 AsioSyncHttpClient::AsioSyncHttpClient(const std::string& host, uint16_t port) : host_(host), port_(port)
 {
@@ -25,7 +24,7 @@ bool AsioSyncHttpClient::GetJson(const std::string& url, boost::json::object& rs
 bool AsioSyncHttpClient::RequestJson(http::verb method, const std::string& url, const boost::json::object& req_obj, boost::json::object& rsp_obj, int timeout_ms) {
     try {
         // 创建 TCP socket
-        net::io_context io_ctx;
+        boost::asio::io_context io_ctx;
         tcp::socket socket(io_ctx);
         if (!connect(socket, io_ctx)) {
             LOG_MAIN_ERROR_AT("Failed to connect to {}:{} for url {}", host_, port_, url);
@@ -40,12 +39,12 @@ bool AsioSyncHttpClient::RequestJson(http::verb method, const std::string& url, 
     }
 }
 
-bool AsioSyncHttpClient::connect(tcp::socket& socket, net::io_context& ioc) {
+bool AsioSyncHttpClient::connect(tcp::socket& socket, IoContext& ioc) {
     tcp::resolver resolver(ioc);
     // 解析主机名和端口
     auto const results = resolver.resolve(host_, std::to_string(port_));
     // 连接到服务器
-    net::connect(socket, results);
+    boost::asio::connect(socket, results);
     return true;
 }
 
@@ -108,7 +107,7 @@ bool AsioSyncHttpClient::sendRequestJson(tcp::socket& socket, http::verb method,
 }
 
 
-AsioAsyncHttpClient::AsioAsyncHttpClient(net::io_context& ioc, const std::string& host, uint16_t port) : ioc_(ioc), resolver_(ioc), host_(host), port_(port)
+AsioAsyncHttpClient::AsioAsyncHttpClient(IoContext& ioc, const std::string& host, uint16_t port) : ioc_(ioc), resolver_(ioc), host_(host), port_(port)
 {
 }
 
@@ -124,7 +123,7 @@ void AsioAsyncHttpClient::PostJson(const std::string& url, const boost::json::ob
     // 设置超时时间
     req_data->timeout_ms = std::chrono::milliseconds(timeout_ms);
     req_data->socket = std::make_shared<tcp::socket>(ioc_);
-    req_data->timer = std::make_shared<net::steady_timer>(ioc_);
+    req_data->timer = std::make_shared<boost::asio::steady_timer>(ioc_);
 
     // 构建HTTP请求
     std::string req_body = boost::json::serialize(req_obj);
@@ -149,7 +148,7 @@ void AsioAsyncHttpClient::GetJson(const std::string& url, CompleteHandler handle
     // 设置超时时间
     req_data->timeout_ms = std::chrono::milliseconds(timeout_ms);
     req_data->socket = std::make_shared<tcp::socket>(ioc_);
-    req_data->timer = std::make_shared<net::steady_timer>(ioc_);
+    req_data->timer = std::make_shared<boost::asio::steady_timer>(ioc_);
 
     // 构建HTTP请求
     req_data->req.method(http::verb::get);
@@ -193,7 +192,7 @@ void AsioAsyncHttpClient::handleResolve(std::shared_ptr<RequestData> req_data, b
 
 void AsioAsyncHttpClient::startConnect(std::shared_ptr<RequestData> req_data, tcp::resolver::results_type endpoints) {    
     auto self = shared_from_this();    
-    net::async_connect(
+    boost::asio::async_connect(
         *req_data->socket,
         endpoints,        
         [self, req_data](beast::error_code ec, tcp::resolver::results_type::endpoint_type endpoint) {
@@ -323,7 +322,7 @@ void AsioAsyncHttpClient::startTimeout(std::shared_ptr<RequestData> req_data) {
 }
 
 void AsioAsyncHttpClient::handleTimeout(std::shared_ptr<RequestData> req_data, beast::error_code ec) {
-    if (ec == net::error::operation_aborted) {
+    if (ec == boost::asio::error::operation_aborted) {
         // 定时器已被取消
         return;
     }
@@ -336,4 +335,6 @@ void AsioAsyncHttpClient::handleTimeout(std::shared_ptr<RequestData> req_data, b
     rsp_obj["code"] = 408;  // Request Timeout
     rsp_obj["msg"] = "Request timeout";
     req_data->handler(false, rsp_obj);
+}
+
 }

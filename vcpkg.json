@@ -18,6 +18,7 @@
     "nlohmann-json",
     "yaml-cpp",
     "libdatachannel",
+    "sqlite3",
     "async-simple"
   ]
 }

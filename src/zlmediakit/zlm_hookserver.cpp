@@ -1,7 +1,7 @@
 #include "zlmediakit/zlm_hookserver.h"
 #include "net/httprouter.h"
 #include "log/logmanager.h"
-
+using namespace Net;
 ZLMHookHandler::ZLMHookHandler(const std::string& secret)
     : secret_(secret)
 {

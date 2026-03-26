@@ -4,6 +4,9 @@
 
 #include <boost/json.hpp>
 #include <set>
+
+namespace Net {
+
 AsioHttpSession::AsioHttpSession(tcp::socket&& socket)
     : IAsioSession(std::move(socket)) {
 
@@ -111,5 +114,7 @@ void AsioHttpSession::HandleRequest() {
 
         AsyncWrite();
     }
+}
+
 }
 

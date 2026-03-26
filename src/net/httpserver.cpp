@@ -1,6 +1,9 @@
 #include "net/httpserver.h"
 #include "net/httpsession.h"
 #include "log/logmanager.h"
+
+namespace Net {
+
 AsioHttpServer::AsioHttpServer(boost::asio::io_context& io_context, AsioIOContextPool& worker_pool, uint16_t port)
     : accept_ioc_(io_context), worker_pool_(worker_pool),
       acceptor_(io_context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))     
@@ -40,4 +43,6 @@ void AsioHttpServer::DoAccept() {
         }
         DoAccept();
     });
+}
+
 }
