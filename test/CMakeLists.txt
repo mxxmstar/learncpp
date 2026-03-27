@@ -12,48 +12,53 @@ option(BUILD_COMMON_TESTS "Build Common tests" OFF)
 option(BUILD_BOOST_TESTS "Build Boost tests" OFF)
 option(BUILD_ASYNC_SIMPLE_TESTS "Build Async Simple tests" OFF)
 
-# 辅助函数：创建测试目标
+# 辅助函数：为目录中的每个 cpp 文件创建独立的测试目标
 function(create_test_from_dir dir_name)
     file(GLOB TEST_SOURCES "${dir_name}/*.cpp")
     if(TEST_SOURCES)
-        get_filename_component(test_name ${dir_name} NAME)
-        set(test_target_name "test_${test_name}")
+        get_filename_component(test_dir_name ${dir_name} NAME)
         
-        add_executable(${test_target_name} ${TEST_SOURCES})
-        target_include_directories(${test_target_name} PRIVATE 
-            ${CMAKE_SOURCE_DIR}/include 
-            ${FFMPEG_INCLUDE_DIRS}
-        )
-        target_link_libraries(${test_target_name} 
-            PRIVATE 
-                myapp_lib
-                spdlog::spdlog
-                Boost::asio
-                Boost::system
-                Boost::json
-                Boost::process
-                Boost::pool
-                async_simple::async_simple
-                yaml-cpp::yaml-cpp                
-                ${FFMPEG_LIBRARIES}
-        )
-        
-        # 如果是 Windows 且提供了 SQLite3 库路径，则使用它
-        if(WIN32 AND DEFINED SQLITE3_LIB_PATH_TEST)
-            list(APPEND TEST_LINK_LIBS "${SQLITE3_LIB_PATH_TEST}")
-        else()
-            list(APPEND TEST_LINK_LIBS sqlite3)
-        endif()
-        
-        target_link_libraries(${test_target_name} 
-            PRIVATE 
-                ${TEST_LINK_LIBS}
-        )
-        
-        # 添加测试
-        add_test(NAME ${test_target_name} COMMAND ${test_target_name})
-        
-        message(STATUS "Added test: ${test_target_name}")
+        # 为每个测试文件创建独立的可执行文件
+        foreach(test_file ${TEST_SOURCES})
+            get_filename_component(test_file_name ${test_file} NAME_WE)
+            set(test_target_name "test_${test_dir_name}_${test_file_name}")
+            
+            add_executable(${test_target_name} ${test_file})
+            target_include_directories(${test_target_name} PRIVATE 
+                ${CMAKE_SOURCE_DIR}/include 
+                ${FFMPEG_INCLUDE_DIRS}
+            )
+            target_link_libraries(${test_target_name} 
+                PRIVATE 
+                    myapp_lib
+                    spdlog::spdlog
+                    Boost::asio
+                    Boost::system
+                    Boost::json
+                    Boost::process
+                    Boost::pool
+                    async_simple::async_simple
+                    yaml-cpp::yaml-cpp                
+                    ${FFMPEG_LIBRARIES}
+            )
+            
+            # 如果是 Windows 且提供了 SQLite3 库路径，则使用它
+            if(WIN32 AND DEFINED SQLITE3_LIB_PATH_TEST)
+                list(APPEND TEST_LINK_LIBS "${SQLITE3_LIB_PATH_TEST}")
+            else()
+                list(APPEND TEST_LINK_LIBS sqlite3)
+            endif()
+            
+            target_link_libraries(${test_target_name} 
+                PRIVATE 
+                    ${TEST_LINK_LIBS}
+            )
+            
+            # 添加测试
+            add_test(NAME ${test_target_name} COMMAND ${test_target_name})
+            
+            message(STATUS "Added test: ${test_target_name}")
+        endforeach()
     endif()
 endfunction()
 

@@ -24,14 +24,28 @@ public:
     struct Error {
         ErrorCode code;
         std::string message;
+        operator bool() const { return code != ErrorCode::OK; }
     };
     
     using ExecuteCallback = std::function<bool(void* stmt)>;
     using RowParser = std::function<void(void* stmt)>;
 
-    static SQLite& GetInstance();
+    // 允许直接构造实例
+    explicit SQLite(const std::string& db_path = ":memory:", int pool_size = 5);
+    ~SQLite();
+    
+    // 禁止拷贝
+    SQLite(const SQLite&) = delete;
+    SQLite& operator=(const SQLite&) = delete;
+    
+    // 允许移动
+    SQLite(SQLite&& other) noexcept;
+    SQLite& operator=(SQLite&& other) noexcept;
 
+private:
     void Init(const std::string& db_path, int pool_size = 5);
+    
+public:
     void Shutdown();
 
     Error Execute(const std::string& sql);
@@ -64,6 +78,7 @@ public:
     // 辅助方法：从事务中获取列值
     static std::string GetColumnText(void* stmt, int index);
     static int GetColumnInt(void* stmt, int index);
+    static long long GetColumnInt64(void* stmt, int index);
     static double GetColumnDouble(void* stmt, int index);
     static std::map<std::string, std::string> GetRowMap(void* stmt);
     
@@ -87,13 +102,13 @@ public:
     Error RollbackTransaction();
     
     // 批量操作
-    Error BatchInsert(const std::string& table, const std::vector<std::string>& columns, 
+    Error BatchInsert(const std::string& table, const std::vector<std::string>& columns,
                       const std::vector<std::vector<std::string>>& rows);
     
     // 常用查询辅助方法
-    Error Exists(const std::string& table, const std::string& where, 
+    Error Exists(const std::string& table, const std::string& where,
                 const std::vector<std::string>& params, bool& result);
-    Error Count(const std::string& table, const std::string& where, 
+    Error Count(const std::string& table, const std::string& where,
                const std::vector<std::string>& params, int& count);
     
     /**
@@ -103,7 +118,7 @@ public:
      * 支持参数绑定，防止 SQL 注入攻击。
      */
     class SQLBuilder {
-    public:
+    public:       
         /**
          * @brief 构建 SELECT 语句
          * @param columns 要查询的列，默认为空（查询所有列）
@@ -253,7 +268,6 @@ public:
             DELETE,
             CREATE_TABLE
         };
- 
         StatementType stmtType_ = StatementType::SELECT;    ///< 语句类型
         std::string table_;                                ///< 表名
         std::vector<std::string> columns_;                 ///< 列名列表
@@ -268,17 +282,9 @@ public:
     };
 
 private:
-    SQLite() = default;
-    ~SQLite() = default;
-    SQLite(const SQLite&) = delete;
-    SQLite& operator=(const SQLite&) = delete;
-
     struct Impl;
     std::unique_ptr<Impl> impl_;
-
-    // 内部执行方法
-    Error executeInternal(const std::string& sql, const std::vector<std::string>& params);
-    Error queryInternal(const std::string& sql, const std::vector<std::string>& params, RowParser parser);
+  
 };
 
 // 异常类

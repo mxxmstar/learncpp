@@ -32,9 +32,32 @@ struct SQLite::Impl {
     }
 };
 
-SQLite& SQLite::GetInstance() {
-    static SQLite instance;
-    return instance;
+// 构造函数实现
+SQLite::SQLite(const std::string& db_path, int pool_size) {
+    Init(db_path, pool_size);
+}
+
+// 析构函数实现
+SQLite::~SQLite() {
+    if (impl_) {
+        Shutdown();
+    }
+}
+
+// 移动构造函数
+SQLite::SQLite(SQLite&& other) noexcept 
+    : impl_(std::move(other.impl_)) {
+}
+
+// 移动赋值运算符
+SQLite& SQLite::operator=(SQLite&& other) noexcept {
+    if (this != &other) {
+        if (impl_) {
+            Shutdown();
+        }
+        impl_ = std::move(other.impl_);
+    }
+    return *this;
 }
 
 void SQLite::Init(const std::string& db_path, int pool_size) {
@@ -277,7 +300,7 @@ SQLite::Error SQLite::SelectAll(const std::string& table, const std::vector<std:
 
 // SQLBuilder 实现
 SQLite::SQLBuilder& SQLite::SQLBuilder::Select(const std::vector<std::string>& columns) {
-    stmtType_ = StatementType::SELECT;
+    stmtType_ = SQLBuilder::StatementType::SELECT;
     columns_ = columns;
     return *this;
 }
@@ -332,7 +355,7 @@ SQLite::SQLBuilder& SQLite::SQLBuilder::AddParams(const std::vector<std::string>
 }
 
 SQLite::SQLBuilder& SQLite::SQLBuilder::InsertInto(const std::string& table) {
-    stmtType_ = StatementType::INSERT;
+    stmtType_ = SQLBuilder::StatementType::INSERT;
     table_ = table;
     return *this;
 }
@@ -347,7 +370,7 @@ SQLite::SQLBuilder& SQLite::SQLBuilder::Values(const std::map<std::string, std::
 }
 
 SQLite::SQLBuilder& SQLite::SQLBuilder::Update(const std::string& table) {
-    stmtType_ = StatementType::UPDATE;
+    stmtType_ = SQLBuilder::StatementType::UPDATE;
     table_ = table;
     return *this;
 }
@@ -362,13 +385,13 @@ SQLite::SQLBuilder& SQLite::SQLBuilder::Set(const std::map<std::string, std::str
 }
 
 SQLite::SQLBuilder& SQLite::SQLBuilder::DeleteFrom(const std::string& table) {
-    stmtType_ = StatementType::DELETE;
+    stmtType_ = SQLBuilder::StatementType::DELETE;
     table_ = table;
     return *this;
 }
 
 SQLite::SQLBuilder& SQLite::SQLBuilder::CreateTable(const std::string& table, bool ifNotExists) {
-    stmtType_ = StatementType::CREATE_TABLE;
+    stmtType_ = SQLBuilder::StatementType::CREATE_TABLE;
     table_ = table;
     ifNotExists_ = ifNotExists;
     return *this;
@@ -383,7 +406,7 @@ std::string SQLite::SQLBuilder::GetSQL() const {
     std::ostringstream ss;
     
     switch (stmtType_) {
-        case StatementType::SELECT: {
+        case SQLBuilder::StatementType::SELECT: {
             ss << "SELECT ";
             if (columns_.empty()) {
                 ss << "*";
@@ -408,7 +431,7 @@ std::string SQLite::SQLBuilder::GetSQL() const {
             }
             break;
         }
-        case StatementType::INSERT: {
+        case SQLBuilder::StatementType::INSERT: {
             ss << "INSERT INTO " << table_ << " (";
             bool first = true;
             for (const auto& [key, value] : values_) {
@@ -425,7 +448,7 @@ std::string SQLite::SQLBuilder::GetSQL() const {
             ss << ")";
             break;
         }
-        case StatementType::UPDATE: {
+        case SQLBuilder::StatementType::UPDATE: {
             ss << "UPDATE " << table_ << " SET ";
             bool first = true;
             for (const auto& [key, value] : values_) {
@@ -438,14 +461,14 @@ std::string SQLite::SQLBuilder::GetSQL() const {
             }
             break;
         }
-        case StatementType::DELETE: {
+        case SQLBuilder::StatementType::DELETE: {
             ss << "DELETE FROM " << table_;
             if (!where_.empty()) {
                 ss << " WHERE " << where_;
             }
             break;
         }
-        case StatementType::CREATE_TABLE: {
+        case SQLBuilder::StatementType::CREATE_TABLE: {
             ss << "CREATE TABLE " << (ifNotExists_ ? "IF NOT EXISTS " : "") << table_ << " (";
             bool first = true;
             for (const auto& [name, type_constraints] : tableColumns_) {
@@ -472,7 +495,7 @@ SQLite::Error SQLite::SQLBuilder::Execute(SQLite& db) {
     std::string sql = GetSQL();
     std::vector<std::string> params = GetParams();
     
-    if (stmtType_ == StatementType::SELECT) {
+    if (stmtType_ == SQLBuilder::StatementType::SELECT) {
         return { ErrorCode::INVALID_PARAMS, "Use Query() for SELECT statements" };
     }
     
@@ -483,7 +506,7 @@ SQLite::Error SQLite::SQLBuilder::Query(SQLite& db, RowParser parser) {
     std::string sql = GetSQL();
     std::vector<std::string> params = GetParams();
     
-    if (stmtType_ != StatementType::SELECT) {
+    if (stmtType_ != SQLBuilder::StatementType::SELECT) {
         return { ErrorCode::INVALID_PARAMS, "Use Execute() for non-SELECT statements" };
     }
     
@@ -491,7 +514,7 @@ SQLite::Error SQLite::SQLBuilder::Query(SQLite& db, RowParser parser) {
 }
 
 void SQLite::SQLBuilder::Reset() {
-    stmtType_ = StatementType::SELECT;
+    stmtType_ = SQLBuilder::StatementType::SELECT;
     table_.clear();
     columns_.clear();
     values_.clear();
@@ -517,6 +540,11 @@ std::string SQLite::GetColumnText(void* stmt, int index) {
 int SQLite::GetColumnInt(void* stmt, int index) {
     sqlite3_stmt* statement = static_cast<sqlite3_stmt*>(stmt);
     return sqlite3_column_int(statement, index);
+}
+
+long long SQLite::GetColumnInt64(void* stmt, int index) {
+    sqlite3_stmt* statement = static_cast<sqlite3_stmt*>(stmt);
+    return sqlite3_column_int64(statement, index);
 }
 
 double SQLite::GetColumnDouble(void* stmt, int index) {

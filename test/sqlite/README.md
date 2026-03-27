@@ -3,6 +3,7 @@
 ## 概述
 
 这是一个功能完整的 C++ SQLite 数据库封装库，提供以下特性：
+- ✅ **多数据库实例支持** - 可以同时操作多个不同的数据库文件
 - 连接池管理
 - 参数化查询（防止 SQL 注入）
 - RAII 风格的事务支持
@@ -12,22 +13,55 @@
 
 ## 快速开始
 
-### 1. 初始化和关闭
+### 1. 创建数据库实例
+
+#### 直接构造（推荐）
+
+```cpp
+// 创建独立的数据库实例
+SQLite users_db("users.db", 5);      // 5 个连接池
+SQLite orders_db("orders.db", 5);
+SQLite logs_db("logs.db", 2);
+
+// 使用内存数据库（适合测试）
+SQLite test_db(":memory:", 1);
+```
+
+### 2. 多数据库使用场景
+
+```cpp
+// 场景 1: 主从数据库架构
+SQLite primary_db("primary.db", 10);   // 主库 - 写操作
+SQLite replica_db("replica.db", 5);    // 从库 - 读操作
+
+primary_db.Execute("INSERT INTO users ...");  // 写入主库
+replica_db.Query("SELECT * FROM users ...");   // 从从库读取
+
+// 场景 2: 功能分离
+SQLite config_db("config.db", 2);      // 配置数据库
+SQLite data_db("data.db", 5);          // 数据数据库
+SQLite cache_db("cache.db", 3);        // 缓存数据库
+
+// 场景 3: 微服务架构
+std::map<std::string, std::unique_ptr<SQLite>> services;
+services["user"] = std::make_unique<SQLite>("user_service.db");
+services["order"] = std::make_unique<SQLite>("order_service.db");
+services["inventory"] = std::make_unique<SQLite>("inventory_service.db");
+```
+
+### 3. 初始化和关闭
 
 ```cpp
 #include "sqlite/sqlite.h"
 
-// 获取单例实例
-auto& db = SQLite::GetInstance();
+// 直接构造（推荐）
+SQLite db("mydb.db", 5);  // 自动初始化
 
-// 初始化（数据库路径，连接池大小）
-db.Init("mydb.db", 5);
-
-// 程序结束时关闭
-db.Shutdown();
+// 使用数据库...
+// 析构函数会自动调用 Shutdown()
 ```
 
-### 2. 基本操作
+### 3. 基本操作
 
 #### 创建表
 

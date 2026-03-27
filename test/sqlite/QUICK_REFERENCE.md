@@ -1,12 +1,57 @@
 # SQLite 快速参考手册
 
-## 初始化与关闭
+## 创建数据库实例
+
+### 直接构造（推荐 - 支持多数据库）
 
 ```cpp
-auto& db = SQLite::GetInstance();
-db.Init("database.db", 5);  // 路径，连接池大小
-// ... 使用数据库 ...
-db.Shutdown();
+// 创建多个独立的数据库实例
+SQLite db1("database1.db", 5);   // 路径，连接池大小
+SQLite db2("database2.db", 3);
+SQLite db3(":memory:", 1);       // 内存数据库
+
+// 使用智能指针管理
+auto db = std::make_unique<SQLite>("mydb.db");
+
+// 移动语义
+SQLite source("source.db");
+SQLite target = std::move(source);
+```
+
+## 多数据库使用场景
+
+### 场景 1：主从架构
+
+```cpp
+SQLite primary("primary.db", 10);   // 主库 - 写操作
+SQLite replica("replica.db", 5);    // 从库 - 读操作
+
+primary.Insert("users", {...});     // 写入主库
+replica.Query("SELECT * FROM users"); // 从从库读取
+```
+
+### 场景 2：功能分离
+
+```cpp
+SQLite config_db("config.db", 2);   // 配置数据库
+SQLite data_db("data.db", 5);       // 数据数据库
+SQLite cache_db("cache.db", 3);     // 缓存数据库
+
+config_db.Insert("settings", {...});
+data_db.Query("SELECT * FROM records");
+cache_db.Delete("expired", "...");
+```
+
+### 场景 3：微服务
+
+```cpp
+std::map<std::string, std::unique_ptr<SQLite>> services;
+services["user"] = std::make_unique<SQLite>("user.db");
+services["order"] = std::make_unique<SQLite>("order.db");
+services["product"] = std::make_unique<SQLite>("product.db");
+
+services["user"]->Insert(...);
+services["order"]->Query(...);
 ```
 
 ## 基本 CRUD 操作

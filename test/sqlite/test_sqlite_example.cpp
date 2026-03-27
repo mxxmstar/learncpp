@@ -2,11 +2,10 @@
 #include "sqlite/sqlite.h"
 #include <iostream>
 #include <string>
-
+#include "log/logmanager.h"
 void test_basic_usage() {
-    // 获取单例实例并初始化
-    auto& db = SQLite::GetInstance();
-    db.Init("test.db", 5);  // 5 个连接池
+    // 直接构造数据库实例
+    SQLite db("test.db", 5);  // 5 个连接池
     
     // 创建表
     std::map<std::string, std::string> columns = {
@@ -45,12 +44,11 @@ void test_basic_usage() {
     // 删除数据
     error = db.Delete("users", "age < ?", {"18"});
     
-    db.Shutdown();
+    // 不需要手动 Shutdown()，析构函数会自动调用
 }
 
 void test_sql_builder() {
-    auto& db = SQLite::GetInstance();
-    db.Init("test.db", 5);
+    SQLite db("test.db", 5);
     
     // 使用 SQLBuilder 构建 SELECT 查询
     SQLite::SQLBuilder builder;
@@ -104,8 +102,7 @@ void test_sql_builder() {
 }
 
 void test_transaction() {
-    auto& db = SQLite::GetInstance();
-    db.Init("test.db", 5);
+    SQLite db("test.db", 5);
     
     // 使用 RAII 风格的事务
     {
@@ -135,8 +132,7 @@ void test_transaction() {
 }
 
 void test_batch_operations() {
-    auto& db = SQLite::GetInstance();
-    db.Init("test.db", 5);
+    SQLite db("test.db", 5);
     
     // 批量插入（使用事务优化性能）
     std::vector<std::string> columns = {"name", "age", "email"};
@@ -155,8 +151,7 @@ void test_batch_operations() {
 }
 
 void test_helper_methods() {
-    auto& db = SQLite::GetInstance();
-    db.Init("test.db", 5);
+    SQLite db("test.db", 5);
     
     // 检查记录是否存在
     bool exists = false;
@@ -181,10 +176,12 @@ void test_helper_methods() {
         std::cout << std::endl;
     });
     
-    db.Shutdown();
+    // 不需要手动 Shutdown()，析构函数会自动调用
 }
 
-void RunAllExamples() {
+int main() {
+    LogManager& log_manager = LogManager::getInstance();
+    log_manager.Init();
     std::cout << "=== Testing Basic Usage ===" << std::endl;
     test_basic_usage();
     
@@ -199,4 +196,6 @@ void RunAllExamples() {
     
     std::cout << "\n=== Testing Helper Methods ===" << std::endl;
     test_helper_methods();
+    
+    return 0;
 }
