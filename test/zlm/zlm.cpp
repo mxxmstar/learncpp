@@ -3,7 +3,7 @@
 #include "log/logmanager.h"
 #include "net/httpserver.h"
 #include "net/httprouter.h"
-
+using namespace Net;
 int main() {
     LogManager& log_manager = LogManager::getInstance();
     log_manager.Init();

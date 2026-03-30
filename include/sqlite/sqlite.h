@@ -118,7 +118,7 @@ public:
      * 支持参数绑定，防止 SQL 注入攻击。
      */
     class SQLBuilder {
-    public:       
+    public:
         /**
          * @brief 构建 SELECT 语句
          * @param columns 要查询的列，默认为空（查询所有列）

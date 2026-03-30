@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.18)
 
 # 选项：控制是否编译特定测试
 option(BUILD_SQLITE_TESTS "Build SQLite tests" ON)
-option(BUILD_NET_TESTS "Build Net tests" OFF)
-option(BUILD_ZLM_TESTS "Build ZLM tests" OFF)
+option(BUILD_NET_TESTS "Build Net tests" ON)
+option(BUILD_ZLM_TESTS "Build ZLM tests" ON)
 option(BUILD_LOG_TESTS "Build Log tests" OFF)
 option(BUILD_CONFIG_TESTS "Build Config tests" OFF)
 option(BUILD_FFMPEG_TESTS "Build FFmpeg tests" OFF)

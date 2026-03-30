@@ -53,6 +53,7 @@ add_compile_definitions(__STDC_LIMIT_MACROS)
 
 if(MSVC)
     add_compile_options(/Zm500) # 将内存上限提高到默认值的 200%
+    add_compile_options(/ZI)
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})

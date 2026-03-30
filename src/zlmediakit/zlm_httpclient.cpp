@@ -2,130 +2,37 @@
 #include "net/httpclientpool.h"
 #include "log/logmanager.h"
 #include <sstream>
-#include <iomanip>
-#include <openssl/md5.h>
+
 using namespace Net;
-ZLMApiClient::ZLMApiClient(boost::asio::io_context& io_ctx, const Config& cfg)
-    : io_context_(io_ctx), config_(cfg) {
-}
 
-void ZLMApiClient::GetMediaList(ResponseCallback cb) {
-    Json::object params;
-    DoRequest("getMediaList", params, std::move(cb));
-}
-
-void ZLMApiClient::GetMediaList(const std::string& app, const std::string& stream, ResponseCallback cb) {
-    Json::object params;
-    if (!app.empty()) params["app"] = app;
-    if (!stream.empty()) params["stream"] = stream;
-    DoRequest("getMediaList", params, std::move(cb));
-}
-
-void ZLMApiClient::GetMediaInfo(const std::string& app, const std::string& stream, ResponseCallback cb) {
-    Json::object params;
-    params["app"] = app;
-    params["stream"] = stream;
-    DoRequest("getMediaInfo", params, std::move(cb));
-}
-
-void ZLMApiClient::StartPull(const std::string& src_url,
-                              const std::string& app,
-                              const std::string& stream,
-                              ResponseCallback cb) {
-    Json::object params;
-    params["src_url"] = src_url;
-    params["app"] = app;
-    params["stream"] = stream;
-    DoRequest("startPull", params, std::move(cb));
-}
-
-void ZLMApiClient::StopPull(const std::string& app, const std::string& stream, ResponseCallback cb) {
-    Json::object params;
-    params["app"] = app;
-    params["stream"] = stream;
-    DoRequest("stopPull", params, std::move(cb));
-}
-
-void ZLMApiClient::StartPush(const std::string& src_app,
-                              const std::string& src_stream,
-                              const std::string& dst_url,
-                              ResponseCallback cb) {
-    Json::object params;
-    params["app"] = src_app;
-    params["stream"] = src_stream;
-    params["dst_url"] = dst_url;
-    DoRequest("startPush", params, std::move(cb));
-}
-
-void ZLMApiClient::StopPush(const std::string& key, ResponseCallback cb) {
-    Json::object params;
-    params["key"] = key;
-    DoRequest("stopPush", params, std::move(cb));
-}
-
-void ZLMApiClient::CloseStream(const std::string& app, const std::string& stream, ResponseCallback cb) {
-    Json::object params;
-    params["app"] = app;
-    params["stream"] = stream;
-    params["force"] = 1;
-    DoRequest("close_stream", params, std::move(cb));
-}
-
-void ZLMApiClient::GetServerConfig(ResponseCallback cb) {
-    Json::object params;
-    DoRequest("getServerConfig", params, std::move(cb));
-}
-
-void ZLMApiClient::GetSnap(const std::string& app,
-                            const std::string& stream,
-                            const std::string& output_path,
-                            ResponseCallback cb) {
-    Json::object params;
-    params["app"] = app;
-    params["stream"] = stream;
-    params["snap_path"] = output_path;
-    DoRequest("getSnap", params, std::move(cb));
-}
-
-void ZLMApiClient::DoRequest(const std::string& api, const Json::object& params, ResponseCallback cb) {
+void ZLMRequestHelper::DoRequest(boost::asio::io_context& io_ctx, const ZLMAddressConfig& config,
+    const std::string& api, const boost::json::object& params)
+{
+    // 获取 HTTP 客户端池
     auto& pool = HttpClientPool::GetInstance();
 
-    auto client = pool.Acquire();
-    if (!client) {
-        LOG_MAIN_ERROR_AT("ZLMApiClient: failed to acquire HTTP client");
-        if (cb) cb(false, {{"code", -1}, {"msg", "no available client"}});
+    // 使用 RAII 守卫获取客户端（自动管理生命周期）
+    auto client_guard = pool.AcquireGuard();
+    if (!client_guard) {
+        LOG_MAIN_ERROR_AT("ZLMApiClient: failed to acquire HTTP client");        
         return;
     }
 
-    Json::object full_params = params;
-    full_params["secret"] = config_.secret;
+    // 步骤 3: 添加认证参数（secret）
+    boost::json::object full_params = params;
+    full_params["secret"] = config.secret;  // 添加密钥
 
+    // 构建查询字符串
     std::string query = BuildQuery(full_params);
+
+    // 步骤 5: 构建完整 URL
     std::string url = "/index/api/" + api + "?" + query;
 
-    client->GetJson(url, [cb = std::move(cb)](bool success, const Json::object& rsp) {
-        if (!success) {
-            if (cb) cb(false, {{"code", -1}, {"msg", "http request failed"}});
-            return;
-        }
-
-        if (rsp.contains("code") && rsp.at("code").is_number()) {
-            int code = rsp.at("code").as_int64();
-            if (code == 0) {
-                if (cb) cb(true, rsp);
-            } else {
-                std::string msg = rsp.contains("msg") && rsp.at("msg").is_string()
-                    ? std::string(rsp.at("msg").as_string())
-                    : "unknown error";
-                if (cb) cb(false, {{"code", code}, {"msg", msg}});
-            }
-        } else {
-            if (cb) cb(false, {{"code", -1}, {"msg", "invalid response"}});
-        }
-    });
+    // 发送 HTTP GET 请求，直接传递空 handler
+    client_guard->GetJsonWithHandler(url, AsioAsyncHttpClient::CompleteHandler());
 }
 
-std::string ZLMApiClient::BuildQuery(const Json::object& params) {
+std::string ZLMRequestHelper::BuildQuery(const boost::json::object& params) {
     std::ostringstream oss;
     bool first = true;
 
@@ -134,12 +41,12 @@ std::string ZLMApiClient::BuildQuery(const Json::object& params) {
         first = false;
 
         oss << key << "=";
+        
+        // 根据 JSON 值类型转换为字符串
         if (value.is_string()) {
             oss << std::string(value.as_string());
         } else if (value.is_int64()) {
             oss << value.as_int64();
-        } else if (value.is_uint64()) {
-            oss << value.as_uint64();
         } else if (value.is_double()) {
             oss << value.as_double();
         } else if (value.is_bool()) {
@@ -147,5 +54,16 @@ std::string ZLMApiClient::BuildQuery(const Json::object& params) {
         }
     }
 
-    return oss.str();
+    return oss.str();  // 返回："app=live&stream=camera1&secret=your_secret"
+}
+
+ZLMApiClient::ZLMApiClient(boost::asio::io_context& io_ctx, const ZLMAddressConfig& cfg)
+    : io_context_(io_ctx), config_(cfg) {
+}
+
+ZLMApiClient::~ZLMApiClient() {
+}
+
+void ZLMApiClient::ProxyPullDeleter::operator()(ZLMProxyPullManager* ptr) const {
+    delete ptr;
 }

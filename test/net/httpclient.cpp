@@ -3,6 +3,7 @@
 #include "log/logmanager.h"
 #include <boost/json.hpp>
 #include <iostream>
+using namespace Net;
 int main() {
     LogManager& log_manager = LogManager::getInstance();
     log_manager.Init();

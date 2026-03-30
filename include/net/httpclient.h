@@ -66,23 +66,18 @@ private:
 
 class AsioAsyncHttpClient : public std::enable_shared_from_this<AsioAsyncHttpClient> {
 public:
+    // 支持移动语义的回调处理器（不再使用 std::function）
     using CompleteHandler = std::function<void(bool success, boost::json::object& rsp_obj)>;
     using TimeoutHandler = std::function<void()>;
     explicit AsioAsyncHttpClient(IoContext& ioc, const std::string& host, uint16_t port);
     ~AsioAsyncHttpClient();
 
-    /// @brief 异步POST JSON请求
-    /// @param url 请求URL
-    /// @param req_obj 请求JSON对象
-    /// @param handler 请求完成回调函数
-    /// @param timeout_ms 超时时间，单位毫秒    
+    /// @brief 异步 POST JSON 请求
     void PostJson(const std::string& url, const boost::json::object& req_obj, CompleteHandler handler, int timeout_ms = ASYNC_TIMEOUT_MS);
 
-    /// @brief 异步GET请求
-    /// @param url 请求URL
-    /// @param handler 响应JSON对象
-    /// @param timeout_ms 超时时间，单位毫秒
+    /// @brief 异步 GET 请求
     void GetJson(const std::string& url, CompleteHandler handler, int timeout_ms = ASYNC_TIMEOUT_MS);
+    
 private:
     struct RequestData {
         CompleteHandler handler;

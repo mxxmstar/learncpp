@@ -66,8 +66,12 @@ private:
 };
 
 static inline const char* extract_filename(const char* file_path) {
-    const char* last_slash = strrchr(file_path, '/');
-    return last_slash ? last_slash + 1 : file_path;
+    const char* file_name = strrchr(file_path, '/');
+#ifdef _WIN32
+    const char* file = strrchr(file_path, '\\');
+    if (!file_name || (file && file > file_name)) file_name = file;
+#endif
+    return file_name ? file_name + 1 : file_path;
 }
 
 #define LOG_MAIN LogManager::getInstance().getMainLogger()
@@ -116,45 +120,45 @@ static inline const char* extract_filename(const char* file_path) {
 
 
 
-// 包含文件名和行号的日志宏
+// 包含文件名和函数和行号的日志宏
 #define LOG_MAIN_DEBUG_FL(filename, line, ...) do { \
-    LogManager::getInstance().getMainLogger()->GetSpdLogger()->debug("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->debug("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_MAIN_INFO_FL(filename, line, ...) do { \
-    LogManager::getInstance().getMainLogger()->GetSpdLogger()->info("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->info("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_MAIN_WARN_FL(filename, line, ...) do { \
-    LogManager::getInstance().getMainLogger()->GetSpdLogger()->warn("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->warn("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_MAIN_ERROR_FL(filename, line, ...) do { \
-    LogManager::getInstance().getMainLogger()->GetSpdLogger()->error("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->error("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_MAIN_CRITICAL_FL(filename, line, ...) do { \
-    LogManager::getInstance().getMainLogger()->GetSpdLogger()->critical("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getMainLogger()->GetSpdLogger()->critical("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_ERROR_DEBUG_FL(filename, line, ...) do { \
-    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->debug("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->debug("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_ERROR_INFO_FL(filename, line, ...) do { \
-    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->info("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->info("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_ERROR_WARN_FL(filename, line, ...) do { \
-    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->warn("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->warn("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_ERROR_ERROR_FL(filename, line, ...) do { \
-    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->error("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->error("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_ERROR_CRITICAL_FL(filename, line, ...) do { \
-    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->critical("[{}#{}]{}", extract_filename(filename), line, spdlog::fmt_lib::format(__VA_ARGS__)); \
+    LogManager::getInstance().getErrorLogger()->GetSpdLogger()->critical("[{}>{}#{}]{}", extract_filename(filename), __func__, line, spdlog::fmt_lib::format(__VA_ARGS__)); \
 } while(0)
 
 #define LOG_MAIN_DEBUG_AT(...) LOG_MAIN_DEBUG_FL(__FILE__, __LINE__, __VA_ARGS__)

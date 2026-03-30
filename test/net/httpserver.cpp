@@ -8,7 +8,7 @@
 #include <memory>
 
 using namespace boost::asio::ip;
-
+using namespace Net;
 
 int main()
 {

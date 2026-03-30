@@ -6,7 +6,7 @@
 #include <memory>
 #include <string>
 using namespace boost::asio::ip;
-
+using namespace Net;
 class EchoSession : public AsioTCPSession {
 public:
     explicit EchoSession(tcp::socket socket)
