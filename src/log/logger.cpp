@@ -45,6 +45,21 @@ void Logger::SetFormat(const std::string& format) {
     spd_logger_->set_pattern(format);
 }
 
+RotationPolicy Logger::GetRotationPolicy() const {
+    return config_.policy;
+}
+
+std::size_t Logger::GetMaxFileSize() const {
+    return config_.max_file_size_mb;
+}
+
+std::size_t Logger::GetMaxFiles() const {
+    return config_.max_files;
+}
+
+std::string Logger::GetLogDir() const {
+    return config_.log_dir;
+}
 void Logger::Flush() {
     spd_logger_->flush();
 }

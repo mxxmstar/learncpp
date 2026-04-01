@@ -28,10 +28,9 @@ bool HttpServerService::initialize() {
         // 创建 io_context
         io_context_ = std::make_unique<boost::asio::io_context>();
         
-        // 创建 HTTP 服务器
-        // 注意：这里需要根据实际的 AsioHttpServer 构造函数来调整
+        // 创建 HTTP 服务器        
         // 假设 AsioHttpServer 的构造函数是 (io_context&, worker_pool, port)
-        auto& worker_pool = AsioIOContextPool::GetInstance(AsioIOContextPool::ServiceType::HTTP);
+        auto& worker_pool = AsioIOContextPool::GetInstance();
         server_ = std::make_unique<Net::AsioHttpServer>(*io_context_, worker_pool, config_.port);
         
         initialized_ = true;

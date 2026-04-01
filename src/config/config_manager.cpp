@@ -1,7 +1,7 @@
 #include "config/common_config.h"
 #include <fstream>
 #include <sstream>
-
+#include "log/logmanager.h"
 ConfigManager& ConfigManager::getInstance() {
     static ConfigManager instance;
     return instance;
@@ -15,6 +15,7 @@ bool ConfigManager::load(const std::string& config_path) {
         
         if (!std::filesystem::exists(config_path)) {
             applyDefaults();
+			LOG_MAIN_WARN_AT("Config file '{}' not found, using default configuration", config_path);
             return true;
         }
 
@@ -109,8 +110,8 @@ std::vector<std::string> ConfigManager::getValidationErrors() const {
         errors.push_back("thread_pool.queue_size must be positive");
     }
 
-    if (config_.media.zlm_port <= 0 || config_.media.zlm_port > 65535) {
-        errors.push_back("media.zlm_port must be between 1 and 65535");
+    if (config_.zlm.zlm_port <= 0 || config_.zlm.zlm_port > 65535) {
+        errors.push_back("zlm.zlm_port must be between 1 and 65535");
     }
 
     return errors;
@@ -186,14 +187,18 @@ void ConfigManager::parseConfig(const YAML::Node& node) {
         if (tp["queue_size"]) t.queue_size = tp["queue_size"].as<int>();
     }
 
-    if (node["media"]) {
-        auto& m = config_.media;
-        const auto& media = node["media"];
-        if (media["zlm_host"]) m.zlm_host = media["zlm_host"].as<std::string>();
-        if (media["zlm_port"]) m.zlm_port = media["zlm_port"].as<int>();
-        if (media["secret"]) m.secret = media["secret"].as<std::string>();
-        if (media["rtmp_port"]) m.rtmp_port = media["rtmp_port"].as<int>();
-        if (media["rtsp_port"]) m.rtsp_port = media["rtsp_port"].as<int>();
+    if (node["zlm"]) {
+        auto& m = config_.zlm;
+        const auto& zlm = node["zlm"];
+        if (zlm["zlm_host"]) m.zlm_host = zlm["zlm_host"].as<std::string>();
+        if (zlm["zlm_port"]) m.zlm_port = zlm["zlm_port"].as<int>();
+        LOG_MAIN_DEBUG_AT("Loaded ZLM port: {}", m.zlm_port);
+        if (zlm["secret"]) {
+            m.secret = zlm["secret"].as<std::string>();         
+            //LOG_MAIN_DEBUG_AT("Loaded ZLM secret: {}", m.secret);
+        }
+        if (zlm["rtmp_port"]) m.rtmp_port = zlm["rtmp_port"].as<int>();
+        if (zlm["rtsp_port"]) m.rtsp_port = zlm["rtsp_port"].as<int>();
     }
 }
 
@@ -224,11 +229,11 @@ YAML::Node ConfigManager::toYaml() const {
     node["thread_pool"]["max_threads"] = config_.thread_pool.max_threads;
     node["thread_pool"]["queue_size"] = config_.thread_pool.queue_size;
 
-    node["media"]["zlm_host"] = config_.media.zlm_host;
-    node["media"]["zlm_port"] = config_.media.zlm_port;
-    node["media"]["secret"] = config_.media.secret;
-    node["media"]["rtmp_port"] = config_.media.rtmp_port;
-    node["media"]["rtsp_port"] = config_.media.rtsp_port;
+    node["zlm"]["zlm_host"] = config_.zlm.zlm_host;
+    node["zlm"]["zlm_port"] = config_.zlm.zlm_port;
+    node["zlm"]["secret"] = config_.zlm.secret;
+    node["zlm"]["rtmp_port"] = config_.zlm.rtmp_port;
+    node["zlm"]["rtsp_port"] = config_.zlm.rtsp_port;
 
     return node;
 }

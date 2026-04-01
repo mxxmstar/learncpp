@@ -50,7 +50,7 @@ int main() {
         boost::asio::io_context shared_ctx;
         
         // 7. 注册 ZLMediaKit 服务
-        container.registerService<ZLMService>(shared_ctx, config.media);
+        container.registerService<ZLMService>(shared_ctx, config.zlm);
         
         // 8. 初始化所有服务
         LOG_MAIN_INFO_AT("Initializing {} services...", container.getServiceCount());

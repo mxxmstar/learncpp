@@ -8,6 +8,11 @@
 #include <filesystem>
 #include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
+#include <vector>
+#include <string>
+#include "log/logger.h"  // 包含 LoggerConfig 和 RotationPolicy
+#include "net/httpclientpool.h"  // 包含 HttpClientPool::Config
+
 
 struct ServerConfig {
     std::string host = "127.0.0.1";
@@ -15,14 +20,63 @@ struct ServerConfig {
     int threads = 4;
 };
 
+struct ClientConfig {
+    //std::vector<std::string> urls;
+    std::string host;
+    uint16_t port;
+    std::size_t init_size = 5;
+    std::size_t max_size = 20;
+    int connect_timeout_ms = 30000;
+    int idle_timeout_sec = 300;
+    std::size_t max_requests_per_client = 100;
+};
+
+// TODO: 增加模块日志配置
 struct LogConfig {
     std::string level = "info";
     std::string dir = "./logs";
-    size_t max_file_size_mb = 100;
-    size_t max_files = 5;
     std::string rotation = "daily";
+    size_t max_file_size_mb = 100;
+    size_t max_files = 5;    
     bool console = true;
     bool json_format = false;
+    
+    /// @brief 转换为 LoggerConfig
+    /// @param logger_name 日志器名称
+    /// @return LoggerConfig 对象
+    LoggerConfig toLoggerConfig(const std::string& logger_name = "main") const {
+        LoggerConfig config(logger_name, parseLevel(level));
+        config.log_dir = dir;
+        config.policy = parseRotation(rotation);
+        config.max_file_size_mb = max_file_size_mb;
+        config.max_files = max_files;
+        config.write_to_console = console;
+        config.is_json = json_format;
+        return config;
+    }
+
+private:
+    /// @brief 解析日志级别字符串
+    static spdlog::level::level_enum parseLevel(const std::string& level_str) {
+        if (level_str == "trace") return spdlog::level::trace;
+        if (level_str == "debug") return spdlog::level::debug;
+        if (level_str == "info") return spdlog::level::info;
+        if (level_str == "warn") return spdlog::level::warn;
+        if (level_str == "error") return spdlog::level::err;
+        if (level_str == "critical") return spdlog::level::critical;
+        return spdlog::level::info;  // 默认
+    }
+    
+    /// @brief 解析滚动策略字符串
+    static RotationPolicy parseRotation(const std::string& rotation_str) {
+        if (rotation_str == "daily") {
+            return RotationPolicy::DAILY;
+        }
+		else if (rotation_str == "filesize") {
+			return RotationPolicy::FILESIZE;
+        }
+        return RotationPolicy::DAILY;  // 默认
+    }
 };
 
 struct DatabaseConfig {
@@ -63,10 +117,11 @@ struct CameraConfig {
 
 struct AppConfig {
     ServerConfig server;
+    ClientConfig client;
     LogConfig log;
     DatabaseConfig database;
     ThreadPoolConfig thread_pool;
-    ZlmConfig media;
+    ZlmConfig zlm;
     WebSocketConfig websocket;
     CameraConfig camera;
 };

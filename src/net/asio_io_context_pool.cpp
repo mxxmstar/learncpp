@@ -1,26 +1,12 @@
 #include "net/asio_io_context_pool.h"
 #include "log/logmanager.h"
 #include <exception>
+#include <thread>
 namespace Net {
-AsioIOContextPool& AsioIOContextPool::GetInstance(ServiceType type) {
-    switch (type) {
-    case ServiceType::HTTP: {
-        static auto http_instance = Create(4);
-        return *http_instance;
-    }
-    case ServiceType::TCP: {
-        static auto tcp_instance = Create(4);
-        return *tcp_instance;
-    }
-    default: {
-        static auto default_instance = Create(4);
-        return *default_instance;
-    }
-    }
-}
-
-std::unique_ptr<AsioIOContextPool> AsioIOContextPool::Create(int size) {
-    return std::unique_ptr<AsioIOContextPool>(new AsioIOContextPool(size));
+AsioIOContextPool& AsioIOContextPool::GetInstance(int size) {
+    if (size == 0) size = 1;
+	static auto instance = AsioIOContextPool(size);
+    return instance;
 }
 
 AsioIOContextPool::AsioIOContextPool(std::size_t size) : io_contexts_(size)
@@ -40,9 +26,10 @@ AsioIOContextPool::AsioIOContextPool(std::size_t size) : io_contexts_(size)
             }
             catch (const std::exception& e) {
                 // Handle exceptions as needed
+                LOG_MAIN_ERROR_AT("AsioIOContextPool thread {} exception: {}", i, e.what());
             }
             catch (...) {
-
+                LOG_MAIN_ERROR_AT("AsioIOContextPool thread {} unknown exception", i);  
             }
             });
     }

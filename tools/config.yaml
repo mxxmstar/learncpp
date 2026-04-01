@@ -1,16 +1,36 @@
-server:
-  host: 127.0.0.1
-  port: 8080
-  threads: 4
+servers:
+  mainserver:
+    host: 127.0.0.1
+    port: 8080
+    threads: 4
 
-log:
-  level: info
-  dir: ./logs
-  max_file_size_mb: 100
-  max_files: 5
-  rotation: daily
-  console: true
-  json_format: false
+clients:
+  zlm:
+    host: 127.0.0.1
+    port: 8888
+    init_size: 5
+    max_size: 20
+    connect_timeout_ms: 30000
+    idle_timeout_sec: 300
+    max_requests_per_client: 100
+
+logs:
+  mainlog:
+    level: info
+    dir: ./logs
+    max_file_size_mb: 100
+    max_files: 5
+    rotation: daily
+    console: true
+    json_format: false
+  errorlog:
+    level: error
+    dir: ./logs
+    max_file_size_mb: 100
+    max_files: 5
+    rotation: daily
+    console: true
+    json_format: false
 
 database:
   enabled: false
@@ -21,17 +41,10 @@ database:
   password: ""
   pool_size: 10
 
-thread_pool:
-  min_threads: 2
-  max_threads: 8
-  queue_size: 1000
-
-media:
+zlm:
   zlm_host: 127.0.0.1
   zlm_port: 8888
-  secret: your_secret
-  rtmp_port: 1935
-  rtsp_port: 554
+  secret: sphrh7r2VafHUILiTVyK3rm1C6hnUYpZ  
 
 websocket:
   host: 127.0.0.1
@@ -41,3 +54,6 @@ websocket:
 
 camera:
   db_path: ./data/camera.db
+
+user:
+  db_path: ./data/user.db

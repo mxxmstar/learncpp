@@ -3,12 +3,12 @@
 #include <thread>
 #include <chrono>
 #include "config/common_config.h"
-
+#include "log/logmanager.h"
 void test_load_config() {
     std::cout << "[TEST] Loading config file..." << std::endl;
     
     auto& cm = ConfigManager::getInstance();
-    bool result = cm.load("tools/config.yaml");
+    bool result = cm.load("../tools/config.yaml");
     
     assert(result && "Failed to load config");
     std::cout << "  [PASS] Config loaded successfully" << std::endl;
@@ -75,17 +75,19 @@ void test_read_thread_pool_config() {
               << ", max=" << config.thread_pool.max_threads << std::endl;
 }
 
-void test_read_media_config() {
-    std::cout << "[TEST] Reading media config..." << std::endl;
+void test_read_zlm_config() {
+    std::cout << "[TEST] Reading zlm config..." << std::endl;
     
     const auto& config = ConfigManager::getInstance().getConfig();
     
-    assert(config.media.zlm_host == "127.0.0.1" && "Wrong zlm host");
-    assert(config.media.zlm_port == 8888 && "Wrong zlm port");
-    assert(config.media.rtmp_port == 1935 && "Wrong rtmp port");
+    assert(config.zlm.zlm_host == "127.0.0.1" && "Wrong zlm host");
+    assert(config.zlm.zlm_port == 8888 && "Wrong zlm port");
+    assert(config.zlm.rtmp_port == 1935 && "Wrong rtmp port");
+    assert(config.zlm.secret == "sphrh7r2VafHUILiTVyK3rm1C6hnUYpZ");
     
-    std::cout << "  [PASS] Media config: zlm_host=" << config.media.zlm_host 
-              << ", zlm_port=" << config.media.zlm_port << std::endl;
+    std::cout << "  [PASS] Media config: zlm_host=" << config.zlm.zlm_host 
+              << ", zlm_port=" << config.zlm.zlm_port
+              << ", zlm_secret=" << config.zlm.secret << std::endl;
 }
 
 void test_validation() {
@@ -115,7 +117,7 @@ void test_hot_reload() {
     std::cout << "[TEST] Testing hot reload..." << std::endl;
     
     auto& cm = ConfigManager::getInstance();
-    cm.load("tools/config.yaml");
+    cm.load("../tools/config.yaml");
     
     bool callback_called = false;
     cm.setChangeCallback([&callback_called](const AppConfig& config) {
@@ -132,29 +134,31 @@ void test_save_config() {
     std::cout << "[TEST] Testing save config..." << std::endl;
     
     auto& cm = ConfigManager::getInstance();
-    cm.load("tools/config.yaml");
+    cm.load("../tools/config.yaml");
     
-    bool result = cm.save("tools/config_test_save.yaml");
+    bool result = cm.save("../tools/config_test_save.yaml");
     assert(result && "Failed to save config");
     
-    cm.load("tools/config_test_save.yaml");
+    cm.load("../tools/config_test_save.yaml");
     const auto& config = cm.getConfig();
     assert(config.server.port == 8080 && "Saved config mismatch");
     
-    std::filesystem::remove("tools/config_test_save.yaml");
+    std::filesystem::remove("../tools/config_test_save.yaml");
     
     std::cout << "  [PASS] Config saved and reloaded correctly" << std::endl;
 }
 
 int main() {
     std::cout << "=== Config Module Tests ===" << std::endl;
-    
+    LogManager& log_manager = LogManager::getInstance();
+    log_manager.Init();
+
     test_load_config();
     test_read_server_config();
     test_read_log_config();
     test_read_database_config();
     test_read_thread_pool_config();
-    test_read_media_config();
+    test_read_zlm_config();
     test_validation();
     test_hot_reload();
     test_save_config();

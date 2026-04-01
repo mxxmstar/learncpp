@@ -21,7 +21,7 @@ int main()
         boost::asio::io_context main_io_context;
         
         // 创建工作池
-        auto& worker_pool = AsioIOContextPool::GetInstance(AsioIOContextPool::ServiceType::HTTP);
+        auto& worker_pool = AsioIOContextPool::GetInstance();
         
         // 创建HTTP服务器，监听端口8080
         AsioHttpServer server(main_io_context, worker_pool, 8080);

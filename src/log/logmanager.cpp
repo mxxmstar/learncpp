@@ -1,4 +1,5 @@
 #include "log/logmanager.h"
+#include <spdlog/spdlog.h>
 
 LogManager& LogManager::getInstance() {
     static LogManager instance;
@@ -19,15 +20,75 @@ void LogManager::Init(const std::string& base_dir, int async_threads) {
         log_dir_ += '/';
     }
 
-    // 创建日志器
-    // loggers_["error"] = std::make_shared<spdlog::logger>("error", std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_dir_ + "error.log")); 
-    // loggers_["main"] = std::make_shared<spdlog::logger>("main", std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_dir_ + "main.log"));   
+    // 创建简单的日志器（第一阶段）
     auto main_config = LoggerConfig("main", spdlog::level::trace);
     loggers_["main"] = std::make_shared<Logger>(main_config);
     auto error_config = LoggerConfig("error", spdlog::level::err);
     loggers_["error"] = std::make_shared<Logger>(error_config);
+    
     initialized_ = true;
 }
+
+void LogManager::ReloadFromConfig(const LoggerConfig& config) {
+    if (!initialized_) {
+        // 如果还未初始化，先调用 Init
+		// TODO: 这里可以考虑是否允许直接使用 LogConfig 来初始化日志系统，添加一个专门的 InitFromConfig 方法
+        Init();
+    }
+    
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    // 重新配置 logger
+    auto it = loggers_.find(config.name);
+    if (it == loggers_.end()) {
+        // 如果 logger 不存在，创建它
+        auto new_logger = std::make_shared<Logger>(config);
+        loggers_[config.name] = new_logger;
+        LOG_MAIN_INFO_AT("Created new logger: {}", config.name);
+        return;
+    }
+    
+    bool needs_rebuild = false;
+    
+    // 1. 热更新日志级别（立即生效）
+    if (it->second->GetLevel() != config.level) {
+        it->second->SetLevel(config.level);
+        LOG_MAIN_INFO_AT("Logger '{}' level updated: {} -> {}", 
+            config.name, 
+            spdlog::level::to_string_view(it->second->GetLevel()),
+            spdlog::level::to_string_view(config.level));
+    }
+    
+    // 2. 检查是否需要重建 sink（文件路径、滚动策略等变更）
+    if (it->second->GetRotationPolicy() != config.policy ||
+        it->second->GetMaxFileSize() != config.max_file_size_mb ||
+        it->second->GetMaxFiles() != config.max_files ||
+        it->second->GetLogDir() != config.log_dir) {
+        needs_rebuild = true;
+    }
+
+    if (needs_rebuild) {
+        LOG_MAIN_WARN_AT("Logger '{}' requires rebuild due to configuration change", 
+            config.name);
+        // 刷新旧的 logger
+        it->second->Flush();
+        
+        // 创建新的 logger 替换旧的
+        auto new_logger = std::make_shared<Logger>(config);
+        loggers_[config.name] = new_logger;
+        
+        LOG_MAIN_INFO_AT("Logger '{}' rebuilt with new configuration", config.name);
+        return;
+    }
+    
+    LOG_MAIN_INFO_AT("Logger '{}' configuration reloaded", config.name);
+}
+
+// // 新增重载版本：直接从 LogConfig 重新加载
+// void LogManager::ReloadFromConfig(const LogConfig& config) {
+//     // 使用转换接口将 LogConfig 转换为 LoggerConfig
+//     ReloadFromConfig(config.toLoggerConfig("main"));
+// }
 
 
 void LogManager::RegisterLogger(const LoggerConfig& config) {

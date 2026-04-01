@@ -10,7 +10,7 @@ public:
     LogManager(const LogManager&) = delete;
     LogManager& operator=(const LogManager&) = delete;
 
-    /// @brief 初始化日志管理器
+    /// @brief 初始化日志管理器（第一阶段：简单初始化）
     /// @param base_dir 日志根目录 
     /// @param level 日志级别
     /// @param async_threads 异步线程数
@@ -18,6 +18,17 @@ public:
     /// @param max_file_size_mb 最大文件大小（MB）
     /// @param max_files 最大文件数
     void Init(const std::string& base_dir = "./logs", int async_threads = 1);
+    
+    /// @brief 重新加载配置（第二阶段：使用配置文件重新初始化）
+    /// @param config 日志配置
+    void ReloadFromConfig(const LoggerConfig& config);
+    
+    // /// @brief 重新加载配置（重载版本：直接从 LogConfig）
+    // /// @param config LogConfig 对象
+    // void ReloadFromConfig(const struct LogConfig& config);
+    
+    /// @brief 检查是否已初始化
+    bool isInitialized() const { return initialized_; }
     
     /// @brief 注册一个logger
     /// @param name logger名称

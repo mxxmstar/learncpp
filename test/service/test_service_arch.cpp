@@ -21,6 +21,10 @@ int testHttpServerOnly() {
     try {
         std::cout << "=== Test: HTTP Server Only ===" << std::endl;
         
+        // 初始化日志
+        LogManager& log_mgr = LogManager::getInstance();
+        log_mgr.Init();
+
         // 1. 加载配置
         ConfigManager& config_mgr = ConfigManager::getInstance();
         if (!config_mgr.load("tools/config.yaml")) {
@@ -30,9 +34,8 @@ int testHttpServerOnly() {
         
         const auto& config = config_mgr.getConfig();
         
-        // 2. 初始化日志
-        LogManager& log_mgr = LogManager::getInstance();
-        log_mgr.Init(config.log.dir, 1);
+        // 2. 初始化日志        
+        log_mgr.ReloadFromConfig(config.log.toLoggerConfig());
         
         std::cout << "[Config] Loaded from: " << config_mgr.getConfigPath() << std::endl;
         std::cout << "[Server] Host: " << config.server.host 
@@ -98,22 +101,27 @@ int testWithZLM() {
     try {
         std::cout << "=== Test: HTTP Server + ZLMediaKit ===" << std::endl;
         
-        // 1. 加载配置
+        // 1. 初始化日志（第一阶段：简单初始化，不依赖配置）
+        LogManager& log_mgr = LogManager::getInstance();
+        log_mgr.Init("./logs", 1);  // 先简单初始化，使用默认目录
+        
+        // 2. 加载配置
         ConfigManager& config_mgr = ConfigManager::getInstance();
-        if (!config_mgr.load("tools/config.yaml")) {
-            std::cerr << "Failed to load config" << std::endl;
+        if (!config_mgr.load("../tools/config.yaml")) {
+            LOG_MAIN_ERROR_AT("Failed to load config");
             return 1;
         }
         
         const auto& config = config_mgr.getConfig();
         
-        // 2. 初始化日志
-        LogManager& log_mgr = LogManager::getInstance();
-        log_mgr.Init(config.log.dir, 1);
+        // 3. 重新加载日志配置（第二阶段：使用配置文件）
+        log_mgr.ReloadFromConfig(config.log.toLoggerConfig());  // 直接使用 LogConfig
         
-        std::cout << "[Config] Loaded from: " << config_mgr.getConfigPath() << std::endl;
-        std::cout << "[Server] Port: " << config.server.port << std::endl;
-        std::cout << "[Media] ZLM Port: " << config.media.zlm_port << std::endl;
+        LOG_MAIN_INFO_AT("Application starting...");
+        LOG_MAIN_INFO_AT("Config loaded from: {}", config_mgr.getConfigPath());
+        //std::cout << "[Server] Port: " << config.server.port << std::endl;
+        //std::cout << "[ZLM] ZLM Port: " << config.zlm.zlm_port << std::endl;
+        //std::cout << "[ZLM] ZLM Secret: " << config.zlm.secret << std::endl;
         
         // 3. 创建服务容器
         auto& container = ServiceContainer::getInstance();
@@ -128,7 +136,7 @@ int testWithZLM() {
         container.registerService<HttpClientPoolService>(shared_ctx, config.server);
         
         // 7. 注册 ZLMediaKit 服务
-        container.registerService<ZLMService>(shared_ctx, config.media);
+        container.registerService<ZLMService>(shared_ctx, config.zlm);
         
         // 8. 初始化所有服务
         std::cout << "[Init] Initializing " << container.getServiceCount() << " services..." << std::endl;
@@ -170,14 +178,14 @@ int testWithZLM() {
             http_svc->getIoContext()->run();
         }
         
-        // 12. 等待退出信号
-        while (g_running) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
+        //// 12. 等待退出信号
+        //while (g_running) {
+        //    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        //}
         
         // 13. 停止所有服务
-        std::cout << "[Stop] Stopping all services..." << std::endl;
-        container.stopAll();
+        /*std::cout << "[Stop] Stopping all services..." << std::endl;
+        container.stopAll();*/
         
         // 14. 清理
         log_mgr.Shutdown();
@@ -196,7 +204,7 @@ int main() {
     // 设置信号处理
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
-    
+
     // 选择要运行的测试
     // 返回 0: 只运行 HTTP 服务器
     // 返回 1: 运行 HTTP 服务器 + ZLMediaKit

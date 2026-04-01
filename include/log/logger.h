@@ -51,6 +51,14 @@ public:
     spdlog::level::level_enum GetLevel() const;
 
     void SetFormat(const std::string& format);
+
+    RotationPolicy GetRotationPolicy() const;
+
+    std::size_t GetMaxFileSize() const;
+
+    std::size_t GetMaxFiles() const;
+
+    std::string GetLogDir() const;
     void Flush();
 private:
 

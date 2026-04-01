@@ -13,7 +13,7 @@ int main() {
     boost::asio::io_context main_io_context;
     
     // 创建工作池
-    auto& worker_pool = AsioIOContextPool::GetInstance(AsioIOContextPool::ServiceType::HTTP);
+    auto& worker_pool = AsioIOContextPool::GetInstance();
 
     boost::json::object rsp_obj;
     // 创建请求对象

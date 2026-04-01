@@ -6,20 +6,14 @@ namespace Net {
 /// @brief io_context线程池,启用多个线程，每个线程运行一个io_context实例
 class AsioIOContextPool {
 public:
-    enum class ServiceType {
-        TCP,
-        HTTP
-    };
     using IOContext = boost::asio::io_context;
     using WorkGuard = boost::asio::executor_work_guard<IOContext::executor_type>;
     /// @brief 获取单例 
-    static AsioIOContextPool& GetInstance(ServiceType type);
+    static AsioIOContextPool& GetInstance(int size = std::thread::hardware_concurrency());
     ~AsioIOContextPool();
     /// @brief 禁止拷贝和赋值
     AsioIOContextPool(const AsioIOContextPool&) = delete;
     AsioIOContextPool& operator=(const AsioIOContextPool&) = delete;
-
-    static std::unique_ptr<AsioIOContextPool> Create(int size);
 
     /// @brief 获取一个io_context 实例
     /// @return io_context 实例
