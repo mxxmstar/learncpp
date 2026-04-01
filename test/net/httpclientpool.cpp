@@ -17,7 +17,8 @@ void TestBasicUsage() {
     config.init_size = 2;
     config.max_size = 5;
 
-    auto& pool = HttpClientPool::GetInstance();
+    // 创建连接池实例（不再使用单例）
+    HttpClientPool pool;
     pool.Init(io_context, config);
 
     // 使用 RAII 守卫，自动释放客户端
@@ -59,7 +60,8 @@ void TestPoolStats() {
     config.init_size = 3;
     config.max_size = 5;
 
-    auto& pool = HttpClientPool::GetInstance();
+    // 创建连接池实例（不再使用单例）
+    HttpClientPool pool;
     pool.Init(io_context, config);
 
     // 初始状态检查
@@ -122,7 +124,8 @@ void TestConcurrentAccess() {
     config.init_size = 2;
     config.max_size = 10;
 
-    auto& pool = HttpClientPool::GetInstance();
+    // 创建连接池实例（不再使用单例）
+    HttpClientPool pool;
     pool.Init(io_context, config);
 
     std::vector<std::thread> threads;
@@ -187,7 +190,8 @@ void TestMaxRequests() {
     config.max_size = 2;
     config.max_requests_per_client = 3;
 
-    auto& pool = HttpClientPool::GetInstance();
+    // 创建连接池实例（不再使用单例）
+    HttpClientPool pool;
     pool.Init(io_context, config);
 
     for (int i = 0; i < 5; ++i) {
@@ -223,7 +227,8 @@ void TestClientValidity() {
     config.init_size = 2;
     config.max_size = 3;
 
-    auto& pool = HttpClientPool::GetInstance();
+    // 创建连接池实例（不再使用单例）
+    HttpClientPool pool;
     pool.Init(io_context, config);
 
     // 测试获取的客户端都是有效的
@@ -267,7 +272,8 @@ void TestRaiiGuard() {
     config.init_size = 2;
     config.max_size = 3;
 
-    auto& pool = HttpClientPool::GetInstance();
+    // 创建连接池实例（不再使用单例）
+    HttpClientPool pool;
     pool.Init(io_context, config);
 
     // 使用 RAII 守卫，无需手动 Release
@@ -306,7 +312,8 @@ void TestPoolExhaustion() {
     config.init_size = 2;
     config.max_size = 2;  // 最大只有 2 个
 
-    auto& pool = HttpClientPool::GetInstance();
+    // 创建连接池实例（不再使用单例）
+    HttpClientPool pool;
     pool.Init(io_context, config);
 
     // 获取 2 个客户端

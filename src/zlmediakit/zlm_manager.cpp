@@ -332,11 +332,13 @@ void ZLMManager::Stop() {
     LOG_MAIN_INFO_AT("ZLMManager: Stopped");
 }
 
-ZLMManager::ZLMManager(boost::asio::io_context& ctx, const ZlmConfig& zlm_config)
+ZLMManager::ZLMManager(boost::asio::io_context& ctx, 
+                       Net::HttpClientPool* pool,
+                       const ZlmConfig& zlm_config)
     : ctx_(ctx)
     , zlm_config_(zlm_config)
     , process_(ctx, createProcessConfig(zlm_config))
-    , api_client_(ctx, createApiConfig(zlm_config))
+    , api_client_(ctx, pool, createApiConfig(zlm_config))
     , hook_handler_(nullptr) {
     
     LOG_MAIN_INFO_AT("ZLMManager: Initialized with config - host: {}, port: {}, secret: {}",

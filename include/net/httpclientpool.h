@@ -82,8 +82,17 @@ public:
         std::size_t lifetime_destroyed;///< 历史累计销毁数量
     };
 
-    static HttpClientPool& GetInstance();
-
+    /// @brief 默认构造函数
+    HttpClientPool() = default;
+    
+    /// @brief 析构函数
+    ~HttpClientPool();
+    
+    /// @brief 禁用拷贝构造和赋值
+    HttpClientPool(const HttpClientPool&) = delete;
+    HttpClientPool& operator=(const HttpClientPool&) = delete;
+    
+    /// @brief 初始化连接池
     void Init(boost::asio::io_context& io_context, const Config& config);
     
     /// @brief 设置全局的 Handler 工厂
@@ -112,10 +121,6 @@ public:
     PoolStats GetStats() const;
     
 private:
-    HttpClientPool() = default;
-    ~HttpClientPool();
-    HttpClientPool(const HttpClientPool&) = delete;
-    HttpClientPool& operator=(const HttpClientPool&) = delete;
 
     std::shared_ptr<PooledClient> CreatePooledClient();
     void ReleaseInternal(std::shared_ptr<PooledClient> client);  // 内部释放逻辑

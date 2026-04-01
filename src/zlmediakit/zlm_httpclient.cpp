@@ -5,14 +5,17 @@
 #include <sstream>
 using namespace Net;
 
-void ZLMRequestHelper::DoRequest(boost::asio::io_context& io_ctx, const ZLMAddressConfig& config,
-    const std::string& api, const boost::json::object& params)
+void ZLMRequestHelper::DoRequest(boost::asio::io_context& io_ctx, Net::HttpClientPool* pool,
+    const ZLMAddressConfig& config, const std::string& api, const boost::json::object& params)
 {
-    // 获取 HTTP 客户端池
-    auto& pool = HttpClientPool::GetInstance();
+    // 使用传入的连接池（不再使用单例）
+    if (!pool) {
+        LOG_MAIN_ERROR_AT("ZLMApiClient: HttpClientPool is null");
+        return;
+    }
 
     // 使用 RAII 守卫获取客户端（自动管理生命周期）
-    auto client_guard = pool.AcquireGuard();
+    auto client_guard = pool->AcquireGuard();
     if (!client_guard) {
         LOG_MAIN_ERROR_AT("ZLMApiClient: failed to acquire HTTP client");        
         return;
@@ -60,11 +63,16 @@ std::string ZLMRequestHelper::BuildQuery(const boost::json::object& params) {
     return oss.str();  // 返回："app=live&stream=camera1&secret=your_secret"
 }
 
-ZLMApiClient::ZLMApiClient(boost::asio::io_context& io_ctx, const ZLMAddressConfig& cfg)
-    : io_context_(io_ctx), config_(cfg) 
+ZLMApiClient::ZLMApiClient(boost::asio::io_context& io_ctx, 
+                           Net::HttpClientPool* pool,
+                           const ZLMAddressConfig& cfg)
+    : io_context_(io_ctx), pool_(pool), config_(cfg) 
 {
+    if (!pool_) {
+        throw std::runtime_error("ZLMApiClient requires a valid HttpClientPool");
+    }
     // 初始化拉流代理管理器
-    proxy_pull_manager_.reset(new ZLMProxyPullManager(io_context_, config_));
+    proxy_pull_manager_.reset(new ZLMProxyPullManager(io_context_, pool_, config_));
 }
 
 ZLMApiClient::~ZLMApiClient() {

@@ -81,18 +81,17 @@ void testZlmApiClient() {
     cfg.port = 80;
     cfg.secret = "sphrh7r2VafHUILiTVyK3rm1C6hnUYpZ";  // 替换为你的密钥
     
-    auto client = ZLMApiClient(ctx, cfg);
-    
-    std::cout << "ZLM API Client created" << std::endl;
-    
+    // 创建连接池
+    HttpClientPool pool;
     HttpClientPool::Config config;
     config.host = "127.0.0.1";
     config.port = 80;
     config.init_size = 2;
     config.max_size = 5;
-
-    auto& pool = HttpClientPool::GetInstance();
     pool.Init(ctx, config);
+    
+    // 创建 ZLMApiClient（需要传入 pool）
+    auto client = ZLMApiClient(ctx, &pool, cfg);
 
     // 测试 1：获取媒体列表（无参数）
     std::cout << "\n--- Test 1: Get Media List (no params) ---" << std::endl;

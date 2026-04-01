@@ -1,5 +1,7 @@
 #include "service/zlm_service.h"
 #include "log/logmanager.h"
+#include "service/httpclient_pool_service.h"
+#include "service/service_container.h"
 
 ZLMService::ZLMService(boost::asio::io_context& ctx, const ZlmConfig& config)
     : ctx_(ctx), config_(config) {
@@ -20,8 +22,17 @@ bool ZLMService::initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", getName());
     
     try {
+        // 获取 HttpClientPool（通过 Service）
+        auto http_pool_svc = ServiceContainer::getInstance().getService<HttpClientPoolService>();
+        if (!http_pool_svc || !http_pool_svc->isInitialized()) {
+            LOG_MAIN_ERROR_AT("{}: HttpClientPoolService is not initialized. Please register it before ZLMService", getName());
+            return false;
+        }
+        
+        LOG_MAIN_INFO_AT("{}: HttpClientPoolService is ready", getName());
+        
         // 使用 new 创建 ZLMManager，并传入必要的参数
-        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(ctx_, config_));
+        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(ctx_, http_pool_svc->getHttpClientPool(), config_));
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, secret: {})", 

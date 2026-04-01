@@ -8,6 +8,7 @@ add_executable(test_service_arch
     test_service_arch.cpp
     ${CMAKE_SOURCE_DIR}/src/service/http_server_service.cpp
     ${CMAKE_SOURCE_DIR}/src/service/zlm_service.cpp
+    ${CMAKE_SOURCE_DIR}/src/service/httpclient_pool_service.cpp
 )
 
 target_include_directories(test_service_arch PRIVATE 

@@ -58,8 +58,11 @@ class ZLMManager {
 public:
    /// @brief 构造函数
    /// @param ctx io_context（用于进程管理和 API 调用）
-   /// @param media_config 媒体配置（包含 ZLM 地址、密钥等）
-   explicit ZLMManager(boost::asio::io_context& ctx, const ZlmConfig& zlm_config);
+   /// @param pool HTTP 连接池（用于 API 调用）
+   /// @param zlm_config 媒体配置（包含 ZLM 地址、密钥等）
+   explicit ZLMManager(boost::asio::io_context& ctx, 
+                       Net::HttpClientPool* pool,
+                       const ZlmConfig& zlm_config);
    ~ZLMManager();
    
    bool Start();

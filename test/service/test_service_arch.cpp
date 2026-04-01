@@ -6,6 +6,7 @@
 #include "service/service_container.h"
 #include "service/http_server_service.h"
 #include "service/zlm_service.h"
+#include "service/httpclient_pool_service.h"
 
 // 全局信号标志
 std::atomic<bool> g_running{true};
@@ -117,23 +118,26 @@ int testWithZLM() {
         // 3. 创建服务容器
         auto& container = ServiceContainer::getInstance();
         
-        // 4. 注册 HTTP 服务器服务
-        container.registerService<HttpServerService>(config.server);
-        
-        // 5. 创建共享的 io_context
+        // 4. 创建共享的 io_context
         boost::asio::io_context shared_ctx;
         
-        // 6. 注册 ZLMediaKit 服务
+        // 5. 注册 HTTP 服务器服务
+        container.registerService<HttpServerService>(config.server);
+        
+        // 6. 注册 HttpClientPool 服务（ZLM 依赖它）
+        container.registerService<HttpClientPoolService>(shared_ctx, config.server);
+        
+        // 7. 注册 ZLMediaKit 服务
         container.registerService<ZLMService>(shared_ctx, config.media);
         
-        // 7. 初始化所有服务
+        // 8. 初始化所有服务
         std::cout << "[Init] Initializing " << container.getServiceCount() << " services..." << std::endl;
         if (!container.initializeAll()) {
             LOG_MAIN_ERROR_AT("Failed to initialize services");
             return 1;
         }
         
-        // 8. 启动所有服务
+        // 9. 启动所有服务
         std::cout << "[Start] Starting " << container.getServiceCount() << " services..." << std::endl;
         if (!container.startAll()) {
             LOG_MAIN_ERROR_AT("Failed to start services");
@@ -146,7 +150,7 @@ int testWithZLM() {
             std::cout << "  - " << name << std::endl;
         }
         
-        // 9. 获取服务
+        // 10. 获取服务
         auto http_svc = container.getService<HttpServerService>();
         auto zlm_svc = container.getService<ZLMService>();
         
@@ -160,22 +164,22 @@ int testWithZLM() {
             }
         }
         
-        // 10. 运行 HTTP 服务器的 io_context
+        // 11. 运行 HTTP 服务器的 io_context
         if (http_svc && http_svc->getIoContext()) {
             std::cout << "[Run] Running HTTP server io_context..." << std::endl;
             http_svc->getIoContext()->run();
         }
         
-        // 11. 等待退出信号
+        // 12. 等待退出信号
         while (g_running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         
-        // 12. 停止所有服务
+        // 13. 停止所有服务
         std::cout << "[Stop] Stopping all services..." << std::endl;
         container.stopAll();
         
-        // 13. 清理
+        // 14. 清理
         log_mgr.Shutdown();
         
         std::cout << "[Exit] Application exited gracefully" << std::endl;

@@ -4,6 +4,7 @@
 #include <memory>
 #include <boost/json.hpp>
 #include <boost/asio.hpp>
+#include "net/httpclientpool.h"
 
 // 前向声明 6 个功能管理类
 //class ZLMStreamManager;
@@ -33,7 +34,9 @@ struct ZLMAddressConfig {
  */
 class ZLMApiClient {
 public:
-    explicit ZLMApiClient(boost::asio::io_context& io_ctx, const ZLMAddressConfig& cfg);
+    explicit ZLMApiClient(boost::asio::io_context& io_ctx, 
+                          Net::HttpClientPool* pool,
+                          const ZLMAddressConfig& cfg);
     ~ZLMApiClient();
     
     // 1. 媒体流管理
@@ -56,6 +59,7 @@ public:
 
 private:
     boost::asio::io_context& io_context_;
+    Net::HttpClientPool* pool_;  // HTTP 连接池
     ZLMAddressConfig config_;
     
     // 6 个功能模块（使用 unique_ptr 延迟初始化）
@@ -76,6 +80,7 @@ class ZLMRequestHelper {
 public:
 
     static void DoRequest(boost::asio::io_context& io_ctx,
+        Net::HttpClientPool* pool,
         const ZLMAddressConfig& config,
         const std::string& api,
         const boost::json::object& params);

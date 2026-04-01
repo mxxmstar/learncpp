@@ -49,11 +49,6 @@ void PooledClient::GetJsonWithHandler(const std::string& url, HttpClientPool::Co
     }
 }
 
-HttpClientPool& HttpClientPool::GetInstance() {
-    static HttpClientPool instance;
-    return instance;
-}
-
 HttpClientPool::~HttpClientPool() {
     Stop();
 }

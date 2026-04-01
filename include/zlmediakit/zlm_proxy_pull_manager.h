@@ -3,6 +3,7 @@
 #include <functional>
 #include <boost/json.hpp>
 #include <boost/asio.hpp>
+#include "net/httpclientpool.h"
 #include "zlmediakit/zlm_httpclient.h"
 namespace Json = boost::json;
 struct ZLMStreamProxyInfo { 
@@ -27,7 +28,9 @@ public:
 
     // 包朋友，允许 ZLMApiClient 访问
     friend class ZLMApiClient;
-    explicit ZLMProxyPullManager(boost::asio::io_context& io_ctx, const ZLMAddressConfig& cfg);
+    explicit ZLMProxyPullManager(boost::asio::io_context& io_ctx, 
+                                 Net::HttpClientPool* pool,
+                                 const ZLMAddressConfig& cfg);
 
     // 拉流代理管理
     void AddStreamProxy(const ZLMStreamProxyInfo& info);
@@ -36,5 +39,6 @@ public:
 	void GetMediaList(const boost::json::object& json_obj = {});
 private:
     boost::asio::io_context& io_context_;
+    Net::HttpClientPool* pool_;  // HTTP 连接池
     ZLMAddressConfig config_;
 };
