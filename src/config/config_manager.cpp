@@ -78,40 +78,55 @@ std::vector<std::string> ConfigManager::getValidationErrors() const {
         errors.push_back("server.threads must be positive");
     }
 
-    if (config_.log.max_file_size_mb == 0) {
-        errors.push_back("log.max_file_size_mb must be positive");
+    // 验证 ZLM 客户端池配置
+    if (config_.zlm_client.port <= 0 || config_.zlm_client.port > 65535) {
+        errors.push_back("clients.zlm.port must be between 1 and 65535");
     }
-    if (config_.log.max_files == 0) {
-        errors.push_back("log.max_files must be positive");
+    if (config_.zlm_client.init_size == 0) {
+        errors.push_back("clients.zlm.init_size must be positive");
     }
-
-    if (config_.database.enabled) {
-        if (config_.database.host.empty()) {
-            errors.push_back("database.host cannot be empty when database is enabled");
-        }
-        if (config_.database.port <= 0 || config_.database.port > 65535) {
-            errors.push_back("database.port must be between 1 and 65535");
-        }
-        if (config_.database.name.empty()) {
-            errors.push_back("database.name cannot be empty when database is enabled");
-        }
-        if (config_.database.pool_size <= 0) {
-            errors.push_back("database.pool_size must be positive");
-        }
+    if (config_.zlm_client.max_size == 0 || config_.zlm_client.max_size < config_.zlm_client.init_size) {
+        errors.push_back("clients.zlm.max_size must be >= init_size");
     }
 
-    if (config_.thread_pool.min_threads <= 0) {
-        errors.push_back("thread_pool.min_threads must be positive");
+    // 验证日志配置（支持多个日志实例）
+    for (const auto& [log_name, log_config] : config_.logs) {
+        if (log_config.max_file_size_mb == 0) {
+            errors.push_back("logs." + log_name + ".max_file_size_mb must be positive");
+        }
+        if (log_config.max_files == 0) {
+            errors.push_back("logs." + log_name + ".max_files must be positive");
+        }
     }
-    if (config_.thread_pool.max_threads < config_.thread_pool.min_threads) {
-        errors.push_back("thread_pool.max_threads must be >= min_threads");
+
+    // 验证 camera_db 配置
+    if (config_.camera_db.port <= 0 || config_.camera_db.port > 65535) {
+        errors.push_back("camera_db.port must be between 1 and 65535");
     }
-    if (config_.thread_pool.queue_size <= 0) {
-        errors.push_back("thread_pool.queue_size must be positive");
+    if (config_.camera_db.name.empty()) {
+        errors.push_back("camera_db.name cannot be empty");
+    }
+    if (config_.camera_db.pool_size <= 0) {
+        errors.push_back("camera_db.pool_size must be positive");
+    }
+
+    // 验证 user_db 配置
+    if (config_.user_db.port <= 0 || config_.user_db.port > 65535) {
+        errors.push_back("user_db.port must be between 1 and 65535");
+    }
+    if (config_.user_db.name.empty()) {
+        errors.push_back("user_db.name cannot be empty");
+    }
+    if (config_.user_db.pool_size <= 0) {
+        errors.push_back("user_db.pool_size must be positive");
     }
 
     if (config_.zlm.zlm_port <= 0 || config_.zlm.zlm_port > 65535) {
         errors.push_back("zlm.zlm_port must be between 1 and 65535");
+    }
+
+    if (config_.websocket.port <= 0 || config_.websocket.port > 65535) {
+        errors.push_back("websocket.port must be between 1 and 65535");
     }
 
     return errors;
@@ -155,36 +170,39 @@ void ConfigManager::parseConfig(const YAML::Node& node) {
         if (server["threads"]) s.threads = server["threads"].as<int>();
     }
 
-    if (node["log"]) {
-        auto& l = config_.log;
-        const auto& log = node["log"];
-        if (log["level"]) l.level = log["level"].as<std::string>();
-        if (log["dir"]) l.dir = log["dir"].as<std::string>();
-        if (log["max_file_size_mb"]) l.max_file_size_mb = log["max_file_size_mb"].as<size_t>();
-        if (log["max_files"]) l.max_files = log["max_files"].as<size_t>();
-        if (log["rotation"]) l.rotation = log["rotation"].as<std::string>();
-        if (log["console"]) l.console = log["console"].as<bool>();
-        if (log["json_format"]) l.json_format = log["json_format"].as<bool>();
+    // 解析客户端池配置
+    if (node["clients"] && node["clients"]["zlm"]) {
+        auto& c = config_.zlm_client;
+        const auto& zlm_client = node["clients"]["zlm"];
+        if (zlm_client["host"]) c.host = zlm_client["host"].as<std::string>();
+        if (zlm_client["port"]) c.port = zlm_client["port"].as<uint16_t>();
+        if (zlm_client["init_size"]) c.init_size = zlm_client["init_size"].as<std::size_t>();
+        if (zlm_client["max_size"]) c.max_size = zlm_client["max_size"].as<std::size_t>();
+        if (zlm_client["connect_timeout_ms"]) c.connect_timeout_ms = zlm_client["connect_timeout_ms"].as<int>();
+        if (zlm_client["idle_timeout_sec"]) c.idle_timeout_sec = zlm_client["idle_timeout_sec"].as<int>();
+        if (zlm_client["max_requests_per_client"]) c.max_requests_per_client = zlm_client["max_requests_per_client"].as<std::size_t>();
     }
 
-    if (node["database"]) {
-        auto& d = config_.database;
-        const auto& db = node["database"];
-        if (db["enabled"]) d.enabled = db["enabled"].as<bool>();
-        if (db["host"]) d.host = db["host"].as<std::string>();
-        if (db["port"]) d.port = db["port"].as<int>();
-        if (db["name"]) d.name = db["name"].as<std::string>();
-        if (db["user"]) d.user = db["user"].as<std::string>();
-        if (db["password"]) d.password = db["password"].as<std::string>();
-        if (db["pool_size"]) d.pool_size = db["pool_size"].as<int>();
-    }
-
-    if (node["thread_pool"]) {
-        auto& t = config_.thread_pool;
-        const auto& tp = node["thread_pool"];
-        if (tp["min_threads"]) t.min_threads = tp["min_threads"].as<int>();
-        if (tp["max_threads"]) t.max_threads = tp["max_threads"].as<int>();
-        if (tp["queue_size"]) t.queue_size = tp["queue_size"].as<int>();
+    // 解析多日志配置（支持动态多个日志实例）
+    if (node["logs"]) {
+        const auto& logs = node["logs"];
+        
+        // 遍历 logs 下的所有键值对，动态解析每个日志配置
+        for (const auto& kv : logs) {
+            std::string log_name = kv.first.as<std::string>();
+            const auto& log_node = kv.second;
+            
+            LogConfig log_config;
+            if (log_node["level"]) log_config.level = log_node["level"].as<std::string>();
+            if (log_node["dir"]) log_config.dir = log_node["dir"].as<std::string>();
+            if (log_node["max_file_size_mb"]) log_config.max_file_size_mb = log_node["max_file_size_mb"].as<size_t>();
+            if (log_node["max_files"]) log_config.max_files = log_node["max_files"].as<size_t>();
+            if (log_node["rotation"]) log_config.rotation = log_node["rotation"].as<std::string>();
+            if (log_node["console"]) log_config.console = log_node["console"].as<bool>();
+            if (log_node["json_format"]) log_config.json_format = log_node["json_format"].as<bool>();
+            
+            config_.logs[log_name] = log_config;
+        }
     }
 
     if (node["zlm"]) {
@@ -200,6 +218,39 @@ void ConfigManager::parseConfig(const YAML::Node& node) {
         if (zlm["rtmp_port"]) m.rtmp_port = zlm["rtmp_port"].as<int>();
         if (zlm["rtsp_port"]) m.rtsp_port = zlm["rtsp_port"].as<int>();
     }
+
+    if (node["websocket"]) {
+        auto& w = config_.websocket;
+        const auto& ws = node["websocket"];
+        if (ws["host"]) w.host = ws["host"].as<std::string>();
+        if (ws["port"]) w.port = ws["port"].as<uint16_t>();
+        if (ws["heartbeat_interval"]) w.heartbeat_interval = ws["heartbeat_interval"].as<int>();
+        if (ws["timeout"]) w.timeout = ws["timeout"].as<int>();
+    }
+
+    if (node["camera_db"]) {
+        auto& c = config_.camera_db;
+        const auto& cam = node["camera_db"];
+        if (cam["db_path"]) c.db_path = cam["db_path"].as<std::string>();
+        if (cam["host"]) c.host = cam["host"].as<std::string>();
+        if (cam["port"]) c.port = cam["port"].as<int>();
+        if (cam["name"]) c.name = cam["name"].as<std::string>();
+        if (cam["user"]) c.user = cam["user"].as<std::string>();
+        if (cam["password"]) c.password = cam["password"].as<std::string>();
+        if (cam["pool_size"]) c.pool_size = cam["pool_size"].as<int>();
+    }
+
+    if (node["user_db"]) {
+        auto& u = config_.user_db;
+        const auto& user = node["user_db"];
+        if (user["db_path"]) u.db_path = user["db_path"].as<std::string>();
+        if (user["host"]) u.host = user["host"].as<std::string>();
+        if (user["port"]) u.port = user["port"].as<int>();
+        if (user["name"]) u.name = user["name"].as<std::string>();
+        if (user["user"]) u.user = user["user"].as<std::string>();
+        if (user["password"]) u.password = user["password"].as<std::string>();
+        if (user["pool_size"]) u.pool_size = user["pool_size"].as<int>();
+    }
 }
 
 YAML::Node ConfigManager::toYaml() const {
@@ -209,31 +260,52 @@ YAML::Node ConfigManager::toYaml() const {
     node["server"]["port"] = config_.server.port;
     node["server"]["threads"] = config_.server.threads;
 
-    node["log"]["level"] = config_.log.level;
-    node["log"]["dir"] = config_.log.dir;
-    node["log"]["max_file_size_mb"] = config_.log.max_file_size_mb;
-    node["log"]["max_files"] = config_.log.max_files;
-    node["log"]["rotation"] = config_.log.rotation;
-    node["log"]["console"] = config_.log.console;
-    node["log"]["json_format"] = config_.log.json_format;
+    // 客户端池配置
+    node["clients"]["zlm"]["host"] = config_.zlm_client.host;
+    node["clients"]["zlm"]["port"] = config_.zlm_client.port;
+    node["clients"]["zlm"]["init_size"] = config_.zlm_client.init_size;
+    node["clients"]["zlm"]["max_size"] = config_.zlm_client.max_size;
+    node["clients"]["zlm"]["connect_timeout_ms"] = config_.zlm_client.connect_timeout_ms;
+    node["clients"]["zlm"]["idle_timeout_sec"] = config_.zlm_client.idle_timeout_sec;
+    node["clients"]["zlm"]["max_requests_per_client"] = config_.zlm_client.max_requests_per_client;
 
-    node["database"]["enabled"] = config_.database.enabled;
-    node["database"]["host"] = config_.database.host;
-    node["database"]["port"] = config_.database.port;
-    node["database"]["name"] = config_.database.name;
-    node["database"]["user"] = config_.database.user;
-    node["database"]["password"] = config_.database.password;
-    node["database"]["pool_size"] = config_.database.pool_size;
-
-    node["thread_pool"]["min_threads"] = config_.thread_pool.min_threads;
-    node["thread_pool"]["max_threads"] = config_.thread_pool.max_threads;
-    node["thread_pool"]["queue_size"] = config_.thread_pool.queue_size;
+    // 多日志配置（支持动态多个日志实例）
+    for (const auto& [log_name, log_config] : config_.logs) {
+        node["logs"][log_name]["level"] = log_config.level;
+        node["logs"][log_name]["dir"] = log_config.dir;
+        node["logs"][log_name]["max_file_size_mb"] = log_config.max_file_size_mb;
+        node["logs"][log_name]["max_files"] = log_config.max_files;
+        node["logs"][log_name]["rotation"] = log_config.rotation;
+        node["logs"][log_name]["console"] = log_config.console;
+        node["logs"][log_name]["json_format"] = log_config.json_format;
+    }
 
     node["zlm"]["zlm_host"] = config_.zlm.zlm_host;
     node["zlm"]["zlm_port"] = config_.zlm.zlm_port;
     node["zlm"]["secret"] = config_.zlm.secret;
     node["zlm"]["rtmp_port"] = config_.zlm.rtmp_port;
     node["zlm"]["rtsp_port"] = config_.zlm.rtsp_port;
+
+    node["websocket"]["host"] = config_.websocket.host;
+    node["websocket"]["port"] = config_.websocket.port;
+    node["websocket"]["heartbeat_interval"] = config_.websocket.heartbeat_interval;
+    node["websocket"]["timeout"] = config_.websocket.timeout;
+
+    node["camera_db"]["db_path"] = config_.camera_db.db_path;
+    node["camera_db"]["host"] = config_.camera_db.host;
+    node["camera_db"]["port"] = config_.camera_db.port;
+    node["camera_db"]["name"] = config_.camera_db.name;
+    node["camera_db"]["user"] = config_.camera_db.user;
+    node["camera_db"]["password"] = config_.camera_db.password;
+    node["camera_db"]["pool_size"] = config_.camera_db.pool_size;
+
+    node["user_db"]["db_path"] = config_.user_db.db_path;
+    node["user_db"]["host"] = config_.user_db.host;
+    node["user_db"]["port"] = config_.user_db.port;
+    node["user_db"]["name"] = config_.user_db.name;
+    node["user_db"]["user"] = config_.user_db.user;
+    node["user_db"]["password"] = config_.user_db.password;
+    node["user_db"]["pool_size"] = config_.user_db.pool_size;
 
     return node;
 }

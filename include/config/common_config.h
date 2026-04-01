@@ -10,6 +10,7 @@
 #include <yaml-cpp/yaml.h>
 #include <vector>
 #include <string>
+#include <map>
 #include "log/logger.h"  // 包含 LoggerConfig 和 RotationPolicy
 #include "net/httpclientpool.h"  // 包含 HttpClientPool::Config
 
@@ -20,15 +21,28 @@ struct ServerConfig {
     int threads = 4;
 };
 
-struct ClientConfig {
-    //std::vector<std::string> urls;
-    std::string host;
-    uint16_t port;
+/// @brief 客户端池配置（支持多实例）
+struct ClientPoolConfig {
+    std::string host = "127.0.0.1";
+    uint16_t port = 8888;
     std::size_t init_size = 5;
     std::size_t max_size = 20;
     int connect_timeout_ms = 30000;
     int idle_timeout_sec = 300;
     std::size_t max_requests_per_client = 100;
+    
+    /// @brief 转换为 HttpClientPool::Config
+    Net::HttpClientPool::Config toHttpClientPoolConfig() const {
+        Net::HttpClientPool::Config config;
+        config.host = host;
+        config.port = port;
+        config.init_size = init_size;
+        config.max_size = max_size;
+        config.connect_timeout_ms = connect_timeout_ms;
+        config.idle_timeout_sec = idle_timeout_sec;
+        config.max_requests_per_client = max_requests_per_client;
+        return config;
+    }
 };
 
 // TODO: 增加模块日志配置
@@ -79,16 +93,6 @@ private:
     }
 };
 
-struct DatabaseConfig {
-    bool enabled = false;
-    std::string host = "localhost";
-    int port = 3306;
-    std::string name = "mydb";
-    std::string user = "root";
-    std::string password = "";
-    int pool_size = 10;
-};
-
 struct ThreadPoolConfig {
     int min_threads = 2;
     int max_threads = 8;
@@ -99,7 +103,7 @@ struct ZlmConfig {
     std::string zlm_host = "127.0.0.1";
     int zlm_port = 8888;
     std::string secret = "";
-    bool debug_terminal = false;
+    bool debug_terminal = true;
     int rtmp_port = 1935;
     int rtsp_port = 554;
 };
@@ -111,19 +115,34 @@ struct WebSocketConfig {
     int timeout = 30;
 };
 
-struct CameraConfig {
+struct CameraDbConfig {
     std::string db_path = "./data/camera.db";
+    std::string host = "localhost";
+    int port = 3306;
+    std::string name = "cameras";
+    std::string user = "root";
+    std::string password = "";
+    int pool_size = 10;
+};
+
+struct UserDbConfig {
+    std::string db_path = "./data/user.db";
+    std::string host = "localhost";
+    int port = 3306;
+    std::string name = "users";
+    std::string user = "root";
+    std::string password = "";
+    int pool_size = 10;
 };
 
 struct AppConfig {
     ServerConfig server;
-    ClientConfig client;
-    LogConfig log;
-    DatabaseConfig database;
-    ThreadPoolConfig thread_pool;
+    ClientPoolConfig zlm_client;  ///< ZLM 客户端池配置
+    std::map<std::string, LogConfig> logs;
     ZlmConfig zlm;
     WebSocketConfig websocket;
-    CameraConfig camera;
+    CameraDbConfig camera_db;       ///< 摄像头数据库配置
+    UserDbConfig user_db;         ///< 用户数据库配置
 };
 
 class ConfigManager {

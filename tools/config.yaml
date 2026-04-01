@@ -32,15 +32,6 @@ logs:
     console: true
     json_format: false
 
-database:
-  enabled: false
-  host: localhost
-  port: 3306
-  name: mydb
-  user: root
-  password: ""
-  pool_size: 10
-
 zlm:
   zlm_host: 127.0.0.1
   zlm_port: 8888
@@ -52,8 +43,20 @@ websocket:
   heartbeat_interval: 10
   timeout: 30
 
-camera:
+camera_db:
   db_path: ./data/camera.db
+  host: localhost
+  port: 3306
+  name: cameras
+  user: root
+  password: ""
+  pool_size: 10
 
-user:
+user_db:
   db_path: ./data/user.db
+  host: localhost
+  port: 3306
+  name: users
+  user: root
+  password: ""
+  pool_size: 10

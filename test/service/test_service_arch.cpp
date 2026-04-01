@@ -35,7 +35,12 @@ int testHttpServerOnly() {
         const auto& config = config_mgr.getConfig();
         
         // 2. 初始化日志        
-        log_mgr.ReloadFromConfig(config.log.toLoggerConfig());
+        // 使用 mainlog 配置初始化
+        if (config.logs.count("mainlog") > 0) {
+            log_mgr.ReloadFromConfig(config.logs.at("mainlog").toLoggerConfig());
+        } else {
+            log_mgr.ReloadFromConfig(LogConfig().toLoggerConfig());
+        }
         
         std::cout << "[Config] Loaded from: " << config_mgr.getConfigPath() << std::endl;
         std::cout << "[Server] Host: " << config.server.host 
@@ -107,16 +112,28 @@ int testWithZLM() {
         
         // 2. 加载配置
         ConfigManager& config_mgr = ConfigManager::getInstance();
-        if (!config_mgr.load("../tools/config.yaml")) {
-            LOG_MAIN_ERROR_AT("Failed to load config");
+        std::string config_path = "../tools/config.yaml";
+        std::cout << "[Config] Trying to load from: " << config_path << std::endl;
+        if (!config_mgr.load(config_path)) {
+            LOG_MAIN_ERROR_AT("Failed to load config from {}", config_path);
+            std::cerr << "[Error] Failed to load config from: " << config_path << std::endl;
+            std::cerr << "[Hint] Current working directory: " << std::filesystem::current_path().string() << std::endl;
             return 1;
         }
         
         const auto& config = config_mgr.getConfig();
+        std::cout << "[Config] ZLM host: " << config.zlm.zlm_host << std::endl;
+        std::cout << "[Config] ZLM port: " << config.zlm.zlm_port << std::endl;
+        std::cout << "[Config] ZLM secret: " << config.zlm.secret << std::endl;
         
         // 3. 重新加载日志配置（第二阶段：使用配置文件）
-        log_mgr.ReloadFromConfig(config.log.toLoggerConfig());  // 直接使用 LogConfig
-        
+        // 使用 mainlog 配置初始化
+        if (config.logs.count("mainlog") > 0) {
+            log_mgr.ReloadFromConfig(config.logs.at("mainlog").toLoggerConfig());
+        } else {
+            log_mgr.ReloadFromConfig(LogConfig().toLoggerConfig());
+        }
+        std::cout << "00000000" << std::endl;
         LOG_MAIN_INFO_AT("Application starting...");
         LOG_MAIN_INFO_AT("Config loaded from: {}", config_mgr.getConfigPath());
         //std::cout << "[Server] Port: " << config.server.port << std::endl;
@@ -133,7 +150,7 @@ int testWithZLM() {
         container.registerService<HttpServerService>(config.server);
         
         // 6. 注册 HttpClientPool 服务（ZLM 依赖它）
-        container.registerService<HttpClientPoolService>(shared_ctx, config.server);
+        container.registerService<HttpClientPoolService>(shared_ctx, config.zlm_client);
         
         // 7. 注册 ZLMediaKit 服务
         container.registerService<ZLMService>(shared_ctx, config.zlm);

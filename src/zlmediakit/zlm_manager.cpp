@@ -17,9 +17,14 @@ static ZLMProcessManager::Config createProcessConfig(const ZlmConfig& zlm_config
     ZLMProcessManager::Config cfg;
     cfg.debug_terminal = zlm_config.debug_terminal;
 #ifdef _WIN32    
-    cfg.work_dir = "./tools/win32/zlmediakit";
+    // 使用绝对路径，避免工作目录问题
+    auto work_dir_path = std::filesystem::current_path().parent_path() / "tools" / "win32" / "zlmediakit";
+    cfg.work_dir = work_dir_path.string();
+    LOG_MAIN_INFO_AT("ZLMProcessManager: Setting work_dir to: {}", cfg.work_dir);
 #else
-    cfg.work_dir = "./tools/linux/zlmediakit";
+    auto work_dir_path = std::filesystem::current_path().parent_path() / "tools" / "linux" / "zlmediakit";
+    cfg.work_dir = work_dir_path.string();
+    LOG_MAIN_INFO_AT("ZLMProcessManager: Setting work_dir to: {}", cfg.work_dir);
 #endif
     return cfg;
 }
@@ -58,9 +63,16 @@ std::string ZLMProcessManager::GetZlmediakitPath() {
 
     std::filesystem::path parent_path = std::filesystem::current_path().parent_path();
     exec_path = parent_path / exec_path; 
+    
+    LOG_MAIN_INFO_AT("ZLMProcessManager: Looking for ZLMediaKit at: {}", exec_path.string());
+    LOG_MAIN_INFO_AT("ZLMProcessManager: Current path: {}", std::filesystem::current_path().string());
+    LOG_MAIN_INFO_AT("ZLMProcessManager: Parent path: {}", parent_path.string());
+    
     if (std::filesystem::exists(exec_path)) {
+        LOG_MAIN_INFO_AT("ZLMProcessManager: Found ZLMediaKit at: {}", exec_path.string());
         return exec_path.string();
     }
+    LOG_MAIN_ERROR_AT("ZLMProcessManager: ZLMediaKit not found at: {}", exec_path.string());
     return "";
 }
 
@@ -312,13 +324,13 @@ bool ZLMManager::Start()
 {
     // 注册 Hook 路由
     RegisterRoutes();
-    
+	std::cout << "11111111111" << std::endl;
     // 启动 ZLMediaKit 进程
     if (!process_.Start()) {
         LOG_MAIN_CRITICAL_AT("ZLMManager: Failed to start ZLM process");
         return false;
     }
-    
+    std::cout << "22222222222" << std::endl;
     LOG_MAIN_INFO_AT("ZLMManager: Started successfully");
     return true;
 }

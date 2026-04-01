@@ -33,10 +33,15 @@ void test_read_log_config() {
     
     const auto& config = ConfigManager::getInstance().getConfig();
     
-    assert(config.log.level == "info" && "Wrong log level");
-    assert(config.log.dir == "./logs" && "Wrong log dir");
-    assert(config.log.max_file_size_mb == 100 && "Wrong max file size");
-    assert(config.log.rotation == "daily" && "Wrong rotation");
+    // 测试 map 格式的日志配置
+    assert(config.logs.count("mainlog") > 0 && "Should have mainlog");
+    assert(config.logs.count("errorlog") > 0 && "Should have errorlog");
+    
+    const auto& mainlog = config.logs.at("mainlog");
+    assert(mainlog.level == "info" && "Wrong log level");
+    assert(mainlog.dir == "./logs" && "Wrong log dir");
+    assert(mainlog.max_file_size_mb == 100 && "Wrong max file size");
+    assert(mainlog.rotation == "daily" && "Wrong rotation");
     
     auto level = config_utils::parseLogLevel("debug");
     assert(level == spdlog::level::debug && "Wrong level parse");
@@ -44,8 +49,8 @@ void test_read_log_config() {
     std::string level_str = config_utils::logLevelToString(level);
     assert(level_str == "debug" && "Wrong level string");
     
-    std::cout << "  [PASS] Log config: level=" << config.log.level 
-              << ", dir=" << config.log.dir << std::endl;
+    std::cout << "  [PASS] Log config: level=" << mainlog.level 
+              << ", dir=" << mainlog.dir << std::endl;
 }
 
 void test_read_database_config() {
@@ -53,26 +58,23 @@ void test_read_database_config() {
     
     const auto& config = ConfigManager::getInstance().getConfig();
     
-    assert(config.database.enabled == false && "Database should be disabled");
-    assert(config.database.host == "localhost" && "Wrong db host");
-    assert(config.database.port == 3306 && "Wrong db port");
-    assert(config.database.pool_size == 10 && "Wrong pool size");
+    // 测试 camera_db 和 user_db 配置
+    assert(config.camera_db.port == 3306 && "Wrong camera db port");
+    assert(config.camera_db.name == "cameras" && "Wrong camera db name");
+    assert(config.camera_db.pool_size == 10 && "Wrong camera db pool size");
     
-    std::cout << "  [PASS] Database config: enabled=" << config.database.enabled 
-              << ", host=" << config.database.host << std::endl;
+    assert(config.user_db.port == 3306 && "Wrong user db port");
+    assert(config.user_db.name == "users" && "Wrong user db name");
+    assert(config.user_db.pool_size == 10 && "Wrong user db pool size");
+    
+    std::cout << "  [PASS] Database config: camera_db=" << config.camera_db.name 
+              << ", user_db=" << config.user_db.name << std::endl;
 }
 
 void test_read_thread_pool_config() {
-    std::cout << "[TEST] Reading thread pool config..." << std::endl;
-    
-    const auto& config = ConfigManager::getInstance().getConfig();
-    
-    assert(config.thread_pool.min_threads == 2 && "Wrong min threads");
-    assert(config.thread_pool.max_threads == 8 && "Wrong max threads");
-    assert(config.thread_pool.queue_size == 1000 && "Wrong queue size");
-    
-    std::cout << "  [PASS] ThreadPool config: min=" << config.thread_pool.min_threads 
-              << ", max=" << config.thread_pool.max_threads << std::endl;
+    std::cout << "[TEST] Reading thread pool config (skipped - removed from AppConfig)..." << std::endl;
+    // 线程池配置已从 AppConfig 中移除
+    std::cout << "  [SKIP] ThreadPool config test skipped" << std::endl;
 }
 
 void test_read_zlm_config() {

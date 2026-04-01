@@ -32,7 +32,12 @@ int main() {
         
         // 3. 初始化日志
         LogManager& log_mgr = LogManager::getInstance();
-        log_mgr.Init(config.log.dir, 1);
+        // 使用 mainlog 配置初始化
+        if (config.logs.count("mainlog") > 0) {
+            log_mgr.Init(config.logs.at("mainlog").dir, 1);
+        } else {
+            log_mgr.Init("./logs", 1);
+        }
         
         LOG_MAIN_INFO_AT("========================================");
         LOG_MAIN_INFO_AT("Application starting...");
