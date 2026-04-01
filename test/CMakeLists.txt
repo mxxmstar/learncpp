@@ -11,6 +11,7 @@ option(BUILD_FFMPEG_TESTS "Build FFmpeg tests" OFF)
 option(BUILD_COMMON_TESTS "Build Common tests" OFF)
 option(BUILD_BOOST_TESTS "Build Boost tests" OFF)
 option(BUILD_ASYNC_SIMPLE_TESTS "Build Async Simple tests" OFF)
+option(BUILD_SERVICE_TESTS "Build Service tests" ON)  # Service 架构测试
 
 # 辅助函数：为目录中的每个 cpp 文件创建独立的测试目标
 function(create_test_from_dir dir_name)
@@ -97,6 +98,11 @@ endif()
 
 if(BUILD_ASYNC_SIMPLE_TESTS)
     create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/async_simple")
+endif()
+
+# Service 架构测试（单独处理，因为需要额外的源文件）
+if(BUILD_SERVICE_TESTS)
+    add_subdirectory(service)
 endif()
 
 # 如果没有任何测试被启用，则默认构建所有测试（向后兼容）

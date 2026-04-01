@@ -33,6 +33,7 @@ public:
     void AddStreamProxy(const ZLMStreamProxyInfo& info);
     void DelStreamProxy(const ZLMStreamProxyInfo& info);
     void GetProxyInfo(const ZLMStreamProxyInfo& info);
+	void GetMediaList(const boost::json::object& json_obj = {});
 private:
     boost::asio::io_context& io_context_;
     ZLMAddressConfig config_;

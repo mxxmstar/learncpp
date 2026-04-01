@@ -3,10 +3,12 @@
 #include <atomic>
 #include <thread>
 #include <string>
+#include <chrono>
 #include <boost/json.hpp>
 #include <boost/asio.hpp>
 #include <boost/process.hpp>
 #include <optional>
+#include "config/common_config.h"
 #include "zlmediakit/zlm_httpclient.h"
 #include "zlmediakit/zlm_hookserver.h"
 
@@ -54,8 +56,20 @@ private:
 
 class ZLMManager {
 public:
+   /// @brief 构造函数
+   /// @param ctx io_context（用于进程管理和 API 调用）
+   /// @param media_config 媒体配置（包含 ZLM 地址、密钥等）
+   explicit ZLMManager(boost::asio::io_context& ctx, const ZlmConfig& zlm_config);
+   ~ZLMManager();
+   
    bool Start();
    void Stop();
+   
+   /// @brief 获取 ZLM 进程管理器
+   ZLMProcessManager* getProcessManager() { return &process_; }
+   
+   /// @brief 获取 ZLM API 客户端
+   ZLMApiClient* getApiClient() { return &api_client_; }
 
 private:
     void RegisterRoutes();
@@ -63,9 +77,11 @@ private:
                        const Json::value& data);
 
 private:
+   boost::asio::io_context& ctx_;
+   ZlmConfig zlm_config_;
    ZLMProcessManager process_;
    ZLMApiClient api_client_;
-   ZLMHookHandler hook_handler_;
+   std::unique_ptr<ZLMHookHandler> hook_handler_;  // 改为指针，避免构造问题
 };
 
 

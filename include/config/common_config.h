@@ -41,10 +41,11 @@ struct ThreadPoolConfig {
     int queue_size = 1000;
 };
 
-struct MediaConfig {
+struct ZlmConfig {
     std::string zlm_host = "127.0.0.1";
     int zlm_port = 8888;
     std::string secret = "";
+    bool debug_terminal = false;
     int rtmp_port = 1935;
     int rtsp_port = 554;
 };
@@ -65,7 +66,7 @@ struct AppConfig {
     LogConfig log;
     DatabaseConfig database;
     ThreadPoolConfig thread_pool;
-    MediaConfig media;
+    ZlmConfig media;
     WebSocketConfig websocket;
     CameraConfig camera;
 };

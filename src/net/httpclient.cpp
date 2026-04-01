@@ -151,7 +151,7 @@ void AsioAsyncHttpClient::GetJson(const std::string& url, CompleteHandler handle
     req_data->timer = std::make_shared<boost::asio::steady_timer>(ioc_);
 
     // 构建HTTP请求
-    req_data->req.method(http::verb::get);
+    req_data->req.method(http::verb::get);	
     req_data->req.target(url);
     req_data->req.version(11);
     req_data->req.set(http::field::host, host_);

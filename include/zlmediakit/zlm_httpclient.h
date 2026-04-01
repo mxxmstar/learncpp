@@ -40,7 +40,7 @@ public:
     //ZLMStreamManager& Stream();
     
     // 2. 拉流代理管理
-    //ZLMProxyPullManager& ProxyPull();
+    ZLMProxyPullManager& ProxyPull();
     
     //// 3. 推流代理管理
     //ZLMProxyPushManager& ProxyPush();
@@ -65,7 +65,7 @@ private:
     struct ProxyPullDeleter {
         void operator()(ZLMProxyPullManager* ptr) const;
     };
-    std::unique_ptr<ZLMProxyPullManager, ProxyPullDeleter> stream_manager_;
+    std::unique_ptr<ZLMProxyPullManager, ProxyPullDeleter> proxy_pull_manager_;
     //std::unique_ptr<ZLMProxyPushManager> proxy_push_manager_;
     //std::unique_ptr<ZLMRecordManager> record_manager_;
     //std::unique_ptr<ZLMRtpManager> rtp_manager_;

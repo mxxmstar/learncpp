@@ -1,8 +1,8 @@
 #include "zlmediakit/zlm_httpclient.h"
+#include "zlmediakit/zlm_proxy_pull_manager.h"
 #include "net/httpclientpool.h"
 #include "log/logmanager.h"
 #include <sstream>
-
 using namespace Net;
 
 void ZLMRequestHelper::DoRequest(boost::asio::io_context& io_ctx, const ZLMAddressConfig& config,
@@ -27,9 +27,12 @@ void ZLMRequestHelper::DoRequest(boost::asio::io_context& io_ctx, const ZLMAddre
 
     // 步骤 5: 构建完整 URL
     std::string url = "/index/api/" + api + "?" + query;
-
     // 发送 HTTP GET 请求，直接传递空 handler
-    client_guard->GetJsonWithHandler(url, AsioAsyncHttpClient::CompleteHandler());
+    client_guard->GetJsonWithHandler(url, [](bool success, const boost::json::object& rsp_obj) {
+        /*for (auto& [key, value] : rsp_obj) {
+			LOG_MAIN_DEBUG_AT("key: {}, value: {}", key, value);
+        }*/
+    });
 }
 
 std::string ZLMRequestHelper::BuildQuery(const boost::json::object& params) {
@@ -58,7 +61,10 @@ std::string ZLMRequestHelper::BuildQuery(const boost::json::object& params) {
 }
 
 ZLMApiClient::ZLMApiClient(boost::asio::io_context& io_ctx, const ZLMAddressConfig& cfg)
-    : io_context_(io_ctx), config_(cfg) {
+    : io_context_(io_ctx), config_(cfg) 
+{
+    // 初始化拉流代理管理器
+    proxy_pull_manager_.reset(new ZLMProxyPullManager(io_context_, config_));
 }
 
 ZLMApiClient::~ZLMApiClient() {
@@ -66,4 +72,8 @@ ZLMApiClient::~ZLMApiClient() {
 
 void ZLMApiClient::ProxyPullDeleter::operator()(ZLMProxyPullManager* ptr) const {
     delete ptr;
+}
+
+ZLMProxyPullManager& ZLMApiClient::ProxyPull() {
+	return *proxy_pull_manager_;
 }

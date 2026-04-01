@@ -25,3 +25,8 @@ void ZLMProxyPullManager::GetProxyInfo(const ZLMStreamProxyInfo& info) {
     ZLMRequestHelper::DoRequest(io_context_, config_, "getProxyInfo", params);
 }
 
+void ZLMProxyPullManager::GetMediaList(const boost::json::object& json_obj) {
+    boost::json::object params = json_obj;
+    ZLMRequestHelper::DoRequest(io_context_, config_, "getMediaList", params);
+}
+
