@@ -1,5 +1,5 @@
 #include "zlmediakit/zlm_httpclient.h"
-#include "zlmediakit/zlm_proxy_pull_manager.h"
+#include "zlmediakit/zlm_proxy_manager.h"
 #include "net/httpclientpool.h"
 #include "log/logmanager.h"
 #include <sstream>
@@ -71,17 +71,17 @@ ZLMApiClient::ZLMApiClient(boost::asio::io_context& io_ctx,
     if (!pool_) {
         throw std::runtime_error("ZLMApiClient requires a valid HttpClientPool");
     }
-    // 初始化拉流代理管理器
-    proxy_pull_manager_.reset(new ZLMProxyPullManager(io_context_, pool_, config_));
+    // 初始化流代理管理器
+    proxy_manager_.reset(new ZLMProxyManager(io_context_, pool_, config_));
 }
 
 ZLMApiClient::~ZLMApiClient() {
 }
 
-void ZLMApiClient::ProxyPullDeleter::operator()(ZLMProxyPullManager* ptr) const {
+void ZLMApiClient::ProxyDeleter::operator()(ZLMProxyManager* ptr) const {
     delete ptr;
 }
 
-ZLMProxyPullManager& ZLMApiClient::ProxyPull() {
-	return *proxy_pull_manager_;
+ZLMProxyManager& ZLMApiClient::Proxy() {
+	return *proxy_manager_;
 }

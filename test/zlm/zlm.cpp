@@ -5,7 +5,7 @@
 #include <boost/process.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <iostream>
-#include "zlmediakit/zlm_proxy_pull_manager.h"
+#include "zlmediakit/zlm_proxy_manager.h"
 #include "log/logmanager.h"
 #include "net/httpclientpool.h"
 #include "net/httpserver.h"
@@ -95,7 +95,7 @@ void testZlmApiClient() {
 
     // 测试 1：获取媒体列表（无参数）
     std::cout << "\n--- Test 1: Get Media List (no params) ---" << std::endl;
-    client.ProxyPull().GetMediaList();
+    client.Proxy().GetMediaList();
     
     //// 测试 2：获取指定应用的媒体列表
     //std::cout << "\n--- Test 2: Get Media List for specific app ---" << std::endl;
@@ -103,24 +103,25 @@ void testZlmApiClient() {
     //params["__schema"] = "rtmp";
     //params["__host"] = "__defaultVhost__";
     //params["app"] = "live";
-    //client.ProxyPull().GetMediaList(params);
+    //client.Proxy().GetMediaList(params);
     
-    //// 测试 3：添加拉流代理
-    //std::cout << "\n--- Test 3: Add Stream Proxy ---" << std::endl;
-    //ZLMStreamProxyInfo proxy_info;
-    //proxy_info.vhost = "__defaultVhost__";
-    //proxy_info.app = "live";
-    //proxy_info.stream = "test_stream";
-    //proxy_info.url = "rtmp://example.com/live/test";
-    //client.ProxyPull().AddStreamProxy(proxy_info);
-    //
-    //// 测试 4：查询拉流代理信息
-    //std::cout << "\n--- Test 4: Get Proxy Info ---" << std::endl;
-    //client.ProxyPull().GetProxyInfo(proxy_info);
-    //
-    //// 测试 5：删除拉流代理
-    //std::cout << "\n--- Test 5: Delete Stream Proxy ---" << std::endl;
-    //client.ProxyPull().DelStreamProxy(proxy_info);
+    // 测试 3：添加拉流代理
+    std::cout << "\n--- Test 3: Add Stream Proxy ---" << std::endl;
+    ZLMStreamPullerProxyInfo proxy_info;
+    proxy_info.vhost = "__defaultVhost__";
+    proxy_info.app = "live";
+    proxy_info.stream = "proxy_cam1";
+    proxy_info.url = "rtsp://192.168.66.166/live/mainstream";
+    client.Proxy().AddStreamProxy(proxy_info);
+    
+    // 测试 4：查询拉流代理信息
+    std::cout << "\n--- Test 4: Get Proxy Info ---" << std::endl;
+	proxy_info.key = proxy_info.vhost + "/" + proxy_info.app + "/" + proxy_info.stream;  // 构造key
+    client.Proxy().GetProxyInfo(proxy_info);
+    
+    // 测试 5：删除拉流代理
+    std::cout << "\n--- Test 5: Delete Stream Proxy ---" << std::endl;
+    client.Proxy().DelStreamProxy(proxy_info);
     
     // 运行 io_context 处理异步请求
     std::cout << "\nRunning io_context..." << std::endl;

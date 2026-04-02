@@ -324,13 +324,13 @@ bool ZLMManager::Start()
 {
     // 注册 Hook 路由
     RegisterRoutes();
-	std::cout << "11111111111" << std::endl;
+	
     // 启动 ZLMediaKit 进程
     if (!process_.Start()) {
         LOG_MAIN_CRITICAL_AT("ZLMManager: Failed to start ZLM process");
         return false;
     }
-    std::cout << "22222222222" << std::endl;
+    
     LOG_MAIN_INFO_AT("ZLMManager: Started successfully");
     return true;
 }

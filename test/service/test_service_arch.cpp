@@ -132,8 +132,7 @@ int testWithZLM() {
             log_mgr.ReloadFromConfig(config.logs.at("mainlog").toLoggerConfig());
         } else {
             log_mgr.ReloadFromConfig(LogConfig().toLoggerConfig());
-        }
-        std::cout << "00000000" << std::endl;
+        }        
         LOG_MAIN_INFO_AT("Application starting...");
         LOG_MAIN_INFO_AT("Config loaded from: {}", config_mgr.getConfigPath());
         //std::cout << "[Server] Port: " << config.server.port << std::endl;
