@@ -7,6 +7,7 @@
 #include "service/http_server_service.h"
 #include "service/zlm_service.h"
 #include "service/httpclient_pool_service.h"
+#include "api/api_router_registrar.h"
 
 // 全局信号标志
 std::atomic<bool> g_running{true};
@@ -132,17 +133,20 @@ int testWithZLM() {
             log_mgr.ReloadFromConfig(config.logs.at("mainlog").toLoggerConfig());
         } else {
             log_mgr.ReloadFromConfig(LogConfig().toLoggerConfig());
-        }        
+        }
         LOG_MAIN_INFO_AT("Application starting...");
         LOG_MAIN_INFO_AT("Config loaded from: {}", config_mgr.getConfigPath());
+        
+        // 4. 注册所有 API 路由
+        ApiRouterRegistrar::RegisterAllRoutes();
         //std::cout << "[Server] Port: " << config.server.port << std::endl;
         //std::cout << "[ZLM] ZLM Port: " << config.zlm.zlm_port << std::endl;
         //std::cout << "[ZLM] ZLM Secret: " << config.zlm.secret << std::endl;
         
-        // 3. 创建服务容器
+        // 4. 创建服务容器
         auto& container = ServiceContainer::getInstance();
         
-        // 4. 创建共享的 io_context
+        // 5. 创建共享的 io_context
         boost::asio::io_context shared_ctx;
         
         // 5. 注册 HTTP 服务器服务
