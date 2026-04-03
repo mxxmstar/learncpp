@@ -12,6 +12,7 @@
     "boost-mysql",
     "boost-redis",
     "boost-pool",
+    "boost-lockfree",
     "zlmediakit",
     "ffmpeg",
     "opencv",

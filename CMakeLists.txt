@@ -22,15 +22,34 @@ endif()
 # 1. 查找 spdlog（无额外组件）
 find_package(spdlog CONFIG REQUIRED)
 # 2. 查找 Boost，并指定需要的组件（asio 是 header-only，system 需要链接）
-find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool filesystem)
+find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool filesystem lockfree)
 # 3. 查找 async_simple
 find_package(async_simple CONFIG REQUIRED)
 # 4. 查找 yaml-cpp
 find_package(yaml-cpp CONFIG REQUIRED)
-# 5. 查找 FFmpeg（用于视频编解码模块） fmpeg 包使用的是传统的 FindFFMPEG 模块，而不是现代的 Config 模式。
+# 5. 查找 FFmpeg（用于视频编解码模块）fmpeg 包使用的是传统的 FindFFMPEG 模块，而不是现代的 Config 模式。
 find_package(ffmpeg REQUIRED)
+# 设置 FFmpeg 库变量（供测试使用）- 使用完整路径
+if(WIN32)
+    set(FFMPEG_LIBRARIES 
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avcodec.lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avformat.lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avutil.lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/swresample.lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/swscale.lib"
+    )
+else()
+    set(FFMPEG_LIBRARIES avcodec avformat avutil swresample swscale)
+endif()
 # 6. 尝试查找 SQLite
 find_package(sqlite3 CONFIG)
+# 7. 查找 OpenCV（用于视频处理模块）
+find_package(OpenCV REQUIRED)
+# 设置 OpenCV 库变量
+if(NOT DEFINED OpenCV_LIBS)
+    # 如果 OpenCV_LIBS 未定义，手动指定常用模块
+    set(OpenCV_LIBS opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio opencv_highgui)
+endif()
 # 设置 SQLite3 库路径（供测试使用）
 if(WIN32)
     set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
@@ -73,6 +92,8 @@ if(WIN32)
             Boost::pool
             async_simple::async_simple
             yaml-cpp::yaml-cpp
+            ${OpenCV_LIBS}
+            ${FFMPEG_LIBRARIES}
             # sqlite3
             "${SQLITE3_LIB_PATH}"
             ntdll
@@ -119,6 +140,8 @@ if(WIN32)
             Boost::process
             async_simple::async_simple
             yaml-cpp::yaml-cpp
+            ${OpenCV_LIBS}
+            ${FFMPEG_LIBRARIES}
             # sqlite3
             "${SQLITE3_LIB_PATH}"
             ntdll

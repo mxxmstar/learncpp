@@ -12,6 +12,7 @@ option(BUILD_COMMON_TESTS "Build Common tests" OFF)
 option(BUILD_BOOST_TESTS "Build Boost tests" OFF)
 option(BUILD_ASYNC_SIMPLE_TESTS "Build Async Simple tests" OFF)
 option(BUILD_SERVICE_TESTS "Build Service tests" ON)
+option(BUILD_VIDEO_PIPELINE_TESTS "Build Video Pipeline tests" ON)
 
 # 辅助函数：为目录中的每个 cpp 文件创建独立的测试目标
 function(create_test_from_dir dir_name)
@@ -105,10 +106,15 @@ if(BUILD_SERVICE_TESTS)
     add_subdirectory(service)
 endif()
 
+if(BUILD_VIDEO_PIPELINE_TESTS)
+    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/video_pipeline")
+endif()
+
 # 如果没有任何测试被启用，则默认构建所有测试（向后兼容）
 if(NOT (BUILD_SQLITE_TESTS OR BUILD_NET_TESTS OR BUILD_ZLM_TESTS OR 
         BUILD_LOG_TESTS OR BUILD_CONFIG_TESTS OR BUILD_FFMPEG_TESTS OR 
-        BUILD_COMMON_TESTS OR BUILD_BOOST_TESTS OR BUILD_ASYNC_SIMPLE_TESTS OR BUILD_SERVICE_TESTS))
+        BUILD_COMMON_TESTS OR BUILD_BOOST_TESTS OR BUILD_ASYNC_SIMPLE_TESTS OR 
+        BUILD_SERVICE_TESTS OR BUILD_VIDEO_PIPELINE_TESTS))
     
     message(STATUS "No specific test type enabled, building all tests...")
     
