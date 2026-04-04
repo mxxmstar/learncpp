@@ -17,7 +17,9 @@ void signalHandler(int signum) {
 int main() {
     // 设置信号处理
     std::signal(SIGINT, signalHandler);
-    
+    // 初始化日志
+    LogManager& log_mgr = LogManager::getInstance();
+    log_mgr.Init();
     std::cout << "========================================" << std::endl;
     std::cout << "ZLMPuller Test" << std::endl;
     std::cout << "========================================\n" << std::endl;
@@ -33,7 +35,7 @@ int main() {
         auto queue = std::make_shared<RawPacketQueue>(64);
         
         // 配置参数
-        std::string stream_url = "http://127.0.0.1:8080/live/test.flv";
+        std::string stream_url = "http://127.0.0.1/live/proxy_cam1.live.flv";
         
         std::cout << "Stream URL: " << stream_url << std::endl;
         std::cout << "Press Ctrl+C to stop...\n" << std::endl;
@@ -42,7 +44,13 @@ int main() {
         int frame_count = 0;
         int64_t first_pts = -1;
         
-        puller->start(stream_url, 
+        puller->start(stream_url,
+            // 序列头回调
+            [&frame_count](int codec_id, const uint8_t* data, int size) {
+                std::cout << "[Sequence Header] Codec=" << codec_id 
+                          << ", Size=" << size << " bytes" << std::endl;
+            },
+            // 普通帧回调
             [&frame_count, &first_pts, queue](const uint8_t* data, int size, int64_t pts) {
                 // 统计信息
                 if (first_pts < 0) {
@@ -98,7 +106,9 @@ int main() {
         puller->stop();
         
         // 等待 IO 线程结束
-        io_thread.join();
+        if (io_thread.joinable()) {
+            io_thread.join();
+        }
         
         std::cout << "\n========================================" << std::endl;
         std::cout << "Test completed!" << std::endl;

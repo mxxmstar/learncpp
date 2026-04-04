@@ -62,9 +62,13 @@ bool start();
 **关键代码：**
 ```cpp
 // 拉流器回调
-puller_->start(url, [this](nalu) {
-    onNaluReceived(nalu);  // 推入 RawQueue
-});
+puller_->start(url, 
+    [this](int codec_id, const uint8_t* data, int size) {
+        onSequenceHeaderReceived(codec_id, data, size);
+    },
+    [this](const uint8_t* nalu, int size, int64_t pts) {
+        onNaluReceived(nalu, size, pts);  // 推入 RawQueue
+    });
 
 // 解码线程
 while (running_) {

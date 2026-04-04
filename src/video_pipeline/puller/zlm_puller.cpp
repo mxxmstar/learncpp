@@ -2,17 +2,24 @@
 #include "log/logmanager.h"
 #include <regex>
 #include <iostream>
+/*
+flv 流结构：
+[FLV Header (9 bytes)] [PreviousTagSize0 (4 bytes)] 
+[Tag1 Header (11 bytes)] [Tag1 Data] [PreviousTagSize1 (4 bytes)]
+[Tag2 Header (11 bytes)] [Tag2 Data] [PreviousTagSize2 (4 bytes)]
+ */ 
+
 
 namespace {
     // FLV 标签类型常量
-    constexpr uint8_t FLV_TAG_TYPE_AUDIO = 8;
-    constexpr uint8_t FLV_TAG_TYPE_VIDEO = 9;
-    constexpr uint8_t FLV_TAG_TYPE_SCRIPT = 18;
+    constexpr uint8_t FLV_TAG_TYPE_AUDIO = 8;   // 音频标签
+    constexpr uint8_t FLV_TAG_TYPE_VIDEO = 9;   // 视频标签
+    constexpr uint8_t FLV_TAG_TYPE_SCRIPT = 18; // 脚本标签（Metadata）
     
     // FLV 头大小
-    constexpr size_t FLV_HEADER_SIZE = 9;
-    constexpr size_t FLV_TAG_HEADER_SIZE = 11;
-    constexpr size_t PREV_TAG_SIZE_SIZE = 4;
+    constexpr size_t FLV_HEADER_SIZE = 9;    // FLV 头大小
+    constexpr size_t FLV_TAG_HEADER_SIZE = 11;  // FLV 标签头大小
+    constexpr size_t PREV_TAG_SIZE_SIZE = 4;  // 上一个标签大小字段
 }
 
 ZLMPuller::ZLMPuller(boost::asio::io_context& io_ctx)
@@ -28,7 +35,7 @@ ZLMPuller::~ZLMPuller() {
     stop();
 }
 
-bool ZLMPuller::start(const std::string& url, FrameCallback cb) {
+bool ZLMPuller::start(const std::string& url, SequenceHeaderCallback seq_cb, FrameCallback frame_cb) {
     if (running_) {
         LOG_MAIN_WARN_AT("ZLMPuller already running");
         return false;
@@ -40,7 +47,8 @@ bool ZLMPuller::start(const std::string& url, FrameCallback cb) {
         return false;
     }
     
-    callback_ = std::move(cb);
+    seq_callback_ = std::move(seq_cb);
+    callback_ = std::move(frame_cb);
     stopped_ = false;
     running_ = true;
     
@@ -72,8 +80,9 @@ void ZLMPuller::stop() {
 
 bool ZLMPuller::parseUrl(const std::string& url) {
     // 解析 HTTP-FLV URL
-    // 格式：http://host:port/app/stream.flv
-    std::regex url_regex(R"(http://([^:/]+)(?::(\d+))?(/.+\.flv))");
+    // 格式：http://host:port/app/stream.live.flv
+    // 示例：http://127.0.0.1:80/live/proxy_cam1.live.flv
+    std::regex url_regex(R"(http://([^:/]+)(?::(\d+))?(/.+\.live\.flv))");
     std::smatch match;
     
     if (!std::regex_match(url, match, url_regex)) {
@@ -100,13 +109,13 @@ void ZLMPuller::connect() {
     }
     
     try {
-        // 解析主机名
-        net::ip::tcp::resolver resolver(io_ctx_);
-        auto endpoints = resolver.resolve(host_, port_);
+        // 解析主机名（resolver 必须在异步操作完成前保持存活）
+        auto resolver = std::make_shared<net::ip::tcp::resolver>(io_ctx_);
+        auto endpoints = resolver->resolve(host_, port_);
         
         // 异步连接
         boost::asio::async_connect(*socket_, endpoints,
-            [this](const boost::system::error_code& ec, const net::ip::tcp::endpoint& endpoint) {
+            [this, resolver](const boost::system::error_code& ec, const net::ip::tcp::endpoint& endpoint) {
                 if (ec) {
                     LOG_MAIN_ERROR_AT("Connect failed: {} (attempt {})", 
                                     ec.message(), reconnect_count_ + 1);
@@ -133,33 +142,83 @@ void ZLMPuller::sendHttpRequest() {
     }
     
     try {
-        // 构建 HTTP GET 请求
-        http::request<http::string_body> req;
-        req.method(http::verb::get);
-        req.target("/" + path_);
-        req.version(11);  // HTTP/1.1
-        req.set(http::field::host, host_);
-        req.set(http::field::user_agent, "ZLMPuller/1.0");
-        req.set(http::field::accept, "*/*");
-        req.keep_alive(true);
+        // 构建 HTTP GET 请求（使用 shared_ptr 确保生命周期）
+        auto req = std::make_shared<http::request<http::string_body>>();
+        req->method(http::verb::get);
+        req->target("/" + path_);
+        req->version(11);  // HTTP/1.1
+        req->set(http::field::host, host_);
+        req->set(http::field::user_agent, "ZLMPuller/1.0");
+        req->set(http::field::accept, "*/*");
+        req->keep_alive(true);    // 保持连接
         
         // 异步发送请求
-        http::async_write(*socket_, req,
-            [this](const boost::system::error_code& ec, std::size_t bytes_transferred) {
+        http::async_write(*socket_, *req,
+            [this, req](const boost::system::error_code& ec, std::size_t bytes_transferred) {
                 if (ec) {
                     LOG_MAIN_ERROR_AT("Send request failed: {}", ec.message());
                     doReconnect();
                     return;
                 }
                 
-                LOG_MAIN_INFO_AT("Sent HTTP request ({} bytes)", bytes_transferred);
-                
-                // 读取响应
-                readFlvStream();
+                /*LOG_MAIN_INFO_AT("Sent HTTP request ({} bytes)", bytes_transferred);
+                LOG_MAIN_INFO_AT("Request:{}", req->target());*/
+                // 读取 HTTP 响应头
+                readHttpResponse();
             });
     }
     catch (const std::exception& e) {
         LOG_MAIN_ERROR_AT("Send request exception: {}", e.what());
+        doReconnect();
+    }
+}
+
+void ZLMPuller::readHttpResponse() {
+    if (stopped_) {
+        return;
+    }
+    
+    try {
+        // 使用 async_read_until 读取直到 \r\n\r\n
+        boost::asio::async_read_until(*socket_,
+            http_response_buffer_,
+            "\r\n\r\n",
+            [this](const boost::system::error_code& ec, std::size_t bytes_transferred) {
+                if (ec) {
+                    LOG_MAIN_ERROR_AT("Read HTTP response failed: {}", ec.message());
+                    doReconnect();
+                    return;
+                }
+                
+                // 安全检查：确保有数据可读
+                if (bytes_transferred == 0) {
+                    LOG_MAIN_ERROR_AT("HTTP response is empty");
+                    doReconnect();
+                    return;
+                }
+
+                // 查看收到的 HTTP 响应数据
+                try {
+                    // 使用 beast::buffers_to_string 安全转换
+                    auto const& buf = http_response_buffer_.data();
+                    std::string response = beast::buffers_to_string(buf);
+                    
+                    LOG_MAIN_INFO_AT("HTTP Response received ({} bytes):", bytes_transferred);
+                }
+                catch (const std::exception& e) {
+                    LOG_MAIN_WARN_AT("Failed to parse HTTP response: {}", e.what());
+                }
+
+                // 从缓冲区中移除已读取的 HTTP 响应头
+                http_response_buffer_.consume(bytes_transferred);
+
+                // 开始读取 FLV 流
+                readFlvStream();
+
+            });
+    }
+    catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("Read HTTP response exception: {}", e.what());
         doReconnect();
     }
 }
@@ -171,42 +230,80 @@ void ZLMPuller::readFlvStream() {
     
     // 首先读取 FLV 头（9 字节）
     if (!has_flv_header_) {
-        boost::asio::async_read(*socket_,
-            boost::asio::buffer(flv_header_buffer_),
-            [this](const boost::system::error_code& ec, std::size_t bytes_transferred) {
-                if (ec) {
-                    if (ec != boost::asio::error::operation_aborted) {
-                        LOG_MAIN_ERROR_AT("Read FLV header failed: {}", ec.message());
-                        doReconnect();
-                    }
-                    return;
-                }
-                
-                bytes_received_ += bytes_transferred;
-                
-                // 验证 FLV 头
-                // FLV 头格式：'F''L''V''\x01'\x05\x00\x00\x00\x09
-                // 其中 \x05 表示有视频和音频流
-                if (flv_header_buffer_[0] != 'F' || flv_header_buffer_[1] != 'L' ||
-                    flv_header_buffer_[2] != 'V') {
-                    LOG_MAIN_ERROR_AT("Invalid FLV signature");
-                    doReconnect();
-                    return;
-                }
-                
-                LOG_MAIN_INFO_AT("FLV header validated (version={}, flags={})",
-                               flv_header_buffer_[3], flv_header_buffer_[4]);
-                
-                has_flv_header_ = true;
-                
-                // 继续读取 PreviousTagSize0
-                async_read_tag();
-            });
+        readFlvHeader();
     }
     else {
         // 读取标签
         async_read_tag();
     }
+}
+
+void ZLMPuller::readFlvHeader() {
+    boost::asio::async_read(*socket_,
+        boost::asio::buffer(flv_header_buffer_),
+        [this](const boost::system::error_code& ec, std::size_t bytes_transferred) {
+            if (ec) {
+                if (ec != boost::asio::error::operation_aborted) {
+                    LOG_MAIN_ERROR_AT("Read FLV header failed: {}", ec.message());
+                    doReconnect();
+                }
+                return;
+            }
+            
+            bytes_received_ += bytes_transferred;
+            
+            // 验证 FLV 头
+            // FLV 头格式：'F''L''V''\x01'\x05\x00\x00\x00\x09
+            // 其中 \x01 表示 FLV 版本, 通常为 0x01
+            // 其中 \x05 表示有视频和音频流（第二位为 1 表示有音频流, 第0位为 1 表示有视频流）
+            // 其中 \x00 x00 x00 x09 数据偏移量, 通常为 0x09
+            if (flv_header_buffer_[0] != 'F' || flv_header_buffer_[1] != 'L' ||
+                flv_header_buffer_[2] != 'V') {
+                LOG_MAIN_ERROR_AT("Invalid FLV signature: {} {} {}", flv_header_buffer_[0], flv_header_buffer_[1], flv_header_buffer_[2]);
+                doReconnect();
+                return;
+            }
+            
+            LOG_MAIN_INFO_AT("FLV header validated (version={}, flags={})",
+                           flv_header_buffer_[3], flv_header_buffer_[4]);
+            
+            has_flv_header_ = true;
+            
+            // 读取 PreviousTagSize0
+            readPreviousTagSize0();
+        });
+}
+
+void ZLMPuller::readPreviousTagSize0() {
+    boost::asio::async_read(*socket_,
+        boost::asio::buffer(prev_tag_size_buffer_),
+        [this](const boost::system::error_code& ec, std::size_t) {
+            if (ec) {
+                if (ec != boost::asio::error::operation_aborted) {
+                    LOG_MAIN_ERROR_AT("Read PreviousTagSize0 failed: {}", ec.message());
+                    doReconnect();
+                }
+                return;
+            }
+            
+            bytes_received_ += prev_tag_size_buffer_.size();
+            
+            // PreviousTagSize0 应该为 0
+            uint32_t prev_size = (static_cast<uint32_t>(prev_tag_size_buffer_[0]) << 24) |
+                                (static_cast<uint32_t>(prev_tag_size_buffer_[1]) << 16) |
+                                (static_cast<uint32_t>(prev_tag_size_buffer_[2]) << 8) |
+                                static_cast<uint32_t>(prev_tag_size_buffer_[3]);
+            
+            if (prev_size != 0) {
+                LOG_MAIN_WARN_AT("PreviousTagSize0 is not 0: {}", prev_size);
+            }
+            else {
+                LOG_MAIN_DEBUG_AT("PreviousTagSize0 = 0 (expected)");
+            }
+            
+            // 开始读取第一个标签
+            async_read_tag();
+        });
 }
 
 void ZLMPuller::async_read_tag() {
@@ -226,7 +323,17 @@ void ZLMPuller::async_read_tag() {
                 return;
             }
             
+            /*
+                Offset  Size  Description
+                0       1     Tag Type (8=音频，9=视频，18=脚本)
+                1       3     Data Size (大端序)
+                4       3     Timestamp (大端序，单位毫秒)
+                7       1     Timestamp Extended (高 8 位)
+                8       3     Stream ID (通常为 0)
+            */
+
             // 解析标签头
+            //LOG_MAIN_INFO_AT("tag header size: {}", tag_header_buffer_.size());            
             int tag_type = parseFlvTagHeader(tag_header_buffer_.data(), 
                                             tag_header_buffer_.size());
             
@@ -237,9 +344,9 @@ void ZLMPuller::async_read_tag() {
             }
             
             // 计算标签体大小（标签头后 3 字节是大端序的大小）
-            expected_tag_size_ = (static_cast<uint32_t>(tag_header_buffer_[5]) << 16) |
-                                (static_cast<uint32_t>(tag_header_buffer_[6]) << 8) |
-                                static_cast<uint32_t>(tag_header_buffer_[7]);
+            expected_tag_size_ = (static_cast<uint32_t>(tag_header_buffer_[1]) << 16) |
+                                (static_cast<uint32_t>(tag_header_buffer_[2]) << 8) |
+                                static_cast<uint32_t>(tag_header_buffer_[3]);
             
             // 分配缓冲区
             current_tag_data_.resize(expected_tag_size_);
@@ -286,8 +393,16 @@ int ZLMPuller::parseFlvTagHeader(const uint8_t* data, size_t size) {
         return 0;
     }
     
+    std::string hex_str;
+    for (size_t i = 0; i < FLV_TAG_HEADER_SIZE && i < size; ++i) {
+        char buf[4];
+        snprintf(buf, sizeof(buf), "%02X ", data[i]);
+        hex_str += buf;
+    }
+    LOG_MAIN_DEBUG_AT("{}", hex_str);
+
     int tag_type = data[0];
-    
+
     // 提取时间戳（3 字节 + 1 字节扩展）
     uint32_t timestamp = (static_cast<uint32_t>(data[10]) << 16) |
                         (static_cast<uint32_t>(data[9]) << 8) |
@@ -336,6 +451,11 @@ void ZLMPuller::extractNalu(const uint8_t* data, size_t size, int64_t pts) {
     }
     
     // FLV 视频标签格式：
+    // Offset  Size  Description
+    // 0       1     FrameInfo (高 4 位=帧类型，低 4 位=编解码器 ID)
+    // 1       1     PacketType (0=序列头，1=NALU，2=结束标记)
+    // 2       3     CompositionTime (24 位，DTS 与 PTS 的差值)
+    // 5       ...   NALU 数据（每个 NALU 前 4 字节是长度）
     // [FrameType(4bits)][CodecID(4bits)][PacketType(8bits)][CompositionTime(24bits)][Data...]
     
     uint8_t frame_info = data[0];
@@ -345,6 +465,7 @@ void ZLMPuller::extractNalu(const uint8_t* data, size_t size, int64_t pts) {
     int codec_id = frame_info & 0x0F;
     
     // 只处理 H.264 (7) 和 H.265 (12)
+    // TODO: 添加其它编码格式的处理 AV1 (13), VP8 (100), VP9 (101) 等
     if (codec_id != 7 && codec_id != 12) {
         LOG_MAIN_DEBUG_AT("Unsupported codec: {}", codec_id);
         return;
@@ -360,9 +481,21 @@ void ZLMPuller::extractNalu(const uint8_t* data, size_t size, int64_t pts) {
     
     // 检查是否是关键帧（packet_type == 0 表示序列头）
     if (packet_type == 0) {
-        // 序列头（SPS/PPS），应该先传递给解码器
-        LOG_MAIN_INFO_AT("Video sequence header (SPS/PPS): {} bytes @ {}ms", 
+        // 序列头（SPS/PPS）- 这是完整的 AVCC 格式容器，直接传递给解码器
+        LOG_MAIN_INFO_AT("Video sequence header (AVCC format): {} bytes @ {}ms", 
                         nalu_size, pts);
+        
+        // 缓存关键帧数据（用于网络波动或解码器重置时快速恢复）
+        cacheKeyframe(codec_id, nalu_data, nalu_size);
+        
+        // 通过序列头回调传递（新接口）
+        if (seq_callback_) {
+            seq_callback_(codec_id, nalu_data, nalu_size);
+        } else if (callback_) {
+            // 兼容旧接口：通过普通回调传递，使用特殊PTS标记
+            callback_(nalu_data, nalu_size, -1);
+        }
+        frames_delivered_++;
     }
     else if (packet_type == 1) {
         // NALU 数据
@@ -430,4 +563,12 @@ void ZLMPuller::reset() {
     bytes_received_ = 0;
     tags_processed_ = 0;
     frames_delivered_ = 0;
+}
+
+void ZLMPuller::cacheKeyframe(int codec_id, const uint8_t* data, size_t size) {
+    if (codec_id == 7) {
+        last_sps_pps_h264_.assign(data, data + size);
+    } else if (codec_id == 12) {
+        last_sps_pps_h265_.assign(data, data + size);
+    }
 }

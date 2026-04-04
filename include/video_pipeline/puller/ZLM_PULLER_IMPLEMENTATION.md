@@ -71,6 +71,9 @@ bool start(const std::string& url, FrameCallback cb);
 ```cpp
 auto puller = std::make_unique<ZLMPuller>(io_ctx);
 puller->start("http://127.0.0.1:8080/live/test.flv",
+    [](int codec_id, const uint8_t* data, int size) {
+        // 处理序列头（SPS/PPS）
+    },
     [](const uint8_t* data, int size, int64_t pts) {
         // 处理 NALU 数据
     });
@@ -290,6 +293,10 @@ auto puller = std::make_unique<ZLMPuller>(io_ctx);
 
 // 设置回调
 puller->start("http://127.0.0.1:8080/live/test.flv",
+    [](int codec_id, const uint8_t* data, int size) {
+        std::cout << "Sequence Header: Codec=" << codec_id 
+                  << ", Size=" << size << " bytes" << std::endl;
+    },
     [](const uint8_t* data, int size, int64_t pts) {
         std::cout << "Received NALU: " << size << " bytes @ " 
                   << pts << "ms" << std::endl;
@@ -316,6 +323,10 @@ puller->setReconnectParams(
 auto queue = std::make_shared<RawPacketQueue>(64);
 
 puller->start(url, 
+    [queue](int codec_id, const uint8_t* data, int size) {
+        // 可选：处理序列头
+        LOG_INFO("Sequence header received, codec={}", codec_id);
+    },
     [queue](const uint8_t* data, int size, int64_t pts) {
         RawPacketData packet(0, pts, data, size);
         if (!queue->push(std::move(packet))) {
@@ -350,23 +361,29 @@ puller->start(url,
 
 ```cpp
 // ❌ 不好的做法：在回调中拷贝大量数据
-puller->start(url, [](const uint8_t* data, int size, int64_t pts) {
-    std::vector<uint8_t> copy(data, data + size);  // 不必要的拷贝
-    process(copy);
-});
+puller->start(url, 
+    [](int codec_id, const uint8_t* data, int size) {},
+    [](const uint8_t* data, int size, int64_t pts) {
+        std::vector<uint8_t> copy(data, data + size);  // 不必要的拷贝
+        process(copy);
+    });
 
 // ✅ 好的做法：直接传递或移动到队列
-puller->start(url, [queue](const uint8_t* data, int size, int64_t pts) {
-    RawPacketData packet(0, pts, data, size);
-    queue->push(std::move(packet));  // 移动语义
-});
+puller->start(url, 
+    [](int codec_id, const uint8_t* data, int size) {},
+    [queue](const uint8_t* data, int size, int64_t pts) {
+        RawPacketData packet(0, pts, data, size);
+        queue->push(std::move(packet));  // 移动语义
+    });
 ```
 
 ### 4. 异常处理
 
 ```cpp
 try {
-    puller->start(url, callback);
+    puller->start(url, 
+        [](int codec_id, const uint8_t* data, int size) {},
+        [](const uint8_t* data, int size, int64_t pts) {});
     io_ctx.run();
 }
 catch (const std::exception& e) {

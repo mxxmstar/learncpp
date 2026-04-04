@@ -34,7 +34,7 @@ int main() {
         // 配置流水线
         PipelineConfig config;
         config.channel_id = 1;
-        config.stream_url = "http://127.0.0.1:8080/live/test.flv";
+        config.stream_url = "http://127.0.0.1/live/proxy_cam1.live.flv";
         config.reconnect_delay = 3;
         config.max_reconnect_attempts = -1;  // 无限重试
         config.decoder_threads = 2;

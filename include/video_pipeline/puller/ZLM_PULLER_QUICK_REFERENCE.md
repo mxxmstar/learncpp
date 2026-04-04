@@ -16,8 +16,13 @@ auto puller = std::make_unique<ZLMPuller>(io_ctx);
 // 3. 启动拉流
 bool success = puller->start(
     "http://127.0.0.1:8080/live/test.flv",
+    [](int codec_id, const uint8_t* data, int size) {
+        // 序列头回调：接收 SPS/PPS
+        std::cout << "Sequence Header: Codec=" << codec_id 
+                  << ", Size=" << size << " bytes" << std::endl;
+    },
     [](const uint8_t* data, int size, int64_t pts) {
-        // 回调函数：接收 NALU 数据
+        // 普通帧回调：接收 NALU 数据
         std::cout << "Received " << size << " bytes @ " 
                   << pts << "ms" << std::endl;
     }
@@ -82,10 +87,15 @@ using FrameCallback = std::function<void(
 #### 示例 1：直接打印信息
 
 ```cpp
-puller->start(url, [](const uint8_t* data, int size, int64_t pts) {
-    std::cout << "Frame: " << size << " bytes @ " 
-              << pts << "ms" << std::endl;
-});
+puller->start(url, 
+    [](int codec_id, const uint8_t* data, int size) {
+        std::cout << "Sequence Header: Codec=" << codec_id 
+                  << ", Size=" << size << " bytes" << std::endl;
+    },
+    [](const uint8_t* data, int size, int64_t pts) {
+        std::cout << "Frame: " << size << " bytes @ " 
+                  << pts << "ms" << std::endl;
+    });
 ```
 
 #### 示例 2：推入队列
@@ -94,6 +104,10 @@ puller->start(url, [](const uint8_t* data, int size, int64_t pts) {
 auto queue = std::make_shared<RawPacketQueue>(64);
 
 puller->start(url, 
+    [queue](int codec_id, const uint8_t* data, int size) {
+        // 序列头处理（可选）
+        LOG_INFO("Received sequence header, codec={}", codec_id);
+    },
     [queue](const uint8_t* data, int size, int64_t pts) {
         RawPacketData packet(0, pts, data, size);
         if (!queue->push(std::move(packet))) {
@@ -108,7 +122,12 @@ puller->start(url,
 ```cpp
 std::ofstream out("stream.h264", std::ios::binary);
 
-puller->start(url, [&out](const uint8_t* data, int size, int64_t pts) {
+puller->start(url, 
+    [&out](int codec_id, const uint8_t* data, int size) {
+        // 可选：保存序列头
+        out.write(reinterpret_cast<const char*>(data), size);
+    },
+    [&out](const uint8_t* data, int size, int64_t pts) {
     // 写入 Annex B 格式（添加起始码）
     uint8_t start_code[] = {0x00, 0x00, 0x00, 0x01};
     out.write(reinterpret_cast<const char*>(start_code), 4);
@@ -195,6 +214,9 @@ int main() {
     auto puller = std::make_unique<ZLMPuller>(io_ctx);
     
     puller->start("http://127.0.0.1:8080/live/test.flv",
+        [](int codec_id, const uint8_t* data, int size) {
+            std::cout << "Sequence Header: Codec=" << codec_id << "\n";
+        },
         [](const uint8_t* data, int size, int64_t pts) {
             std::cout << "Received: " << size << " bytes\n";
         });
@@ -249,6 +271,10 @@ int main() {
         // 启动拉流
         std::string url = "http://127.0.0.1:8080/live/test.flv";
         bool success = puller->start(url,
+            [&queue](int codec_id, const uint8_t* data, int size) {
+                // 序列头处理（可选）
+                LOG_INFO("Sequence header received, codec={}", codec_id);
+            },
             [&queue](const uint8_t* data, int size, int64_t pts) {
                 RawPacketData packet(0, pts, data, size);
                 if (!queue->push(std::move(packet))) {
@@ -358,16 +384,20 @@ auto queue = std::make_shared<RawPacketQueue>(256);
 
 ```cpp
 // ❌ 避免在回调中做耗时操作
-puller->start(url, [](const uint8_t* data, int size, int64_t pts) {
-    cv::Mat result = heavyProcessing(data, size);  // 慢！
-    display(result);                                // 更慢！
-});
+puller->start(url, 
+    [](int codec_id, const uint8_t* data, int size) {},
+    [](const uint8_t* data, int size, int64_t pts) {
+        cv::Mat result = heavyProcessing(data, size);  // 慢！
+        display(result);                                // 更慢！
+    });
 
 // ✅ 只负责传递数据到队列
-puller->start(url, [queue](const uint8_t* data, int size, int64_t pts) {
-    RawPacketData packet(0, pts, data, size);
-    queue->push(std::move(packet));  // 快！
-});
+puller->start(url, 
+    [](int codec_id, const uint8_t* data, int size) {},
+    [queue](const uint8_t* data, int size, int64_t pts) {
+        RawPacketData packet(0, pts, data, size);
+        queue->push(std::move(packet));  // 快！
+    });
 ```
 
 ---

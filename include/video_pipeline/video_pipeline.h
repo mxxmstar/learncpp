@@ -45,6 +45,9 @@ public:
     
 private:
     // ==================== 内部回调处理 ====================
+    /// @brief 序列头回调：接收 SPS/PPS 数据
+    void onSequenceHeaderReceived(int codec_id, const uint8_t* data, int size);
+    
     /// @brief 拉流器回调：接收 NALU 数据
     void onNaluReceived(const uint8_t* data, int size, int64_t pts);
     
@@ -79,8 +82,11 @@ private:
     /// @brief 处理帧队列（Processor → Algorithm）
     std::shared_ptr<FrameDataQueue> processed_queue_;
     
-    /// @brief SPS/PPS 数据（用于初始化解码器）
+    /// @brief SPS/PPS 数据（H.264，用于初始化解码器和重连恢复）
     std::vector<uint8_t> sps_pps_data_;
+    
+    /// @brief SPS/PPS 数据（H.265，用于初始化解码器和重连恢复）
+    std::vector<uint8_t> sps_pps_h265_data_;
     
     /// @brief 运行状态
     std::atomic<bool> running_{false};

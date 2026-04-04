@@ -99,9 +99,13 @@ public:
 **使用示例：**
 ```cpp
 auto puller = std::make_unique<ZLMPuller>(io_context);
-puller->start(url, [](const uint8_t* data, int size, int64_t pts) {
-    // 处理拉流数据
-});
+puller->start(url, 
+    [](int codec_id, const uint8_t* data, int size) {
+        // 处理序列头
+    },
+    [](const uint8_t* data, int size, int64_t pts) {
+        // 处理拉流数据
+    });
 ```
 
 ---

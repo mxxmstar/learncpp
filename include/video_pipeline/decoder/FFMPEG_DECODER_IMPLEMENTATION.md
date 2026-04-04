@@ -123,6 +123,9 @@ auto decoder = std::make_unique<FFmpegDecoder>();
 
 // 拉流回调中解码
 puller->start(url, 
+    [decoder](int codec_id, const uint8_t* data, int size) {
+        // 可选：处理序列头
+    },
     [decoder](const uint8_t* nalu, int size, int64_t pts) {
         decoder->decode(nalu, size, pts,
             [](cv::Mat&& frame, int64_t pts) {

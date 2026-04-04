@@ -29,6 +29,7 @@ int main() {
         
         std::cout << "Created test image: " << test_image.cols << "x" 
                   << test_image.rows << "x" << test_image.channels() << std::endl;
+        cv::imwrite("output_original.jpg", test_image);
         
         // 测试 1：单个滤镜 - 高斯模糊
         std::cout << "\n--- Test 1: Gaussian Blur ---" << std::endl;
@@ -36,6 +37,7 @@ int main() {
         auto blurred = blur_processor.process(test_image.clone());
         std::cout << "Blurred image: " << blurred.cols << "x" 
                   << blurred.rows << "x" << blurred.channels() << std::endl;
+        cv::imwrite("output_test1_gaussian_blur.jpg", blurred);
         
         // 测试 2：滤镜链 - 灰度化 + Canny 边缘检测
         std::cout << "\n--- Test 2: Grayscale + Canny Edge ---" << std::endl;
@@ -43,6 +45,7 @@ int main() {
         auto edges = edge_processor.process(test_image.clone());
         std::cout << "Edge image: " << edges.cols << "x" 
                   << edges.rows << "x" << edges.channels() << std::endl;
+        cv::imwrite("output_test2_grayscale_canny.jpg", edges);
         
         // 测试 3：滤镜链 - 直方图均衡化 + 中值滤波
         std::cout << "\n--- Test 3: Histogram Equalization + Median Blur ---" << std::endl;
@@ -50,6 +53,7 @@ int main() {
         auto enhanced = enhance_processor.process(test_image.clone());
         std::cout << "Enhanced image: " << enhanced.cols << "x" 
                   << enhanced.rows << "x" << enhanced.channels() << std::endl;
+        cv::imwrite("output_test3_hist_eq_median.jpg", enhanced);
         
         // 测试 4：动态添加滤镜
         std::cout << "\n--- Test 4: Dynamic Filter Addition ---" << std::endl;
@@ -59,6 +63,7 @@ int main() {
         auto processed = dynamic_processor.process(test_image.clone());
         std::cout << "Dynamic processed image: " << processed.cols << "x" 
                   << processed.rows << "x" << processed.channels() << std::endl;
+        cv::imwrite("output_test4_dynamic_gray_thresh.jpg", processed);
         
         // 测试 5：清除滤镜
         std::cout << "\n--- Test 5: Clear Filters ---" << std::endl;
@@ -67,6 +72,7 @@ int main() {
         auto sobel_result = dynamic_processor.process(test_image.clone());
         std::cout << "Sobel result: " << sobel_result.cols << "x" 
                   << sobel_result.rows << "x" << sobel_result.channels() << std::endl;
+        cv::imwrite("output_test5_sobel.jpg", sobel_result);
         
         // 测试 6：自定义参数
         std::cout << "\n--- Test 6: Custom Parameters ---" << std::endl;
@@ -76,12 +82,16 @@ int main() {
         auto custom_result = custom_processor.process(test_image.clone());
         std::cout << "Custom result: " << custom_result.cols << "x" 
                   << custom_result.rows << "x" << custom_result.channels() << std::endl;
+        cv::imwrite("output_test6_custom_resize.jpg", custom_result);
         
         // 测试 7：空输入处理
         std::cout << "\n--- Test 7: Empty Input Handling ---" << std::endl;
         cv::Mat empty_img;
         auto empty_result = edge_processor.process(std::move(empty_img));
         std::cout << "Empty input handled: " << (empty_result.empty() ? "Yes" : "No") << std::endl;
+        if (!empty_result.empty()) {
+            cv::imwrite("output_test7_empty_result.jpg", empty_result);
+        }
         
         // 测试 8：所有滤镜类型
         std::cout << "\n--- Test 8: All Filter Types ---" << std::endl;
@@ -108,10 +118,15 @@ int main() {
             std::cout << "Filter '" << filter << "' -> " 
                       << result.cols << "x" << result.rows << "x" 
                       << result.channels() << std::endl;
+            
+            // 保存每个滤镜的结果
+            std::string filename = "output_test8_" + filter + ".jpg";
+            cv::imwrite(filename, result);
         }
         
         std::cout << "\n========================================" << std::endl;
         std::cout << "All tests completed successfully!" << std::endl;
+        std::cout << "Images saved to current directory." << std::endl;
         std::cout << "========================================" << std::endl;
         
     }
