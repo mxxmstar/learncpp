@@ -1,0 +1,7 @@
+ 1、 RTSP 转 RTMP 推到 ZLmediakit 服务
+ .\ffmpeg.exe -rtsp_transport tcp -i rtsp://192.168.66.166/live/mainstream -c:v copy -c:a aac -f flv rtmp://127.0.0.1:1935/live/proxy_cam1
+
+2、MP4转H264
+ .\ffmpeg.exe -i test.mp4 -vcodec copy -an -f h264 test.h264
+
+ 

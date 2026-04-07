@@ -1,280 +1,106 @@
 #include "video_pipeline/processor/opencv_processor.h"
 #include "log/logmanager.h"
 
-OpenCVProcessor::OpenCVProcessor(const std::vector<std::string>& filters)
-    : filters_(filters)
-{
-    // 初始化滤镜函数映射表
-    filter_map_["gaussian_blur"] = [this](cv::Mat&& img) {
-        return applyGaussianBlur(std::move(img));
-    };
-    
-    filter_map_["hist_eq"] = [this](cv::Mat&& img) {
-        return applyHistogramEqualization(std::move(img));
-    };
-    
-    filter_map_["canny"] = [this](cv::Mat&& img) {
-        return applyCannyEdge(std::move(img));
-    };
-    
-    filter_map_["resize"] = [this](cv::Mat&& img) {
-        return applyResize(std::move(img));
-    };
-    
-    filter_map_["grayscale"] = [this](cv::Mat&& img) {
-        return applyGrayscale(std::move(img));
-    };
-    
-    filter_map_["threshold"] = [this](cv::Mat&& img) {
-        return applyThreshold(std::move(img));
-    };
-    
-    filter_map_["median_blur"] = [this](cv::Mat&& img) {
-        return applyMedianBlur(std::move(img));
-    };
-    
-    filter_map_["sobel"] = [this](cv::Mat&& img) {
-        return applySobel(std::move(img));
-    };
-    
-    filter_map_["laplacian"] = [this](cv::Mat&& img) {
-        return applyLaplacian(std::move(img));
-    };
-    
-    filter_map_["morphology"] = [this](cv::Mat&& img) {
-        return applyMorphology(std::move(img));
-    };
-    
-    LOG_MAIN_INFO_AT("OpenCVProcessor created with {} filters", filters_.size());
+extern "C" {
+#include <libavutil/imgutils.h>
 }
 
-OpenCVProcessor::~OpenCVProcessor() {
-    LOG_MAIN_INFO_AT("OpenCVProcessor destroyed");
+OpenCVFrameProcessor::OpenCVFrameProcessor() {
 }
 
-cv::Mat OpenCVProcessor::process(cv::Mat&& input) {
-    if (input.empty()) {
-        LOG_MAIN_WARN_AT("Input frame is empty");
-        return cv::Mat();
+OpenCVFrameProcessor::~OpenCVFrameProcessor() {
+}
+
+SwsContext* OpenCVFrameProcessor::getSwsContext(int src_width, int src_height, int src_format,
+                                                  int dst_width, int dst_height, int dst_format) {
+    // 检查是否需要重新创建上下文
+    if (cache_.ctx && 
+        cache_.src_width == src_width && 
+        cache_.src_height == src_height && 
+        cache_.src_format == src_format &&
+        cache_.dst_width == dst_width && 
+        cache_.dst_height == dst_height && 
+        cache_.dst_format == dst_format) {
+        return cache_.ctx;
     }
     
-    // 按顺序应用所有滤镜
-    cv::Mat result = std::move(input);
-    
-    for (const auto& filter_name : filters_) {
-        auto it = filter_map_.find(filter_name);
-        if (it == filter_map_.end()) {
-            LOG_MAIN_WARN_AT("Unknown filter: {}", filter_name);
-            continue;
-        }
-        
-        // 应用滤镜
-        result = it->second(std::move(result));
+    // 释放旧的上下文
+    if (cache_.ctx) {
+        sws_freeContext(cache_.ctx);
+        cache_.ctx = nullptr;
     }
     
-    return result;
+    // 创建新的上下文
+    cache_.ctx = sws_getContext(
+        src_width, src_height, static_cast<AVPixelFormat>(src_format),
+        dst_width, dst_height, static_cast<AVPixelFormat>(dst_format),
+        SWS_BILINEAR, nullptr, nullptr, nullptr);
+    
+    if (!cache_.ctx) {
+        LOG_MAIN_ERROR_AT("Failed to create SwsContext");
+        return nullptr;
+    }
+    
+    // 更新缓存
+    cache_.src_width = src_width;
+    cache_.src_height = src_height;
+    cache_.src_format = src_format;
+    cache_.dst_width = dst_width;
+    cache_.dst_height = dst_height;
+    cache_.dst_format = dst_format;
+    
+    return cache_.ctx;
 }
 
-void OpenCVProcessor::addFilter(const std::string& filter_name) {
-    // 检查滤镜是否存在
-    if (filter_map_.find(filter_name) == filter_map_.end()) {
-        LOG_MAIN_WARN_AT("Cannot add unknown filter: {}", filter_name);
+void OpenCVFrameProcessor::process(VideoFrame&& frame, ProcessedCallback cb) {
+    if (!cb) {
         return;
     }
     
-    filters_.push_back(filter_name);
-    LOG_MAIN_INFO_AT("Added filter: {}", filter_name);
-}
-
-void OpenCVProcessor::clearFilters() {
-    filters_.clear();
-    LOG_MAIN_INFO_AT("Cleared all filters");
-}
-
-void OpenCVProcessor::setGaussianBlurParams(int ksize, double sigmaX) {
-    if (ksize <= 0 || ksize % 2 == 0) {
-        LOG_MAIN_WARN_AT("Invalid Gaussian kernel size: {} (must be positive odd number)", ksize);
+    if (frame.width == 0 || frame.height == 0) {
+        LOG_MAIN_WARN_AT("Invalid frame dimensions");
         return;
     }
-    gaussian_ksize_ = ksize;
-    gaussian_sigma_x_ = sigmaX;
-    LOG_MAIN_INFO_AT("Set Gaussian blur params: ksize={}, sigmaX={}", ksize, sigmaX);
-}
-
-// ==================== 滤镜实现方法 ====================
-
-cv::Mat OpenCVProcessor::applyGaussianBlur(cv::Mat&& input) {
-    cv::Mat output;
-    cv::GaussianBlur(input, output, 
-                    cv::Size(gaussian_ksize_, gaussian_ksize_),
-                    gaussian_sigma_x_);
-    return output;
-}
-
-cv::Mat OpenCVProcessor::applyHistogramEqualization(cv::Mat&& input) {
-    cv::Mat output;
     
-    // 如果是彩色图像，先转到 YCrCb，然后对 Y 通道做均衡化
-    if (input.channels() == 3) {
-        cv::Mat ycrcb;
-        cv::cvtColor(input, ycrcb, cv::COLOR_BGR2YCrCb);
-        
-        std::vector<cv::Mat> channels;
-        cv::split(ycrcb, channels);
-        
-        // 对 Y 通道（亮度）进行直方图均衡化
-        cv::equalizeHist(channels[0], channels[0]);
-        
-        cv::merge(channels, ycrcb);
-        cv::cvtColor(ycrcb, output, cv::COLOR_YCrCb2BGR);
-    }
-    else {
-        // 灰度图像直接均衡化
-        cv::equalizeHist(input, output);
+    // 1. 获取 SwsContext（YUV -> BGR）
+    SwsContext* sws_ctx = getSwsContext(
+        frame.width, frame.height, frame.format,
+        frame.width, frame.height, AV_PIX_FMT_BGR24);
+    
+    if (!sws_ctx) {
+        LOG_MAIN_ERROR_AT("Failed to get SwsContext");
+        return;
     }
     
-    return output;
-}
-
-cv::Mat OpenCVProcessor::applyCannyEdge(cv::Mat&& input) {
-    cv::Mat gray, edges;
+    // 2. 分配输出缓冲区
+    uint8_t* out_buffer = nullptr;
+    int out_linesize[1] = {0};
     
-    // 先转灰度
-    if (input.channels() == 3) {
-        cv::cvtColor(input, gray, cv::COLOR_BGR2GRAY);
-    }
-    else {
-        gray = input;
-    }
+    int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, 
+                                             frame.width, frame.height, 1);
+    out_buffer = static_cast<uint8_t*>(av_malloc(num_bytes));
     
-    // Canny 边缘检测
-    cv::Canny(gray, edges, canny_threshold1_, canny_threshold2_);
-    
-    // 转回 BGR（便于后续处理）
-    cv::cvtColor(edges, edges, cv::COLOR_GRAY2BGR);
-    
-    return edges;
-}
-
-cv::Mat OpenCVProcessor::applyResize(cv::Mat&& input) {
-    if (target_width_ <= 0 || target_height_ <= 0) {
-        LOG_MAIN_WARN_AT("Invalid target size: {}x{}", target_width_, target_height_);
-        return input;
+    if (!out_buffer) {
+        LOG_MAIN_ERROR_AT("Failed to allocate output buffer");
+        return;
     }
     
-    cv::Mat output;
-    cv::resize(input, output, cv::Size(target_width_, target_height_), 
-               0, 0, cv::INTER_LINEAR);
-    return output;
-}
-
-cv::Mat OpenCVProcessor::applyGrayscale(cv::Mat&& input) {
-    cv::Mat gray;
+    // 3. 填充图像数据数组
+    uint8_t* out_data[1];
+    av_image_fill_arrays(out_data, out_linesize, out_buffer,
+                        AV_PIX_FMT_BGR24, frame.width, frame.height, 1);
     
-    if (input.channels() == 3) {
-        cv::cvtColor(input, gray, cv::COLOR_BGR2GRAY);
-        // 转回 BGR（保持格式一致）
-        cv::cvtColor(gray, gray, cv::COLOR_GRAY2BGR);
-    }
-    else {
-        gray = input;
-    }
+    // 4. 转换图像格式
+    sws_scale(sws_ctx, frame.data, frame.linesize, 0,
+              frame.height, out_data, out_linesize);
     
-    return gray;
-}
-
-cv::Mat OpenCVProcessor::applyThreshold(cv::Mat&& input) {
-    cv::Mat gray, output;
+    // 5. 创建 OpenCV Mat（深拷贝）
+    cv::Mat mat(frame.height, frame.width, CV_8UC3, out_data[0], out_linesize[0]);
+    cv::Mat mat_copy = mat.clone();
     
-    // 先转灰度
-    if (input.channels() == 3) {
-        cv::cvtColor(input, gray, cv::COLOR_BGR2GRAY);
-    }
-    else {
-        gray = input;
-    }
+    // 6. 清理
+    av_free(out_buffer);
     
-    // 二值化
-    cv::threshold(gray, output, threshold_value_, 255, cv::THRESH_BINARY);
-    
-    // 转回 BGR
-    cv::cvtColor(output, output, cv::COLOR_GRAY2BGR);
-    
-    return output;
-}
-
-cv::Mat OpenCVProcessor::applyMedianBlur(cv::Mat&& input) {
-    cv::Mat output;
-    cv::medianBlur(input, output, median_ksize_);
-    return output;
-}
-
-cv::Mat OpenCVProcessor::applySobel(cv::Mat&& input) {
-    cv::Mat gray, grad_x, grad_y, output;
-    
-    // 先转灰度
-    if (input.channels() == 3) {
-        cv::cvtColor(input, gray, cv::COLOR_BGR2GRAY);
-    }
-    else {
-        gray = input;
-    }
-    
-    // Sobel 算子
-    cv::Sobel(gray, grad_x, CV_16S, 1, 0, 3);
-    cv::Sobel(gray, grad_y, CV_16S, 0, 1, 3);
-    
-    // 合并梯度
-    cv::Mat abs_grad_x, abs_grad_y;
-    cv::convertScaleAbs(grad_x, abs_grad_x);
-    cv::convertScaleAbs(grad_y, abs_grad_y);
-    
-    cv::addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, output);
-    
-    // 转回 BGR
-    cv::cvtColor(output, output, cv::COLOR_GRAY2BGR);
-    
-    return output;
-}
-
-cv::Mat OpenCVProcessor::applyLaplacian(cv::Mat&& input) {
-    cv::Mat gray, output;
-    
-    // 先转灰度
-    if (input.channels() == 3) {
-        cv::cvtColor(input, gray, cv::COLOR_BGR2GRAY);
-    }
-    else {
-        gray = input;
-    }
-    
-    // Laplacian 变换
-    cv::Laplacian(gray, output, CV_16S, 3);
-    cv::convertScaleAbs(output, output);
-    
-    // 转回 BGR
-    cv::cvtColor(output, output, cv::COLOR_GRAY2BGR);
-    
-    return output;
-}
-
-cv::Mat OpenCVProcessor::applyMorphology(cv::Mat&& input) {
-    cv::Mat gray, output;
-    
-    // 先转灰度
-    if (input.channels() == 3) {
-        cv::cvtColor(input, gray, cv::COLOR_BGR2GRAY);
-    }
-    else {
-        gray = input;
-    }
-    
-    // 形态学操作：开运算（先腐蚀后膨胀）
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-    cv::morphologyEx(gray, output, cv::MORPH_OPEN, kernel);
-    
-    // 转回 BGR
-    cv::cvtColor(output, output, cv::COLOR_GRAY2BGR);
-    
-    return output;
+    // 7. 调用回调
+    cb(std::move(mat_copy), frame.pts);
 }

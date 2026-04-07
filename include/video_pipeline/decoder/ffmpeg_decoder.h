@@ -1,17 +1,17 @@
 #pragma once
 
 #include "video_pipeline/decoder/i_decoder.h"
-#include <opencv2/opencv.hpp>
 #include <memory>
 #include <atomic>
+#include <string>
 
 // FFmpeg 前向声明
 struct AVCodecContext;
 struct AVFrame;
 struct AVPacket;
 
-/// @brief FFmpeg 视频解码器
-/// 将 H.264/H.265 NALU 数据解码为 OpenCV Mat
+/// @brief FFmpeg 视频解码器（纯 FFmpeg，不依赖 OpenCV）
+/// 将 H.264/H.265 NALU 数据解码为 VideoFrame
 class FFmpegDecoder : public IDecoder {
 public:
     /// @brief 构造函数
@@ -51,10 +51,10 @@ public:
     uint64_t getFramesDecoded() const { return frames_decoded_.load(); }
     
 private:
-    /// @brief 将 AVFrame 转换为 cv::Mat
-    /// @param frame FFmpeg 帧
-    /// @return OpenCV Mat（BGR 格式）
-    cv::Mat convertToMat(AVFrame* frame);
+    /// @brief 将 AVFrame 转换为 VideoFrame（深拷贝数据）
+    /// @param av_frame FFmpeg 帧
+    /// @return 通用视频帧
+    VideoFrame convertToVideoFrame(AVFrame* av_frame);
     
     /// @brief 处理解码后的帧
     /// @param av_frame 解码后的帧
@@ -72,7 +72,7 @@ private:
     int codec_id_ = 0;
     
     // 配置
-    int thread_count_ = 2;  // 解码线程数
+    int thread_count_;  // 解码线程数
     
     // 状态
     std::atomic<bool> opened_{false};

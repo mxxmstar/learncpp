@@ -6,14 +6,13 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>
-#include <libswscale/swscale.h>
 }
 
 FFmpegDecoder::FFmpegDecoder() {
     // 分配 FFmpeg 结构
     frame_ = av_frame_alloc();
     pkt_ = av_packet_alloc();
-    
+    thread_count_ = std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 2;
     if (!frame_ || !pkt_) {
         LOG_MAIN_CRITICAL_AT("Failed to allocate FFmpeg structures");
         close();
@@ -196,56 +195,34 @@ void FFmpegDecoder::close() {
     LOG_MAIN_INFO_AT("Decoder closed");
 }
 
-cv::Mat FFmpegDecoder::convertToMat(AVFrame* frame) {
-    if (!frame) {
-        return cv::Mat();
+VideoFrame FFmpegDecoder::convertToVideoFrame(AVFrame* av_frame) {
+    if (!av_frame) {
+        return VideoFrame();
     }
     
-    // 1. 创建图像转换上下文（YUV -> BGR）
-    struct SwsContext* sws_ctx = sws_getContext(
-        frame->width, frame->height, static_cast<AVPixelFormat>(frame->format),
-        frame->width, frame->height, AV_PIX_FMT_BGR24,
-        SWS_BILINEAR, nullptr, nullptr, nullptr);
+    VideoFrame frame;
+    frame.width = av_frame->width;
+    frame.height = av_frame->height;
+    frame.format = av_frame->format;
+    frame.pts = av_frame->pts;
     
-    if (!sws_ctx) {
-        LOG_MAIN_ERROR_AT("Failed to create SwsContext");
-        return cv::Mat();
+    // 深拷贝数据（每个平面）
+    for (int i = 0; i < 4; ++i) {
+        if (av_frame->data[i] && av_frame->linesize[i] > 0) {
+            // 计算需要复制的字节数
+            int plane_height = (i == 0) ? av_frame->height : av_frame->height / 2;
+            int bytes_to_copy = av_frame->linesize[i] * plane_height;
+            
+            // 分配内存并复制
+            frame.data[i] = static_cast<uint8_t*>(av_malloc(bytes_to_copy));
+            if (frame.data[i]) {
+                memcpy(frame.data[i], av_frame->data[i], bytes_to_copy);
+                frame.linesize[i] = av_frame->linesize[i];
+            }
+        }
     }
     
-    // 2. 分配输出缓冲区
-    uint8_t* out_data[1] = {nullptr};
-    int out_linesize[1] = {0};
-    
-    int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, 
-                                             frame->width, frame->height, 1);
-    out_data[0] = static_cast<uint8_t*>(av_malloc(num_bytes));
-    
-    if (!out_data[0]) {
-        LOG_MAIN_ERROR_AT("Failed to allocate output buffer");
-        sws_freeContext(sws_ctx);
-        return cv::Mat();
-    }
-    
-    av_image_fill_arrays(out_data, out_linesize, out_data[0],
-                        AV_PIX_FMT_BGR24, frame->width, frame->height, 1);
-    
-    // 3. 转换图像格式
-    sws_scale(sws_ctx, frame->data, frame->linesize, 0,
-              frame->height, out_data, out_linesize);
-    
-    // 4. 创建 OpenCV Mat（共享内存，避免拷贝）
-    cv::Mat mat(frame->height, frame->width, CV_8UC3, out_data[0], out_linesize[0]);
-    
-    // 注意：这里 Mat 使用的是 FFmpeg 分配的内存
-    // 需要在 Mat 销毁时释放内存
-    // 为简单起见，我们创建一个深拷贝
-    cv::Mat mat_copy = mat.clone();
-    
-    // 5. 清理
-    av_free(out_data[0]);
-    sws_freeContext(sws_ctx);
-    
-    return mat_copy;
+    return frame;
 }
 
 void FFmpegDecoder::processDecodedFrame(AVFrame* av_frame, int64_t pts, FrameCallback cb) {
@@ -253,10 +230,10 @@ void FFmpegDecoder::processDecodedFrame(AVFrame* av_frame, int64_t pts, FrameCal
         return;
     }
     
-    // 转换为 OpenCV Mat
-    cv::Mat mat = convertToMat(av_frame);
+    // 转换为通用帧结构
+    VideoFrame frame = convertToVideoFrame(av_frame);
     
-    if (mat.empty()) {
+    if (frame.width == 0 || frame.height == 0) {
         LOG_MAIN_WARN_AT("Converted frame is empty");
         return;
     }
@@ -264,12 +241,12 @@ void FFmpegDecoder::processDecodedFrame(AVFrame* av_frame, int64_t pts, FrameCal
     frames_decoded_++;
     
     // 调用回调函数
-    cb(std::move(mat), pts);
+    cb(std::move(frame));
     
     // 每 100 帧打印一次统计
     if (frames_decoded_.load() % 100 == 0) {
         LOG_MAIN_INFO_AT("Decoded {} frames ({}x{})",
                         frames_decoded_.load(),
-                        mat.cols, mat.rows);
+                        frame.width, frame.height);
     }
 }

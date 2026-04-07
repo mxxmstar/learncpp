@@ -1,4 +1,5 @@
 #include "video_pipeline/video_pipeline.h"
+#include "video_pipeline/processor/opencv_processor.h"  // 可选组件
 #include "log/logmanager.h"
 
 VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConfig& config)
@@ -13,11 +14,9 @@ VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConf
     decoder_ = std::make_unique<FFmpegDecoder>();
     decoder_->setThreadCount(config_.decoder_threads);
     
-    // 3. 创建处理器
-    processor_ = std::make_unique<OpenCVProcessor>(config_.filters);
-    
-    if (config_.enable_preprocess && config_.target_width > 0 && config_.target_height > 0) {
-        processor_->setTargetSize(config_.target_width, config_.target_height);
+    // 3. 创建 OpenCV 处理器（可选）
+    if (config_.enable_preprocess) {
+        processor_ = std::make_unique<OpenCVFrameProcessor>();
     }
     
     // 4. 创建队列
@@ -74,28 +73,9 @@ bool VideoPipeline::start() {
                 
                 // 解码 NALU
                 decoder_->decode(packet.data.data(), static_cast<int>(packet.data.size()), packet.pts,
-                    [this](cv::Mat&& frame, int64_t pts) {
-                        onFrameDecoded(std::move(frame), pts);
+                    [this](VideoFrame&& frame) {
+                        onFrameDecoded(std::move(frame));
                     });
-            }
-        });
-        
-        // 3. 启动处理线程
-        processor_thread_ = std::thread([this]() {
-            while (running_) {
-                // 从队列中取出解码后的帧
-                auto frame_opt = decoded_queue_->pop(std::chrono::milliseconds(100));
-                if (!frame_opt) {
-                    continue;
-                }
-                
-                auto& frame_data = *frame_opt;
-                
-                // 处理帧
-                cv::Mat processed_frame = processor_->process(std::move(frame_data.frame));
-                
-                // 调用处理完成回调
-                onFrameProcessed(std::move(processed_frame), frame_data.pts);
             }
         });
         
@@ -126,12 +106,7 @@ void VideoPipeline::stop() {
         decoder_thread_.join();
     }
     
-    // 3. 停止处理线程
-    if (processor_thread_.joinable()) {
-        processor_thread_.join();
-    }
-    
-    // 4. 关闭解码器
+    // 3. 关闭解码器
     decoder_->close();
     
     LOG_MAIN_INFO_AT("VideoPipeline stopped: received={}, decoded={}, processed={}",
@@ -210,17 +185,22 @@ void VideoPipeline::onNaluReceived(const uint8_t* data, int size, int64_t pts) {
 }
 
 /// @brief 解码器回调：接收解码后的帧
-void VideoPipeline::onFrameDecoded(cv::Mat&& frame, int64_t pts) {
+void VideoPipeline::onFrameDecoded(VideoFrame&& frame) {
     frames_decoded_++;
     
-    // 将解码后的帧推入队列
-    FrameData frame_data(config_.channel_id, pts, std::move(frame));
-    if (!decoded_queue_->push(std::move(frame_data))) {
-        // 队列已满，丢弃
-        static int dropped = 0;
-        if (++dropped % 100 == 0) {
-            LOG_MAIN_WARN_AT("Decoded queue full, dropped {} frames", dropped);
-        }
+    // 如果启用了 OpenCV 处理器，转换为 cv::Mat
+    if (processor_) {
+        int64_t pts = frame.pts;
+        processor_->process(std::move(frame), [this, pts](cv::Mat&& mat, int64_t) {
+            onFrameProcessed(std::move(mat), pts);
+        });
+    } else {
+        // 没有处理器，直接输出 YUV 数据（可选：保存或传递给算法）
+        LOG_MAIN_DEBUG_AT("Received decoded frame: {}x{} format={}", 
+                         frame.width, frame.height, frame.format);
+        
+        // TODO: 如果需要直接使用 YUV 数据，在这里处理
+        // 例如：传递给不需要 OpenCV 的算法模块
     }
 }
 

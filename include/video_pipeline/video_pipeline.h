@@ -2,12 +2,14 @@
 
 #include "video_pipeline/puller/zlm_puller.h"
 #include "video_pipeline/decoder/ffmpeg_decoder.h"
-#include "video_pipeline/processor/opencv_processor.h"
 #include "video_pipeline/frame_queue.h"
 #include "video_pipeline/pipeline_config.h"
 #include <boost/asio.hpp>
 #include <thread>
 #include <atomic>
+
+// 前向声明（可选组件）
+class OpenCVFrameProcessor;
 
 /// @brief 视频处理流水线
 /// 将拉流、解码、处理三个环节串联起来
@@ -52,9 +54,9 @@ private:
     void onNaluReceived(const uint8_t* data, int size, int64_t pts);
     
     /// @brief 解码器回调：接收解码后的帧
-    void onFrameDecoded(cv::Mat&& frame, int64_t pts);
+    void onFrameDecoded(VideoFrame&& frame);
     
-    /// @brief 处理器回调：接收处理后的帧
+    /// @brief 处理器回调：接收处理后的帧（如果使用 OpenCV）
     void onFrameProcessed(cv::Mat&& frame, int64_t pts);
     
     // ==================== 成员变量 ====================
@@ -70,8 +72,8 @@ private:
     /// @brief 解码器
     std::unique_ptr<FFmpegDecoder> decoder_;
     
-    /// @brief 处理器
-    std::unique_ptr<OpenCVProcessor> processor_;
+    /// @brief OpenCV 处理器（可选，用于 YUV -> BGR 转换）
+    std::unique_ptr<OpenCVFrameProcessor> processor_;
     
     /// @brief 原始数据队列（Puller → Decoder）
     std::shared_ptr<RawPacketQueue> raw_queue_;
@@ -102,7 +104,6 @@ private:
     /// @brief 输出回调
     FrameOutputCallback output_callback_;
     
-    /// @brief 工作线程
+    /// @brief 解码工作线程
     std::thread decoder_thread_;
-    std::thread processor_thread_;
 };
