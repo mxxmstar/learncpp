@@ -5,6 +5,7 @@
 #include "video_pipeline/video_pipeline.h"
 #include "video_pipeline/algorithm/base_algorithm.h"
 #include "video_pipeline/output/result_output.h"
+#include "video_pipeline/processor/osd_renderer.h"  // 【新增】OSD 渲染器
 #include "log/logmanager.h"
 
 // 全局标志
@@ -93,16 +94,54 @@ int main() {
         // 可选：文件输出
         // outputs.push_back(std::make_shared<FileOutput>("results.jsonl"));
         
+        // 【新增】创建 OSD 渲染器
+        OsdRenderer osd_renderer;
+        
         // 设置帧输出回调（在 VideoPipeline 中处理算法）
         int processed_count = 0;
+        auto start_time = std::chrono::steady_clock::now();
+        
         pipeline.setFrameOutputCallback(
-            [&processed_count, &algorithm, &outputs](
+            [&processed_count, &algorithm, &outputs, &osd_renderer, start_time](
                 int channel_id, cv::Mat&& frame, int64_t pts) {
                 
                 processed_count++;
                 
+                // 计算 FPS
+                auto now = std::chrono::steady_clock::now();
+                double elapsed_sec = std::chrono::duration<double>(now - start_time).count();
+                float fps = (elapsed_sec > 0) ? static_cast<float>(processed_count / elapsed_sec) : 0.0f;
+                
                 // 运行算法
                 AlgorithmResult result = algorithm->process(frame, channel_id, pts);
+                
+                // 【新增】构建检测框列表（示例：如果检测到运动，绘制一个框）
+                std::vector<std::tuple<int, int, int, int, std::string, float>> detection_boxes;
+                if (result.confidence > 0.1f) {
+                    // 模拟一个检测框（实际应用中从算法结果获取）
+                    int box_x = frame.cols / 4;
+                    int box_y = frame.rows / 4;
+                    int box_w = frame.cols / 2;
+                    int box_h = frame.rows / 2;
+                    detection_boxes.emplace_back(box_x, box_y, box_w, box_h, 
+                                               "Motion", result.confidence);
+                }
+                
+                // 【新增】使用 OSD 渲染器绘制信息
+                osd_renderer.render(frame, channel_id, pts, fps, detection_boxes);
+                
+                // 【新增】显示窗口（每 3 帧更新一次，提高性能）
+                static int display_counter = 0;
+                if (++display_counter % 3 == 0) {
+                    cv::imshow("Video Processing Result - Channel " + std::to_string(channel_id), 
+                              frame);
+                    int key = cv::waitKey(1);  // 1ms 刷新
+                    
+                    // 按 ESC 或 q 键退出
+                    if (key == 27 || key == 'q' || key == 'Q') {
+                        g_running = false;
+                    }
+                }
                 
                 // 输出到所有输出器
                 for (auto& output : outputs) {
@@ -112,7 +151,7 @@ int main() {
                 // 每 100 帧打印统计
                 if (processed_count % 100 == 0) {
                     std::cout << "[Stats] Processed " << processed_count 
-                              << " frames" << std::endl;
+                              << " frames, FPS=" << fps << std::endl;
                 }
             }
         );
@@ -125,6 +164,13 @@ int main() {
         }
         
         std::cout << "Pipeline started successfully!" << std::endl;
+        
+        // 在后台线程中运行 io_context（处理异步网络操作）
+        std::thread io_thread([&io_ctx]() {
+            std::cout << "[IO Thread] Running io_context..." << std::endl;
+            io_ctx.run();
+            std::cout << "[IO Thread] io_context stopped." << std::endl;
+        });
         
         // 主循环等待
         while (g_running && pipeline.isRunning()) {
@@ -145,6 +191,17 @@ int main() {
         // 停止流水线
         std::cout << "\nStopping pipeline..." << std::endl;
         pipeline.stop();
+        
+        // 【新增】关闭所有 OpenCV 窗口
+        cv::destroyAllWindows();
+        
+        // 停止 io_context
+        io_ctx.stop();
+        
+        // 等待 io 线程结束
+        if (io_thread.joinable()) {
+            io_thread.join();
+        }
         
         std::cout << "\n========================================" << std::endl;
         std::cout << "Test completed!" << std::endl;
