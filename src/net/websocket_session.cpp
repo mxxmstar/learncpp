@@ -13,7 +13,8 @@ AsioWebSocketSession::AsioWebSocketSession(tcp::socket&& socket)
     : session_id_(boost::uuids::to_string(boost::uuids::random_generator()()))
     , ws_(std::move(socket))
     , read_buffer_()
-    , write_buffer_() {
+    , write_queue_()
+    , is_writing_(false) {
 }
 
 void AsioWebSocketSession::Start() {
@@ -38,21 +39,30 @@ void AsioWebSocketSession::Close() {
 }
 
 void AsioWebSocketSession::Send(const std::string& message) {
-    auto self = shared_from_this();
-    ws_.async_write(boost::asio::buffer(message), [this, self](boost::system::error_code ec, std::size_t) {
-        if (ec) {
-            LOG_MAIN_ERROR_AT("WebSocket write error: {}", ec.message());
-        }
-    });
+    std::lock_guard<std::mutex> lock(write_mutex_);
+    
+    // 将消息复制到队列
+    std::vector<uint8_t> data(message.begin(), message.end());
+    write_queue_.push(std::move(data));
+    
+    // 如果当前没有正在进行的写操作，则开始写
+    if (!is_writing_) {
+        is_writing_ = true;
+        DoWrite();
+    }
 }
 
 void AsioWebSocketSession::SendBinary(const std::vector<uint8_t>& data) {
-    auto self = shared_from_this();
-    ws_.async_write(boost::asio::buffer(data), [this, self](boost::system::error_code ec, std::size_t) {
-        if (ec) {
-            LOG_MAIN_ERROR_AT("WebSocket write binary error: {}", ec.message());
-        }
-    });
+    std::lock_guard<std::mutex> lock(write_mutex_);
+    
+    // 将数据复制到队列
+    write_queue_.push(data);
+    
+    // 如果当前没有正在进行的写操作，则开始写
+    if (!is_writing_) {
+        is_writing_ = true;
+        DoWrite();
+    }
 }
 
 void AsioWebSocketSession::SetMessageHandler(MessageHandler handler) {
@@ -82,12 +92,41 @@ void AsioWebSocketSession::OnRead(boost::system::error_code ec, std::size_t byte
     }
 
     if (message_handler_) {
-        std::string msg(static_cast<const char*>(read_buffer_.data().data()), bytes_transferred);
+        // 使用 buffer 的实际大小，而不是 bytes_transferred
+        auto buffers = read_buffer_.data();
+        std::string msg(static_cast<const char*>(buffers.data()), buffers.size());
         message_handler_(session_id_, msg);
     }
 
-    read_buffer_.consume(bytes_transferred);
+    read_buffer_.consume(read_buffer_.size());
     AsyncRead();
+}
+
+void AsioWebSocketSession::DoWrite() {
+    if (write_queue_.empty()) {
+        is_writing_ = false;
+        return;
+    }
+    
+    auto self = shared_from_this();
+    auto& data = write_queue_.front();
+    
+    ws_.async_write(boost::asio::buffer(data), [this, self](boost::system::error_code ec, std::size_t) {
+        std::lock_guard<std::mutex> lock(write_mutex_);
+        
+        if (ec) {
+            LOG_MAIN_ERROR_AT("WebSocket write error: {}", ec.message());
+            write_queue_.pop();
+            is_writing_ = false;
+            return;
+        }
+        
+        // 移除已发送的数据
+        write_queue_.pop();
+        
+        // 继续发送下一条消息
+        DoWrite();
+    });
 }
 
 void AsioWebSocketSession::OnWrite(boost::system::error_code ec, std::size_t bytes_transferred) {

@@ -27,6 +27,7 @@ void WebSocketRouter::SetDisconnectHandler(DisconnectHandler handler) {
 void WebSocketRouter::DispatchMessage(const std::string& session_id, const std::string& message) {
     std::string msg_type;
     
+    // 尝试解析 JSON 获取 type 字段
     try {
         auto jv = Json::parse(message);
         if (jv.is_object()) {
@@ -36,8 +37,9 @@ void WebSocketRouter::DispatchMessage(const std::string& session_id, const std::
             }
         }
     } catch (std::exception& e) {
-        LOG_MAIN_ERROR_AT("WebSocketRouter parse message error: {}", e.what());
-        return;
+        // 如果不是 JSON 格式，使用空 type，会触发 "no handler" 警告
+        LOG_MAIN_WARN_AT("WebSocketRouter message is not valid JSON, treating as raw message: {}", 
+                        message.substr(0, 50));
     }
 
     std::lock_guard lock(mutex_);
@@ -45,7 +47,12 @@ void WebSocketRouter::DispatchMessage(const std::string& session_id, const std::
     if (it != message_handlers_.end()) {
         it->second(session_id, message);
     } else {
-        LOG_MAIN_WARN_AT("WebSocketRouter no handler for msg_type: {}", msg_type);
+        if (msg_type.empty()) {
+            LOG_MAIN_WARN_AT("WebSocketRouter received raw message (no type field): {}", 
+                            message.substr(0, 50));
+        } else {
+            LOG_MAIN_WARN_AT("WebSocketRouter no handler for msg_type: {}", msg_type);
+        }
     }
 }
 
@@ -74,7 +81,13 @@ void WebSocketRouter::SendTo(const std::string& session_id, const std::string& m
         auto session = it->second.lock();
         if (session) {
             session->Send(message);
+        } else {
+            // 弱指针已过期，清理无效会话
+            sessions_.erase(it);
+            LOG_MAIN_WARN_AT("WebSocketRouter session {} expired, cleaned up", session_id);
         }
+    } else {
+        LOG_MAIN_WARN_AT("WebSocketRouter session {} not found", session_id);
     }
 }
 
