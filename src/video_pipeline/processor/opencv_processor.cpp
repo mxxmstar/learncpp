@@ -74,7 +74,7 @@ void OpenCVFrameProcessor::process(VideoFrame&& frame, ProcessedCallback cb) {
     
     // 2. 分配输出缓冲区
     uint8_t* out_buffer = nullptr;
-    int out_linesize[1] = {0};
+    int out_linesize[4] = {0};  // ✅ 必须是 4，对应最多 4 个平面
     
     int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, 
                                              frame.width, frame.height, 1);
@@ -86,7 +86,7 @@ void OpenCVFrameProcessor::process(VideoFrame&& frame, ProcessedCallback cb) {
     }
     
     // 3. 填充图像数据数组
-    uint8_t* out_data[1];
+    uint8_t* out_data[4] = {nullptr};  // ✅ 必须是 4
     av_image_fill_arrays(out_data, out_linesize, out_buffer,
                         AV_PIX_FMT_BGR24, frame.width, frame.height, 1);
     

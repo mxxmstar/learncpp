@@ -32,7 +32,7 @@ int main() {
         // 配置流水线
         PipelineConfig config;
         config.channel_id = 1;
-        config.stream_url = "http://127.0.0.1:8080/live/test.flv";
+        config.stream_url = "http://127.0.0.1/live/proxy_cam1.live.flv";
         config.reconnect_delay = 3;
         config.max_reconnect_attempts = -1;  // 无限重试
         config.decoder_threads = 2;
@@ -92,6 +92,13 @@ int main() {
         
         std::cout << "Pipeline started successfully!" << std::endl;
         
+        // 在后台线程中运行 io_context（处理异步网络操作）
+        std::thread io_thread([&io_ctx]() {
+            std::cout << "[IO Thread] Running io_context..." << std::endl;
+            io_ctx.run();
+            std::cout << "[IO Thread] io_context stopped." << std::endl;
+        });
+        
         // 主循环等待
         while (g_running && pipeline.isRunning()) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -110,6 +117,14 @@ int main() {
         // 停止流水线
         std::cout << "\nStopping pipeline..." << std::endl;
         pipeline.stop();
+        
+        // 停止 io_context
+        io_ctx.stop();
+        
+        // 等待 io 线程结束
+        if (io_thread.joinable()) {
+            io_thread.join();
+        }
         
         std::cout << "\n========================================" << std::endl;
         std::cout << "Test completed!" << std::endl;

@@ -399,7 +399,7 @@ int ZLMPuller::parseFlvTagHeader(const uint8_t* data, size_t size) {
         snprintf(buf, sizeof(buf), "%02X ", data[i]);
         hex_str += buf;
     }
-    LOG_MAIN_DEBUG_AT("{}", hex_str);
+    //LOG_MAIN_DEBUG_AT("{}", hex_str);
 
     int tag_type = data[0];
 
@@ -433,7 +433,7 @@ void ZLMPuller::handleFlvTag(const uint8_t* data, size_t size) {
     }
     else if (tag_type == FLV_TAG_TYPE_AUDIO) {
         // 音频标签（暂时忽略，或可以传递给解码器）
-        LOG_MAIN_DEBUG_AT("Audio tag: {} bytes @ {}ms", size, pts);
+        //LOG_MAIN_DEBUG_AT("Audio tag: {} bytes @ {}ms", size, pts);
     }
     else if (tag_type == FLV_TAG_TYPE_SCRIPT) {
         // 脚本数据（onMetaData 等）
@@ -502,6 +502,19 @@ void ZLMPuller::extractNalu(const uint8_t* data, size_t size, int64_t pts) {
         // 遍历所有 NALU（每个 NALU 前 4 字节是长度）
         size_t offset = 0;
         while (offset + 4 <= nalu_size) {
+            // 【调试】打印前几个字节的十六进制
+            static bool first_nalu_debugged = false;
+            if (!first_nalu_debugged && offset == 0) {
+                std::string hex_str;
+                for (size_t i = 0; i < std::min(static_cast<size_t>(16), nalu_size); ++i) {
+                    char buf[4];
+                    snprintf(buf, sizeof(buf), "%02X ", nalu_data[i]);
+                    hex_str += buf;
+                }
+                LOG_MAIN_DEBUG_AT("First NALU data (hex): {}", hex_str);
+                first_nalu_debugged = true;
+            }
+            
             uint32_t nalu_len = (static_cast<uint32_t>(nalu_data[offset]) << 24) |
                                (static_cast<uint32_t>(nalu_data[offset + 1]) << 16) |
                                (static_cast<uint32_t>(nalu_data[offset + 2]) << 8) |
@@ -510,12 +523,36 @@ void ZLMPuller::extractNalu(const uint8_t* data, size_t size, int64_t pts) {
             offset += 4;
             
             if (offset + nalu_len > nalu_size) {
+                LOG_MAIN_WARN_AT("Invalid NAL unit size ({} > {}). Offset={}, remaining={}",
+                                nalu_len, nalu_size - offset + 4, offset - 4, nalu_size - offset + 4);
                 break;
             }
             
+            // 【调试】检查 NALU 类型
+            if (nalu_len >= 1) {
+                uint8_t nalu_type = nalu_data[offset] & 0x1F;
+                
+                // 【验证】检查 NALU 长度是否合理
+                static const size_t MAX_NALU_SIZE = 500 * 1024;  // 500KB 上限
+                if (nalu_len > MAX_NALU_SIZE) {
+                    LOG_MAIN_WARN_AT("NALU too large: {} bytes (type={}, pts={}). Skipping.",
+                                    nalu_len, nalu_type, pts);
+                    break;  // 跳过剩余的 NALU
+                }
+                
+                static int debug_count = 0;
+                if (debug_count < 5 || nalu_type == 5) {  // 打印前5个和所有IDR帧
+                    LOG_MAIN_DEBUG_AT("NALU: type={}, len={}, offset={}, pts={}",
+                                     nalu_type, nalu_len, offset - 4, pts);
+                    if (debug_count < 5) debug_count++;
+                }
+            }
+            
             // 调用回调函数传递 NALU 数据
+            // 【重要】FFmpeg 使用 AVCC 格式初始化解码器，需要传递带长度前缀的数据
             if (callback_) {
-                callback_(nalu_data + offset, nalu_len, pts);
+                // 传递完整的 AVCC 格式：[4字节长度][NALU数据]
+                callback_(nalu_data + offset - 4, nalu_len + 4, pts);
                 frames_delivered_++;
             }
             

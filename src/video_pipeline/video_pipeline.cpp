@@ -38,14 +38,18 @@ bool VideoPipeline::start() {
         LOG_MAIN_WARN_AT("Pipeline already running");
         return false;
     }
-    
+    int cnt = 0;
     try {
         // 1. 启动拉流器（使用新的双回调接口）
         bool success = puller_->start(config_.stream_url,
-            [this](int codec_id, const uint8_t* data, int size) {
+            [this, &cnt](int codec_id, const uint8_t* data, int size) {
+                /*++cnt;
+                LOG_MAIN_DEBUG_AT("Sequence header received: size={}, count={}", size, cnt);*/
                 onSequenceHeaderReceived(codec_id, data, size);
             },
-            [this](const uint8_t* data, int size, int64_t pts) {
+            [this, &cnt](const uint8_t* data, int size, int64_t pts) {
+                /*++cnt;
+                LOG_MAIN_DEBUG_AT("NALU received: size={}, count={}", size, cnt);*/
                 onNaluReceived(data, size, pts);
             });
         
@@ -187,7 +191,9 @@ void VideoPipeline::onNaluReceived(const uint8_t* data, int size, int64_t pts) {
 /// @brief 解码器回调：接收解码后的帧
 void VideoPipeline::onFrameDecoded(VideoFrame&& frame) {
     frames_decoded_++;
-    
+    LOG_MAIN_DEBUG_AT("frames_decoded_: {}, {}x{}, {}", 
+                         frames_decoded_.load(), 
+                         frame.width, frame.height, frame.format);
     // 如果启用了 OpenCV 处理器，转换为 cv::Mat
     if (processor_) {
         int64_t pts = frame.pts;

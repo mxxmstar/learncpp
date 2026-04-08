@@ -149,7 +149,25 @@ void FFmpegDecoder::decode(const uint8_t* packet, int size, int64_t pts, FrameCa
             else {
                 char err_buf[AV_ERROR_MAX_STRING_SIZE];
                 av_strerror(ret, err_buf, sizeof(err_buf));
-                LOG_MAIN_ERROR_AT("Failed to send packet: {}", err_buf);
+                
+                // 【容错】偶尔的解码错误是正常的（网络波动、编码问题）
+                // 只记录错误，不中断解码流程
+                static int error_count = 0;
+                if (++error_count % 100 == 0) {  // 每 100 次错误打印一次
+                    LOG_MAIN_WARN_AT("Decode error #{}: {} (size={}, pts={})", 
+                                    error_count, err_buf, size, pts);
+                }
+                
+                // 【调试】打印前16字节的十六进制（仅前几次错误）
+                if (error_count <= 3) {
+                    std::string hex_str;
+                    for (int i = 0; i < std::min(16, size); ++i) {
+                        char buf[4];
+                        snprintf(buf, sizeof(buf), "%02X ", packet[i]);
+                        hex_str += buf;
+                    }
+                    LOG_MAIN_DEBUG_AT("Error packet data (hex): {}", hex_str);
+                }
             }
             return;
         }
