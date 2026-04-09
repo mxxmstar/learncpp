@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(gRPC CONFIG REQUIRED)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS asio system)
+find_package(OpenCV REQUIRED)
 
 # Proto 文件路径
 set(PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/proto")
@@ -41,7 +42,7 @@ endif()
 message(STATUS "gRPC lib - Found protoc: ${PROTOC}")
 message(STATUS "gRPC lib - Found grpc_cpp_plugin: ${GRPC_CPP_PLUGIN}")
 
-# 生成 gRPC 代码
+# 生成 gRPC 代码（hello.proto）
 set(GRPC_GENERATED_HEADERS
     "${GENERATED_DIR}/hello.pb.h"
     "${GENERATED_DIR}/hello.grpc.pb.h"
@@ -52,7 +53,18 @@ set(GRPC_GENERATED_SOURCES
     "${GENERATED_DIR}/hello.grpc.pb.cc"
 )
 
-# 添加自定义命令生成代码
+# 生成视频处理 gRPC 代码（video_processing.proto）
+set(VIDEO_GRPC_GENERATED_HEADERS
+    "${GENERATED_DIR}/video_processing.pb.h"
+    "${GENERATED_DIR}/video_processing.grpc.pb.h"
+)
+
+set(VIDEO_GRPC_GENERATED_SOURCES
+    "${GENERATED_DIR}/video_processing.pb.cc"
+    "${GENERATED_DIR}/video_processing.grpc.pb.cc"
+)
+
+# 添加自定义命令生成 hello 代码
 add_custom_command(
     OUTPUT ${GRPC_GENERATED_HEADERS} ${GRPC_GENERATED_SOURCES}
     COMMAND ${PROTOC}
@@ -66,12 +78,28 @@ add_custom_command(
     VERBATIM
 )
 
+# 添加自定义命令生成视频处理代码
+add_custom_command(
+    OUTPUT ${VIDEO_GRPC_GENERATED_HEADERS} ${VIDEO_GRPC_GENERATED_SOURCES}
+    COMMAND ${PROTOC}
+    ARGS --proto_path=${PROTO_DIR}
+         --cpp_out=${GENERATED_DIR}
+         --grpc_out=${GENERATED_DIR}
+         --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
+         ${PROTO_DIR}/video_processing.proto
+    DEPENDS ${PROTO_DIR}/video_processing.proto
+    COMMENT "Generating gRPC code from video_processing.proto"
+    VERBATIM
+)
+
 # 收集所有源文件
 set(GRPC_LIB_SOURCES
     src/grpc_server.cpp
     src/grpc_client.cpp
     src/hello_grpc_service.cpp
+    src/video_grpc_client.cpp
     ${GRPC_GENERATED_SOURCES}
+    ${VIDEO_GRPC_GENERATED_SOURCES}
 )
 
 # 创建静态库
@@ -96,6 +124,7 @@ target_link_libraries(grpc_lib
     PRIVATE
         Boost::asio
         Boost::system
+        ${OpenCV_LIBS}
 )
 
 # Windows 定义

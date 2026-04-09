@@ -13,6 +13,7 @@ option(BUILD_BOOST_TESTS "Build Boost tests" OFF)
 option(BUILD_ASYNC_SIMPLE_TESTS "Build Async Simple tests" OFF)
 option(BUILD_SERVICE_TESTS "Build Service tests" ON)
 option(BUILD_VIDEO_PIPELINE_TESTS "Build Video Pipeline tests" ON)
+option(BUILD_GRPC_TESTS "Build gRPC tests" ON)
 
 # 辅助函数：为目录中的每个 cpp 文件创建独立的测试目标
 function(create_test_from_dir dir_name)
@@ -108,6 +109,26 @@ endif()
 
 if(BUILD_VIDEO_PIPELINE_TESTS)
     create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/video_pipeline")
+endif()
+
+if(BUILD_GRPC_TESTS)
+    # 创建 gRPC 视频测试可执行文件
+    add_executable(test_video_grpc_client
+        grpc/test_video_grpc_client.cpp
+    )
+    
+    target_include_directories(test_video_grpc_client PRIVATE 
+        ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_video_grpc_client PRIVATE 
+        myapp_lib
+        grpc_lib  # 链接独立的 gRPC 库
+        Boost::asio
+        Boost::system
+    )
+    
+    message(STATUS "Added gRPC video test: test_video_grpc_client")
 endif()
 
 # 如果没有任何测试被启用，则默认构建所有测试（向后兼容）

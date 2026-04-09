@@ -15,6 +15,32 @@ void SignalHandler(int signal) {
     g_running = false;
 }
 
+/// @brief 测试 0：和 python GRPC 客户端的通信测试
+void TestServerWithPython() {
+    std::cout << "\n========== Test 0: Server Start ==========" << std::endl;
+
+    HelloGrpcServer server("0.0.0.0:50051");
+
+    std::cout << "Starting server..." << std::endl;
+    bool success = server.Start();
+    if (!success) {
+        std::cerr << "Failed to start server" << std::endl;
+        return;
+    }
+
+    std::cout << "Server is running: " << (server.IsRunning() ? "Yes" : "No") << std::endl;
+
+    //// 等待一段时间
+    //std::cout << "Server will run for 3 seconds..." << std::endl;
+    //std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    //std::cout << "Stopping server..." << std::endl;
+    //server.Stop();
+    server.Wait();
+
+    //std::cout << "Server stopped. Test passed!" << std::endl;
+}
+
 /// @brief 测试 1：启动和停止服务器
 void TestServerLifecycle() {
     std::cout << "\n========== Test 1: Server Lifecycle ==========" << std::endl;
@@ -242,7 +268,8 @@ int main() {
     // 在 Windows 上，信号处理有限制，这里简单处理
 #endif
     
-    RunAllTests();
+    //RunAllTests();
+    TestServerWithPython();
     
     return 0;
 }

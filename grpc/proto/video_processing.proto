@@ -1,0 +1,73 @@
+// 视频处理 gRPC 服务定义
+// 支持双向流式通信：C++ 发送视频帧，Python 返回处理结果
+
+syntax = "proto3";
+
+package video_processing;
+
+// 视频帧消息
+message VideoFrame {
+    bytes data = 1;           // 视频帧数据（JPEG/PNG编码）
+    int32 width = 2;          // 宽度
+    int32 height = 3;         // 高度
+    int32 format = 4;         // 格式（0=RGB, 1=BGR, 2=GRAY）
+    int64 timestamp = 5;      // 时间戳（毫秒）
+    string frame_id = 6;      // 帧ID（用于匹配请求和响应）
+}
+
+// 检测框
+message BoundingBox {
+    float x = 1;              // 左上角 X 坐标
+    float y = 2;              // 左上角 Y 坐标
+    float width = 3;          // 宽度
+    float height = 4;         // 高度
+    string class_name = 5;    // 类别名称
+    float confidence = 6;     // 置信度 (0-1)
+    int32 class_id = 7;       // 类别 ID
+}
+
+// 检测结果
+message DetectionResult {
+    string frame_id = 1;      // 对应的帧ID
+    
+    repeated BoundingBox boxes = 2;  // 检测框列表
+    int64 processing_time_ms = 3;    // 处理时间（毫秒）
+    string algorithm = 4;            // 使用的算法（如 "YOLOv5"）
+    
+    // 额外信息（可选）
+    map<string, string> metadata = 5;
+}
+
+// 处理后的视频帧
+message ProcessedFrame {
+    string frame_id = 1;      // 对应的帧ID
+    bytes data = 2;           // 处理后的视频数据（JPEG编码）
+    int32 width = 3;          // 宽度
+    int32 height = 4;         // 高度
+    int64 processing_time_ms = 5;  // 处理时间（毫秒）
+}
+
+// 控制消息（用于启动/停止流）
+message StreamControl {
+    enum Action {
+        START = 0;
+        STOP = 1;
+        PAUSE = 2;
+        RESUME = 3;
+    }
+    
+    Action action = 1;
+    string stream_id = 2;     // 流ID
+}
+
+// 双向流式视频处理服务
+service VideoProcessingService {
+    // 场景 1: 接收视频帧，返回检测结果（元数据）
+    rpc DetectObjects (stream VideoFrame) returns (stream DetectionResult);
+    
+    // 场景 2: 接收视频帧，返回处理后的视频（带标注）
+    rpc ProcessAndReturnVideo (stream VideoFrame) returns (stream ProcessedFrame);
+    
+    // 健康检查
+    rpc HealthCheck (StreamControl) returns (StreamControl);
+}
