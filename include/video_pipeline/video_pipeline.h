@@ -9,7 +9,11 @@
 #include <atomic>
 
 // 前向声明（可选组件）
-class OpenCVFrameProcessor;
+namespace video_pipeline {
+namespace format_converter {
+class OpenCVFormatConverter;
+}
+}
 
 /// @brief 视频处理流水线
 /// 将拉流、解码、处理三个环节串联起来
@@ -72,8 +76,8 @@ private:
     /// @brief 解码器
     std::unique_ptr<FFmpegDecoder> decoder_;
     
-    /// @brief OpenCV 处理器（可选，用于 YUV -> BGR 转换）
-    std::unique_ptr<OpenCVFrameProcessor> processor_;
+    /// @brief OpenCV 格式转换器（可选，用于 YUV -> BGR 转换）
+    std::unique_ptr<video_pipeline::format_converter::OpenCVFormatConverter> converter_;
     
     /// @brief 原始数据队列（Puller → Decoder）
     std::shared_ptr<RawPacketQueue> raw_queue_;

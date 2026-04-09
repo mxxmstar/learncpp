@@ -129,6 +129,24 @@ if(BUILD_GRPC_TESTS)
     )
     
     message(STATUS "Added gRPC video test: test_video_grpc_client")
+    
+    # 创建视频处理器接口测试
+    add_executable(test_video_processor
+        grpc/test_video_processor.cpp
+    )
+    
+    target_include_directories(test_video_processor PRIVATE 
+        ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_video_processor PRIVATE 
+        myapp_lib
+        grpc_lib
+        Boost::asio
+        Boost::system
+    )
+    
+    message(STATUS "Added video processor interface test: test_video_processor")
 endif()
 
 # 如果没有任何测试被启用，则默认构建所有测试（向后兼容）

@@ -85,6 +85,9 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 
+# 添加 gRPC 头文件路径
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/grpc/include)
+
 # 针对 Windows 平台链接特定库
 if(WIN32)
     target_link_libraries(${PROJECT_NAME}
@@ -105,6 +108,7 @@ if(WIN32)
             ntdll
             user32
             shell32
+            grpc_lib  # 添加 gRPC 库
     )
 else()
     target_link_libraries(${PROJECT_NAME}
@@ -132,24 +136,35 @@ target_include_directories(myapp_lib PUBLIC include)
 if(WIN32)
     target_compile_definitions(myapp_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
+
+# Windows 特定配置
 if(WIN32)
     set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
     if(NOT EXISTS "${SQLITE3_LIB_PATH}")
         set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib/sqlite3.lib")
     endif()
+endif()
+
+# 链接依赖库
+target_link_libraries(myapp_lib
+    PUBLIC
+        spdlog::spdlog
+        Boost::asio
+        Boost::system
+        Boost::uuid
+        Boost::json
+        Boost::process
+        async_simple::async_simple
+        yaml-cpp::yaml-cpp
+        ${OpenCV_LIBS}
+        grpc_lib  # 链接 gRPC 库
+)
+
+# Windows 特定链接
+if(WIN32)
     target_link_libraries(myapp_lib
         PUBLIC
-            spdlog::spdlog
-            Boost::asio
-            Boost::system
-            Boost::uuid
-            Boost::json
-            Boost::process
-            async_simple::async_simple
-            yaml-cpp::yaml-cpp
-            ${OpenCV_LIBS}
             ${FFMPEG_LIBRARIES}
-            # sqlite3
             "${SQLITE3_LIB_PATH}"
             ntdll
             user32

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
-#include "video_pipeline/processor/opencv_processor.h"
+#include "video_pipeline/format_converter/opencv_format_converter.h"
 #include "log/logmanager.h"
 
 extern "C" {
@@ -54,8 +54,8 @@ int main() {
         LogManager& log_mgr = LogManager::getInstance();
         log_mgr.Init();
         
-        // 创建 OpenCV 帧处理器
-        OpenCVFrameProcessor processor;
+        // 创建 OpenCV 格式转换器
+        video_pipeline::format_converter::OpenCVFormatConverter converter;
         
         // 测试 1：转换 YUV420P 到 BGR
         std::cout << "\n--- Test 1: YUV420P to BGR Conversion ---" << std::endl;
@@ -64,7 +64,7 @@ int main() {
         cv::Mat result;
         int64_t pts;
         
-        processor.process(std::move(yuv_frame), [&](cv::Mat&& mat, int64_t timestamp) {
+        converter.process(std::move(yuv_frame), [&](cv::Mat&& mat, int64_t timestamp) {
             result = std::move(mat);
             pts = timestamp;
         });
@@ -93,7 +93,7 @@ int main() {
             auto frame = createMockYUVFrame(w, h);
             cv::Mat converted;
             
-            processor.process(std::move(frame), [&](cv::Mat&& mat, int64_t) {
+            converter.process(std::move(frame), [&](cv::Mat&& mat, int64_t) {
                 converted = std::move(mat);
             });
             
@@ -111,7 +111,7 @@ int main() {
         VideoFrame empty_frame;
         bool callback_called = false;
         
-        processor.process(std::move(empty_frame), [&](cv::Mat&&, int64_t) {
+        converter.process(std::move(empty_frame), [&](cv::Mat&&, int64_t) {
             callback_called = true;
         });
         
@@ -124,7 +124,7 @@ int main() {
         
         for (int i = 0; i < iterations; ++i) {
             auto frame = createMockYUVFrame(640, 480);
-            processor.process(std::move(frame), [](cv::Mat&&, int64_t) {
+            converter.process(std::move(frame), [](cv::Mat&&, int64_t) {
                 // Do nothing
             });
         }

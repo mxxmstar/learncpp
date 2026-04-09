@@ -1,6 +1,8 @@
 #include "video_pipeline/video_pipeline.h"
-#include "video_pipeline/processor/opencv_processor.h"  // 可选组件
+#include "video_pipeline/format_converter/opencv_format_converter.h"  // 可选组件
 #include "log/logmanager.h"
+
+using namespace video_pipeline::format_converter;
 
 VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConfig& config)
     : config_(config)
@@ -14,9 +16,9 @@ VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConf
     decoder_ = std::make_unique<FFmpegDecoder>();
     decoder_->setThreadCount(config_.decoder_threads);
     
-    // 3. 创建 OpenCV 处理器（可选）
+    // 3. 创建 OpenCV 格式转换器（可选）
     if (config_.enable_preprocess) {
-        processor_ = std::make_unique<OpenCVFrameProcessor>();
+        converter_ = std::make_unique<OpenCVFormatConverter>();
     }
     
     // 4. 创建队列
@@ -194,10 +196,10 @@ void VideoPipeline::onFrameDecoded(VideoFrame&& frame) {
     LOG_MAIN_DEBUG_AT("frames_decoded_: {}, {}x{}, {}", 
                          frames_decoded_.load(), 
                          frame.width, frame.height, frame.format);
-    // 如果启用了 OpenCV 处理器，转换为 cv::Mat
-    if (processor_) {
+    // 如果启用了 OpenCV 格式转换器，转换为 cv::Mat
+    if (converter_) {
         int64_t pts = frame.pts;
-        processor_->process(std::move(frame), [this, pts](cv::Mat&& mat, int64_t) {
+        converter_->process(std::move(frame), [this, pts](cv::Mat&& mat, int64_t) {
             onFrameProcessed(std::move(mat), pts);
         });
     } else {

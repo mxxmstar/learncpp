@@ -1,17 +1,20 @@
-#include "video_pipeline/processor/opencv_processor.h"
+#include "video_pipeline/format_converter/opencv_format_converter.h"
 #include "log/logmanager.h"
 
 extern "C" {
 #include <libavutil/imgutils.h>
 }
 
-OpenCVFrameProcessor::OpenCVFrameProcessor() {
+namespace video_pipeline {
+namespace format_converter {
+
+OpenCVFormatConverter::OpenCVFormatConverter() {
 }
 
-OpenCVFrameProcessor::~OpenCVFrameProcessor() {
+OpenCVFormatConverter::~OpenCVFormatConverter() {
 }
 
-SwsContext* OpenCVFrameProcessor::getSwsContext(int src_width, int src_height, int src_format,
+SwsContext* OpenCVFormatConverter::getSwsContext(int src_width, int src_height, int src_format,
                                                   int dst_width, int dst_height, int dst_format) {
     // 检查是否需要重新创建上下文
     if (cache_.ctx && 
@@ -52,7 +55,7 @@ SwsContext* OpenCVFrameProcessor::getSwsContext(int src_width, int src_height, i
     return cache_.ctx;
 }
 
-void OpenCVFrameProcessor::process(VideoFrame&& frame, ProcessedCallback cb) {
+void OpenCVFormatConverter::process(VideoFrame&& frame, ProcessedCallback cb) {
     if (!cb) {
         return;
     }
@@ -104,3 +107,6 @@ void OpenCVFrameProcessor::process(VideoFrame&& frame, ProcessedCallback cb) {
     // 7. 调用回调
     cb(std::move(mat_copy), frame.pts);
 }
+
+} // namespace format_converter
+} // namespace video_pipeline

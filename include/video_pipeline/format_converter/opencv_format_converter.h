@@ -7,18 +7,21 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-/// @brief OpenCV 帧处理器（将 VideoFrame 转换为 cv::Mat）
+namespace video_pipeline {
+namespace format_converter {
+
+/// @brief OpenCV 格式转换器（将 VideoFrame 转换为 cv::Mat）
 /// 这是可选组件，仅在需要使用 OpenCV 时才引入
-class OpenCVFrameProcessor {
+class OpenCVFormatConverter {
 public:
     /// @brief 处理回调类型
     using ProcessedCallback = std::function<void(cv::Mat&& frame, int64_t pts)>;
     
     /// @brief 构造函数
-    OpenCVFrameProcessor();
+    OpenCVFormatConverter();
     
     /// @brief 析构函数
-    ~OpenCVFrameProcessor();
+    ~OpenCVFormatConverter();
     
     /// @brief 处理视频帧（转换为 BGR 格式）
     /// @param frame 输入的视频帧
@@ -50,3 +53,6 @@ private:
     
     SwsContextCache cache_;
 };
+
+} // namespace format_converter
+} // namespace video_pipeline
