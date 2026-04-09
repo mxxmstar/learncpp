@@ -27,7 +27,7 @@ void TestDetectionStream() {
     std::cout << "Test 1: Detection Stream (Metadata)" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     
-    VideoGrpcClient client("localhost:50052");
+    VideoGrpcClient client("localhost:50053");
     
     // 连接
     if (!client.Connect()) {
@@ -129,7 +129,7 @@ void TestVideoProcessStream() {
     std::cout << "Test 2: Video Process Stream (Processed Video)" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     
-    VideoGrpcClient client("localhost:50052");
+    VideoGrpcClient client("localhost:50053");
     
     // 连接
     if (!client.Connect()) {

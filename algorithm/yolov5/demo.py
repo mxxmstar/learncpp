@@ -156,7 +156,7 @@ def demo_video_stream():
     cap.release()
     cv2.destroyAllWindows()
     
-    print(f"\n✓ 视频处理完成")
+    print(f"\n 视频处理完成")
     print(f"  - 总帧数: {frame_count}")
     print(f"  - 平均 FPS: {fps:.2f}")
     
@@ -203,7 +203,7 @@ def demo_batch_processing():
         print(f"  - 获取图片 {i+1}/{len(images)} 的结果: {len(detections)} 个目标")
     
     elapsed = time.time() - t_start
-    print(f"\n✓ 批量处理完成")
+    print(f"\n 批量处理完成")
     print(f"  - 总耗时: {elapsed*1000:.2f} ms")
     print(f"  - 平均每张: {elapsed/len(images)*1000:.2f} ms")
     

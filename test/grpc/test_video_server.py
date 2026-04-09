@@ -46,16 +46,16 @@ def main():
     print("="*60)
     print("Video Processing gRPC Server Test")
     print("="*60)
-    
+    start_server(port=50053)
     # 创建测试视频
     test_video = create_test_video()
     
-    print("\nStarting gRPC server on port 50052...")
+    print("\nStarting gRPC server on port 50053...")
     print("Press Ctrl+C to stop\n")
     
     try:
         # 启动服务器（使用模拟检测器）
-        start_server(port=50052, model_path=None, device="cpu")
+        start_server(port=50053, model_path=None, device="cpu")
     except KeyboardInterrupt:
         print("\nServer stopped by user")
     except Exception as e:
