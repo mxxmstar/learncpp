@@ -38,3 +38,36 @@ target_link_libraries(test_service_arch PRIVATE
 add_test(NAME test_service_arch COMMAND test_service_arch)
 
 message(STATUS "Added test: test_service_arch")
+
+# ==================== gRPC 测试 ====================
+
+# 创建 gRPC 测试可执行文件（链接独立的 grpc_lib）
+add_executable(test_grpc_hello
+    test_grpc_hello.cpp
+)
+
+target_include_directories(test_grpc_hello PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+# 添加 Windows 版本定义
+if(WIN32)
+    target_compile_definitions(test_grpc_hello PRIVATE 
+        _WIN32_WINNT=0x0A00
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+    )
+endif()
+
+target_link_libraries(test_grpc_hello PRIVATE 
+    myapp_lib
+    grpc_lib  # 链接独立的 gRPC 库
+    Boost::asio
+    Boost::system
+)
+
+# 添加测试
+add_test(NAME test_grpc_hello COMMAND test_grpc_hello)
+
+message(STATUS "Added test: test_grpc_hello")
+message(STATUS "Generated gRPC files: ${GRPC_GENERATED_FILES}")

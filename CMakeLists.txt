@@ -10,6 +10,9 @@ option(BUILD_TESTS "Build tests" ON)
 # 设置可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
+# 添加 gRPC 子项目（独立的库）
+add_subdirectory(grpc)
+
 # 自动检测本地 vcpkg（如果存在）
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
     set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
@@ -50,6 +53,9 @@ if(NOT DEFINED OpenCV_LIBS)
     # 如果 OpenCV_LIBS 未定义，手动指定常用模块
     set(OpenCV_LIBS opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio opencv_highgui)
 endif()
+# 8. 查找 gRPC 和 Protobuf
+find_package(gRPC CONFIG REQUIRED)
+find_package(Protobuf CONFIG REQUIRED)
 # 设置 SQLite3 库路径（供测试使用）
 if(WIN32)
     set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
@@ -118,6 +124,7 @@ endif()
 
 # 创建一个库，以便测试可以链接到它
 file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
+
 add_library(myapp_lib ${LIB_SOURCES})
 target_include_directories(myapp_lib PUBLIC include)
 
