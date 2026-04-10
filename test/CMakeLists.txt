@@ -147,6 +147,24 @@ if(BUILD_GRPC_TESTS)
     )
     
     message(STATUS "Added video processor interface test: test_video_processor")
+    
+    # 创建 GrpcAlgorithmProcessor 集成测试
+    add_executable(test_grpc_algorithm_integration
+        grpc/test_grpc_algorithm_integration.cpp
+    )
+    
+    target_include_directories(test_grpc_algorithm_integration PRIVATE 
+        ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_grpc_algorithm_integration PRIVATE 
+        myapp_lib
+        grpc_lib
+        Boost::asio
+        Boost::system
+    )
+    
+    message(STATUS "Added gRPC algorithm integration test: test_grpc_algorithm_integration")
 endif()
 
 # 如果没有任何测试被启用，则默认构建所有测试（向后兼容）

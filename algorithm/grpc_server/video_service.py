@@ -67,6 +67,9 @@ class VideoProcessingService(video_processing_pb2_grpc.VideoProcessingServiceSer
         """
         print("[VideoService] DetectObjects stream started")
         
+        # 创建显示窗口
+        cv2.namedWindow("Python Video Stream", cv2.WINDOW_AUTOSIZE)
+        
         for frame_msg in request_iterator:
             try:
                 start_time = time.time()
@@ -76,7 +79,13 @@ class VideoProcessingService(video_processing_pb2_grpc.VideoProcessingServiceSer
                 if image is None:
                     continue
                 
-                # 2. 运行检测算法
+                # 2. 显示视频帧
+                cv2.imshow("Python Video Stream", image)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    print("[VideoService] User pressed 'q', stopping...")
+                    break
+                
+                # 3. 运行检测算法
                 if self.detector:
                     # 使用 YOLOv5
                     detections = self._run_yolov5_detection(image)
@@ -84,7 +93,7 @@ class VideoProcessingService(video_processing_pb2_grpc.VideoProcessingServiceSer
                     # 使用模拟检测
                     detections = self._mock_detection(image)
                 
-                # 3. 计算处理时间
+                # 4. 计算处理时间
                 processing_time_ms = int((time.time() - start_time) * 1000)
                 self.total_processing_time += processing_time_ms
                 self.frame_count += 1
@@ -127,6 +136,8 @@ class VideoProcessingService(video_processing_pb2_grpc.VideoProcessingServiceSer
                 traceback.print_exc()
                 continue
         
+        # 清理窗口
+        cv2.destroyWindow("Python Video Stream")
         print(f"[VideoService] DetectObjects stream ended. Total frames: {self.frame_count}")
     
     def ProcessAndReturnVideo(self, request_iterator, context):
