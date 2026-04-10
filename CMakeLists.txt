@@ -133,6 +133,9 @@ file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
 add_library(myapp_lib ${LIB_SOURCES})
 target_include_directories(myapp_lib PUBLIC include)
 
+# 添加 gRPC 头文件路径（供 grpc_video_sender.h 使用）
+target_include_directories(myapp_lib PUBLIC ${CMAKE_SOURCE_DIR}/grpc/include)
+
 # 设置预处理器定义
 if(WIN32)
     target_compile_definitions(myapp_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)

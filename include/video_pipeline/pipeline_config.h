@@ -72,6 +72,16 @@ struct PipelineConfig {
     /// @brief 算法置信度阈值
     float confidence_threshold = 0.5f;
     
+    // ==================== gRPC 配置 ====================
+    /// @brief 是否启用 gRPC 视频发送
+    bool enable_grpc_send = false;
+    
+    /// @brief gRPC 服务器地址
+    std::string grpc_server_address = "localhost:50053";
+    
+    /// @brief gRPC 目标帧率（每秒发送的帧数）
+    int grpc_target_fps = 10;
+    
     // ==================== 其他配置 ====================
     /// @brief 是否保存原始数据（用于调试）
     bool save_raw_data = false;

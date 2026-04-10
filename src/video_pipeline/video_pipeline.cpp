@@ -1,5 +1,7 @@
 #include "video_pipeline/video_pipeline.h"
 #include "video_pipeline/format_converter/opencv_format_converter.h"  // 可选组件
+#include "video_pipeline/format_converter/yuv_to_bgr_converter.h"     // YUV 到 BGR 转换
+#include "video_pipeline/grpc_video_sender.h"  // gRPC 视频发送器
 #include "log/logmanager.h"
 
 using namespace video_pipeline::format_converter;
@@ -19,6 +21,17 @@ VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConf
     // 3. 创建 OpenCV 格式转换器（可选）
     if (config_.enable_preprocess) {
         converter_ = std::make_unique<OpenCVFormatConverter>();
+    }
+    
+    // 4. 创建 YUV 到 BGR 转换器（用于 gRPC 发送）
+    if (config_.enable_grpc_send) {
+        yuv_converter_ = std::make_unique<YuvToBgrConverter>();
+    }
+    
+    // 5. 创建 gRPC 视频发送器（可选）
+    if (config_.enable_grpc_send) {
+        grpc_sender_ = std::make_unique<video_pipeline::GrpcVideoSender>(config_.grpc_server_address);
+        LOG_MAIN_INFO_AT("gRPC video sender created: address={}", config_.grpc_server_address);
     }
     
     // 4. 创建队列
@@ -58,6 +71,16 @@ bool VideoPipeline::start() {
         if (!success) {
             LOG_MAIN_ERROR_AT("Failed to start puller");
             return false;
+        }
+        
+        // 2. 启动 gRPC 视频发送器（如果启用）
+        if (grpc_sender_) {
+            if (!grpc_sender_->start()) {
+                LOG_MAIN_ERROR_AT("Failed to start gRPC sender");
+                puller_->stop();
+                return false;
+            }
+            LOG_MAIN_INFO_AT("gRPC video sender started");
         }
         
         // 2. 启动解码线程
@@ -106,6 +129,12 @@ void VideoPipeline::stop() {
     
     // 1. 停止拉流器
     puller_->stop();
+    
+    // 2. 停止 gRPC 发送器
+    if (grpc_sender_) {
+        grpc_sender_->stop();
+        LOG_MAIN_INFO_AT("gRPC video sender stopped");
+    }
     
     // 2. 停止解码线程
     if (decoder_thread_.joinable()) {
@@ -196,6 +225,12 @@ void VideoPipeline::onFrameDecoded(VideoFrame&& frame) {
     LOG_MAIN_DEBUG_AT("frames_decoded_: {}, {}x{}, {}", 
                          frames_decoded_.load(), 
                          frame.width, frame.height, frame.format);
+    
+    // 如果启用了 gRPC 发送，编码并发送帧
+    if (grpc_sender_) {
+        encodeAndSendToGrpc(frame);
+    }
+    
     // 如果启用了 OpenCV 格式转换器，转换为 cv::Mat
     if (converter_) {
         int64_t pts = frame.pts;
@@ -238,5 +273,77 @@ void VideoPipeline::onFrameProcessed(cv::Mat&& frame, int64_t pts) {
                         frames_received_.load(),
                         frames_decoded_.load(),
                         frames_processed_.load());
+    }
+}
+
+/// @brief 编码并发送帧到 gRPC
+void VideoPipeline::encodeAndSendToGrpc(const VideoFrame& frame) {
+    if (!yuv_converter_) {
+        return;
+    }
+    
+    try {
+        // 检查帧数据是否有效
+        if (!frame.data[0] || !frame.data[1] || !frame.data[2]) {
+            LOG_MAIN_WARN_AT("Invalid YUV data pointers, skipping gRPC send");
+            grpc_frames_failed_++;
+            return;
+        }
+        
+        if (frame.width <= 0 || frame.height <= 0) {
+            LOG_MAIN_WARN_AT("Invalid frame dimensions {}x{}, skipping gRPC send", 
+                            frame.width, frame.height);
+            grpc_frames_failed_++;
+            return;
+        }
+        
+        // 只支持 YUV420P 格式
+        if (frame.format != 0) {  // AV_PIX_FMT_YUV420P
+            LOG_MAIN_WARN_AT("Unsupported pixel format: {}, skipping gRPC send", frame.format);
+            grpc_frames_failed_++;
+            return;
+        }
+        
+        // 使用转换器将 YUV 转换为 BGR
+        cv::Mat bgr_mat = yuv_converter_->convert(
+            frame.data[0], frame.data[1], frame.data[2],
+            frame.width, frame.height);
+        
+        if (bgr_mat.empty()) {
+            LOG_MAIN_WARN_AT("YUV to BGR conversion failed, skipping gRPC send");
+            grpc_frames_failed_++;
+            return;
+        }
+        
+        // 编码为 JPEG
+        auto jpeg_data = yuv_converter_->encodeToJpeg(bgr_mat, 85);
+        
+        if (jpeg_data.empty()) {
+            LOG_MAIN_WARN_AT("JPEG encoding failed, skipping gRPC send");
+            grpc_frames_failed_++;
+            return;
+        }
+        
+        // 生成帧 ID
+        std::string frame_id = "ch" + std::to_string(config_.channel_id) + 
+                              "_frame" + std::to_string(frames_decoded_.load());
+        
+        // 获取时间戳
+        int64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        
+        // 发送到 gRPC
+        if (grpc_sender_->sendFrame(jpeg_data, frame.width, frame.height, frame_id, timestamp)) {
+            grpc_frames_sent_++;
+            LOG_MAIN_DEBUG_AT("gRPC frame sent: {}x{}, size={} bytes", 
+                             frame.width, frame.height, jpeg_data.size());
+        } else {
+            grpc_frames_failed_++;
+            LOG_MAIN_WARN_AT("Failed to send frame via gRPC: {}", frame_id);
+        }
+        
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("encodeAndSendToGrpc failed: {}", e.what());
+        grpc_frames_failed_++;
     }
 }

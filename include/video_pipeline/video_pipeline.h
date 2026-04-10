@@ -4,15 +4,19 @@
 #include "video_pipeline/decoder/ffmpeg_decoder.h"
 #include "video_pipeline/frame_queue.h"
 #include "video_pipeline/pipeline_config.h"
+// #include "video_pipeline/grpc_video_sender.h"  // 延迟包含，在 .cpp 中
 #include <boost/asio.hpp>
 #include <thread>
 #include <atomic>
+#include <memory>
 
 // 前向声明（可选组件）
 namespace video_pipeline {
 namespace format_converter {
 class OpenCVFormatConverter;
+class YuvToBgrConverter;  // YUV 到 BGR 转换器
 }
+class GrpcVideoSender;  // gRPC 视频发送器 - 前向声明
 }
 
 /// @brief 视频处理流水线
@@ -49,6 +53,10 @@ public:
     using FrameOutputCallback = std::function<void(int channel_id, cv::Mat&& frame, int64_t pts)>;
     void setFrameOutputCallback(FrameOutputCallback cb) { output_callback_ = std::move(cb); }
     
+    /// @brief 获取 gRPC 发送统计
+    uint64_t getGrpcFramesSent() const { return grpc_frames_sent_.load(); }
+    uint64_t getGrpcFramesFailed() const { return grpc_frames_failed_.load(); }
+    
 private:
     // ==================== 内部回调处理 ====================
     /// @brief 序列头回调：接收 SPS/PPS 数据
@@ -62,6 +70,9 @@ private:
     
     /// @brief 处理器回调：接收处理后的帧（如果使用 OpenCV）
     void onFrameProcessed(cv::Mat&& frame, int64_t pts);
+    
+    /// @brief 编码并发送帧到 gRPC
+    void encodeAndSendToGrpc(const VideoFrame& frame);
     
     // ==================== 成员变量 ====================
     /// @brief 配置
@@ -78,6 +89,12 @@ private:
     
     /// @brief OpenCV 格式转换器（可选，用于 YUV -> BGR 转换）
     std::unique_ptr<video_pipeline::format_converter::OpenCVFormatConverter> converter_;
+    
+    /// @brief YUV 到 BGR 转换器（用于 gRPC 发送）
+    std::unique_ptr<video_pipeline::format_converter::YuvToBgrConverter> yuv_converter_;
+    
+    /// @brief gRPC 视频发送器（可选）
+    std::unique_ptr<video_pipeline::GrpcVideoSender> grpc_sender_;
     
     /// @brief 原始数据队列（Puller → Decoder）
     std::shared_ptr<RawPacketQueue> raw_queue_;
@@ -107,6 +124,10 @@ private:
     
     /// @brief 输出回调
     FrameOutputCallback output_callback_;
+    
+    /// @brief gRPC 发送统计
+    std::atomic<uint64_t> grpc_frames_sent_{0};
+    std::atomic<uint64_t> grpc_frames_failed_{0};
     
     /// @brief 解码工作线程
     std::thread decoder_thread_;

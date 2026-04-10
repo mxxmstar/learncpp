@@ -28,7 +28,8 @@ function(create_test_from_dir dir_name)
             
             add_executable(${test_target_name} ${test_file})
             target_include_directories(${test_target_name} PRIVATE 
-                ${CMAKE_SOURCE_DIR}/include 
+                ${CMAKE_SOURCE_DIR}/include
+                ${CMAKE_SOURCE_DIR}/grpc/include  # 添加 gRPC 头文件路径
                 ${FFMPEG_INCLUDE_DIRS}
             )
             target_link_libraries(${test_target_name} 
@@ -109,6 +110,14 @@ endif()
 
 if(BUILD_VIDEO_PIPELINE_TESTS)
     create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/video_pipeline")
+    
+    # 为包含 gRPC 的测试添加特殊链接
+    if(TARGET test_video_pipeline_test_video_pipeline_grpc)
+        target_link_libraries(test_video_pipeline_test_video_pipeline_grpc PRIVATE
+            grpc_lib
+        )
+        message(STATUS "Added gRPC link to: test_video_pipeline_test_video_pipeline_grpc")
+    endif()
 endif()
 
 if(BUILD_GRPC_TESTS)

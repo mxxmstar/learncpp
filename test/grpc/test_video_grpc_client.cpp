@@ -9,15 +9,45 @@
 #include <thread>
 #include <chrono>
 #include <atomic>
+#include <csignal>
 
 using namespace grpc_module;
 
-// 全局标志
+// ==================== Graceful Shutdown ====================
 std::atomic<bool> g_running{true};
+std::atomic<bool> g_shutdown_requested{false};
 
-void SignalHandler(int signal) {
-    std::cout << "\nReceived signal " << signal << ", stopping..." << std::endl;
-    g_running = false;
+#ifdef _WIN32
+BOOL WINAPI ConsoleCtrlHandler(DWORD ctrl_type) {
+    switch (ctrl_type) {
+        case CTRL_C_EVENT:
+        case CTRL_BREAK_EVENT:
+        case CTRL_CLOSE_EVENT:
+            if (!g_shutdown_requested.exchange(true)) {
+                std::cout << "\n[Shutdown] Received shutdown signal, stopping gracefully..." << std::endl;
+                g_running = false;
+            }
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
+#else
+void SignalHandler(int signum) {
+    if (!g_shutdown_requested.exchange(true)) {
+        std::cout << "\n[Shutdown] Received signal " << signum << ", stopping gracefully..." << std::endl;
+        g_running = false;
+    }
+}
+#endif
+
+void SetupGracefulShutdown() {
+#ifdef _WIN32
+    SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
+#else
+    signal(SIGINT, SignalHandler);   // Ctrl+C
+    signal(SIGTERM, SignalHandler);  // kill command
+#endif
 }
 
 // ========== 测试场景 1: 检测元数据 ==========
@@ -103,8 +133,10 @@ void TestDetectionStream() {
         std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
     
-    // 停止流
+    // Graceful shutdown: 停止流并清理资源
+    std::cout << "\n[Shutdown] Stopping detection stream..." << std::endl;
     client.StopDetectionStream();
+    std::cout << "[Shutdown] Detection stream stopped" << std::endl;
     
     // 打印统计
     auto stats = client.GetStatistics();
@@ -119,7 +151,10 @@ void TestDetectionStream() {
     std::cout << "Duration: " << duration << "s" << std::endl;
     std::cout << "FPS: " << (duration > 0 ? stats.frames_sent / duration : 0) << std::endl;
     
+    // 断开连接
+    std::cout << "[Shutdown] Disconnecting from server..." << std::endl;
     client.Disconnect();
+    std::cout << "[Shutdown] Disconnected" << std::endl;
 }
 
 // ========== 测试场景 2: 处理后视频 ==========
@@ -219,9 +254,14 @@ void TestVideoProcessStream() {
         std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
     
-    // 停止流
+    // Graceful shutdown: 停止流并清理资源
+    std::cout << "\n[Shutdown] Stopping video process stream..." << std::endl;
     client.StopVideoProcessStream();
+    std::cout << "[Shutdown] Video process stream stopped" << std::endl;
+    
+    // 关闭所有窗口
     cv::destroyAllWindows();
+    std::cout << "[Shutdown] OpenCV windows closed" << std::endl;
     
     // 打印统计
     auto stats = client.GetStatistics();
@@ -236,7 +276,10 @@ void TestVideoProcessStream() {
     std::cout << "Duration: " << duration << "s" << std::endl;
     std::cout << "FPS: " << (duration > 0 ? stats.frames_sent / duration : 0) << std::endl;
     
+    // 断开连接
+    std::cout << "[Shutdown] Disconnecting from server..." << std::endl;
     client.Disconnect();
+    std::cout << "[Shutdown] Disconnected" << std::endl;
 }
 
 // ========== 主函数 ==========
@@ -247,12 +290,8 @@ int main() {
     std::cout << "# Testing communication with Python gRPC Server" << std::endl;
     std::cout << std::string(60, '#') << std::endl;
     
-    // 注册信号处理器
-#ifdef _WIN32
-    // Windows 下使用 SetConsoleCtrlHandler
-#else
-    signal(SIGINT, SignalHandler);
-#endif
+    // 设置优雅关闭
+    SetupGracefulShutdown();
     
     std::cout << "\nSelect test mode:" << std::endl;
     std::cout << "1. Detection Stream (Metadata only)" << std::endl;
