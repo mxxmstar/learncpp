@@ -118,6 +118,11 @@ if(BUILD_VIDEO_PIPELINE_TESTS)
         )
         message(STATUS "Added gRPC link to: test_video_pipeline_test_video_pipeline_grpc")
     endif()
+    
+    # FrameRateController 测试不需要额外链接
+    if(TARGET test_video_pipeline_test_frame_rate_controller)
+        message(STATUS "Added frame rate controller test: test_video_pipeline_test_frame_rate_controller")
+    endif()
 endif()
 
 if(BUILD_GRPC_TESTS)

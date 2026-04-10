@@ -30,8 +30,11 @@ VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConf
     
     // 5. 创建 gRPC 视频发送器（可选）
     if (config_.enable_grpc_send) {
-        grpc_sender_ = std::make_unique<video_pipeline::GrpcVideoSender>(config_.grpc_server_address);
-        LOG_MAIN_INFO_AT("gRPC video sender created: address={}", config_.grpc_server_address);
+        grpc_sender_ = std::make_unique<video_pipeline::GrpcVideoSender>(
+            config_.grpc_server_address, 
+            config_.grpc_target_fps);
+        LOG_MAIN_INFO_AT("gRPC video sender created: address={}, target_fps={}", 
+                        config_.grpc_server_address, config_.grpc_target_fps);
     }
     
     // 4. 创建队列

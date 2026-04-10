@@ -4,10 +4,12 @@
 
 namespace video_pipeline {
 
-GrpcVideoSender::GrpcVideoSender(const std::string& server_address)
-    : server_address_(server_address) {
+GrpcVideoSender::GrpcVideoSender(const std::string& server_address, int target_fps)
+    : server_address_(server_address)
+    , fps_controller_(target_fps) {
     
-    LOG_MAIN_INFO_AT("[GrpcVideoSender] Created with address: {}", server_address_);
+    LOG_MAIN_INFO_AT("[GrpcVideoSender] Created with address: {}, target FPS: {}", 
+                    server_address_, target_fps);
 }
 
 GrpcVideoSender::~GrpcVideoSender() {
@@ -82,17 +84,24 @@ bool GrpcVideoSender::sendFrame(const std::vector<uint8_t>& jpeg_data,
         return false;
     }
     
+    // 帧率控制：检查是否应该发送
+    if (!fps_controller_.shouldSendFrame()) {
+        // 跳过这一帧
+        return true; // 返回 true 表示正常处理（虽然是跳过）
+    }
+    
     try {
         // 发送帧到检测流（注意：SendFrameForDetection 不接受 timestamp 参数）
         bool success = grpc_client_->SendFrameForDetection(
             jpeg_data, width, height, frame_id);
         
-        if (!success) {
+        if (success) {
+            fps_controller_.recordFrameSent();
+        } else {
             LOG_MAIN_WARN_AT("[GrpcVideoSender] Failed to send frame: {}", frame_id);
-            return false;
         }
         
-        return true;
+        return success;
         
     } catch (const std::exception& e) {
         LOG_MAIN_ERROR_AT("[GrpcVideoSender] Send frame failed: {}", e.what());

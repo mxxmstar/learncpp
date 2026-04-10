@@ -1,6 +1,7 @@
 #pragma once
 
 #include "video_grpc_client.h"
+#include "video_pipeline/frame_rate_controller.h"
 #include <atomic>
 #include <memory>
 #include <string>
@@ -20,8 +21,9 @@ public:
     /**
      * @brief 构造函数
      * @param server_address gRPC 服务器地址
+     * @param target_fps 目标帧率（0 表示不限制）
      */
-    explicit GrpcVideoSender(const std::string& server_address);
+    explicit GrpcVideoSender(const std::string& server_address, int target_fps = 10);
     
     /// @brief 析构函数
     ~GrpcVideoSender();
@@ -61,6 +63,12 @@ public:
      */
     bool isConnected() const;
     
+    /**
+     * @brief 获取帧率控制器
+     */
+    FrameRateController& getFrameRateController() { return fps_controller_; }
+    const FrameRateController& getFrameRateController() const { return fps_controller_; }
+    
 private:
     /// @brief gRPC 客户端
     std::unique_ptr<grpc_module::VideoGrpcClient> grpc_client_;
@@ -70,6 +78,9 @@ private:
     
     /// @brief 运行状态
     std::atomic<bool> running_{false};
+    
+    /// @brief 帧率控制器
+    FrameRateController fps_controller_;
 };
 
 } // namespace video_pipeline
