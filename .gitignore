@@ -3,6 +3,7 @@ out/
 bin/
 logs/
 log/
+modules/*/lib/
 
 include/ylt/
 vcpkg/
@@ -11,6 +12,7 @@ file.txt
 !test/log/
 !src/log/
 !include/log/
+!modules/log/
 
 .idea/
 .vs/

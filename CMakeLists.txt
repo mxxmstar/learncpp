@@ -10,8 +10,12 @@ option(BUILD_TESTS "Build tests" ON)
 # 设置可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-# 添加 gRPC 子项目（独立的库）
-add_subdirectory(grpc)
+# gRPC 模块已迁移到 modules/alg/grpc/
+# add_subdirectory(grpc)
+
+# 添加模块化库（按依赖顺序）
+add_subdirectory(modules/log)
+add_subdirectory(modules/net)
 
 
 # 自动检测本地 vcpkg（如果存在）
@@ -65,9 +69,6 @@ if(WIN32)
     endif()
 endif()
 
-# 添加源文件
-file(GLOB_RECURSE SOURCES "src/*.cpp")
-
 # 定义预处理器宏来解决 WinSock 冲突
 if(WIN32)
     add_compile_definitions(WIN32_LEAN_AND_MEAN NOMINMAX)
@@ -82,7 +83,8 @@ if(MSVC)
     #add_compile_options(/ZI)
 endif()
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+# 主程序只包含 main.cpp，其他功能通过模块链接
+add_executable(${PROJECT_NAME} apps/main.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 
@@ -93,6 +95,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/grpc/incl
 if(WIN32)
     target_link_libraries(${PROJECT_NAME}
         PRIVATE
+            log_lib  # 添加日志模块
+            net_lib  # 添加网络模块
             spdlog::spdlog
             Boost::asio
             Boost::system
@@ -109,7 +113,7 @@ if(WIN32)
             ntdll
             user32
             shell32
-            grpc_lib  # 添加 gRPC 库
+            # grpc_lib  # gRPC 已迁移到 modules/alg/grpc/
     )
 else()
     target_link_libraries(${PROJECT_NAME}
@@ -127,74 +131,74 @@ else()
     )
 endif()
 
-# 创建一个库，以便测试可以链接到它
-file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
+# myapp_lib 已废弃，功能由各模块提供
+# 保留仅为了向后兼容，实际应该直接使用各模块的库
+# file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
+# add_library(myapp_lib ${LIB_SOURCES})
+# target_include_directories(myapp_lib PUBLIC include)
+# target_include_directories(myapp_lib PUBLIC ${CMAKE_SOURCE_DIR}/grpc/include)
 
-add_library(myapp_lib ${LIB_SOURCES})
-target_include_directories(myapp_lib PUBLIC include)
-
-# 添加 gRPC 头文件路径（供 grpc_video_sender.h 使用）
-target_include_directories(myapp_lib PUBLIC ${CMAKE_SOURCE_DIR}/grpc/include)
-
-# 设置预处理器定义
-if(WIN32)
-    target_compile_definitions(myapp_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
-endif()
+# myapp_lib 已废弃，以下配置注释掉
+# # 设置预处理器定义
+# if(WIN32)
+#     target_compile_definitions(myapp_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
+# endif()
 
 # Windows 特定配置
-if(WIN32)
-    set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
-    if(NOT EXISTS "${SQLITE3_LIB_PATH}")
-        set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib/sqlite3.lib")
-    endif()
-endif()
+# if(WIN32)
+#     set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
+#     if(NOT EXISTS "${SQLITE3_LIB_PATH}")
+#         set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib/sqlite3.lib")
+#     endif()
+# endif()
 
-# 链接依赖库
-target_link_libraries(myapp_lib
-    PUBLIC
-        spdlog::spdlog
-        Boost::asio
-        Boost::system
-        Boost::uuid
-        Boost::json
-        Boost::process
-        async_simple::async_simple
-        yaml-cpp::yaml-cpp
-        ${OpenCV_LIBS}
-        grpc_lib  # 链接 gRPC 库
-)
+# # 链接依赖库
+# target_link_libraries(myapp_lib
+#     PUBLIC
+#         log_lib
+#         spdlog::spdlog
+#         Boost::asio
+#         Boost::system
+#         Boost::uuid
+#         Boost::json
+#         Boost::process
+#         async_simple::async_simple
+#         yaml-cpp::yaml-cpp
+#         ${OpenCV_LIBS}
+#         grpc_lib
+# )
 
-# Windows 特定链接
-if(WIN32)
-    target_link_libraries(myapp_lib
-        PUBLIC
-            ${FFMPEG_LIBRARIES}
-            "${SQLITE3_LIB_PATH}"
-            ntdll
-            user32
-            shell32
-    )
-else()
-    target_link_libraries(myapp_lib
-        PUBLIC
-            spdlog::spdlog
-            Boost::asio
-            Boost::system
-            Boost::uuid
-            Boost::json
-            Boost::process
-            async_simple::async_simple
-            yaml-cpp::yaml-cpp
-            sqlite3
-    )
-endif()
+# # Windows 特定链接
+# if(WIN32)
+#     target_link_libraries(myapp_lib
+#         PUBLIC
+#             ${FFMPEG_LIBRARIES}
+#             "${SQLITE3_LIB_PATH}"
+#             ntdll
+#             user32
+#             shell32
+#     )
+# else()
+#     target_link_libraries(myapp_lib
+#         PUBLIC
+#             spdlog::spdlog
+#             Boost::asio
+#             Boost::system
+#             Boost::uuid
+#             Boost::json
+#             Boost::process
+#             async_simple::async_simple
+#             yaml-cpp::yaml-cpp
+#             sqlite3
+#     )
+# endif()
 
-# 如果启用测试构建，则添加测试
-if(BUILD_TESTS)
-    enable_testing()
-    # 传递 SQLite3 库路径给测试
-    set(SQLITE3_LIB_PATH_TEST "${SQLITE3_LIB_PATH}" CACHE PATH "SQLite3 library path for tests")
-    add_subdirectory(test)
-endif()
+# 测试由各模块自己的 CMakeLists.txt 管理
+# 不再自动编译 test 目录，方便模块化开发和测试
+# if(BUILD_TESTS)
+#     enable_testing()
+#     set(SQLITE3_LIB_PATH_TEST "${SQLITE3_LIB_PATH}" CACHE PATH "SQLite3 library path for tests")
+#     add_subdirectory(test)
+# endif()
 
 

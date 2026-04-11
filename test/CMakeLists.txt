@@ -84,9 +84,10 @@ if(BUILD_ZLM_TESTS)
     create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/zlm")
 endif()
 
-if(BUILD_LOG_TESTS)
-    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/log")
-endif()
+# LOG 测试已迁移到 modules/log/test/
+# if(BUILD_LOG_TESTS)
+#     create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/log")
+# endif()
 
 if(BUILD_CONFIG_TESTS)
     create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/config")
