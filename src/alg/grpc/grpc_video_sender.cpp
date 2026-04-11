@@ -1,8 +1,6 @@
-#include "video_pipeline/grpc_video_sender.h"
+﻿#include "alg/grpc/grpc_video_sender.h"
 #include "log/logmanager.h"
 #include <iostream>
-
-namespace video_pipeline {
 
 GrpcVideoSender::GrpcVideoSender(const std::string& server_address, int target_fps)
     : server_address_(server_address) {
@@ -104,4 +102,3 @@ bool GrpcVideoSender::isConnected() const {
     return running_ && grpc_client_ && grpc_client_->IsConnected();
 }
 
-} // namespace video_pipeline

@@ -12,7 +12,12 @@ option(BUILD_COMMON_TESTS "Build Common tests" OFF)
 option(BUILD_BOOST_TESTS "Build Boost tests" OFF)
 option(BUILD_ASYNC_SIMPLE_TESTS "Build Async Simple tests" OFF)
 option(BUILD_SERVICE_TESTS "Build Service tests" ON)
-option(BUILD_VIDEO_PIPELINE_TESTS "Build Video Pipeline tests" ON)
+option(BUILD_VIDEO_PIPELINE_TESTS "Build Video Pipeline tests" OFF)
+option(BUILD_PULLER_TESTS "Build Puller tests" OFF)
+option(BUILD_DECODER_TESTS "Build Decoder tests" ON)
+option(BUILD_PREPROCESS_TESTS "Build Preprocess tests" ON)
+option(BUILD_POSTPROCESS_TESTS "Build Postprocess tests" ON)
+option(BUILD_ALG_TESTS "Build Algorithm tests" ON)
 option(BUILD_GRPC_TESTS "Build gRPC tests" ON)
 
 # 辅助函数：为目录中的每个 cpp 文件创建独立的测试目标
@@ -109,19 +114,86 @@ if(BUILD_SERVICE_TESTS)
 endif()
 
 if(BUILD_VIDEO_PIPELINE_TESTS)
-    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/video_pipeline")
+    # 手动指定要编译的测试文件，排除 frame_rate_controller
+    file(GLOB VIDEOPIPELINE_TESTS "${CMAKE_CURRENT_LIST_DIR}/videopipeline/*.cpp")
+    list(REMOVE_ITEM VIDEOPIPELINE_TESTS "${CMAKE_CURRENT_LIST_DIR}/videopipeline/test_frame_rate_controller.cpp")
+    
+    foreach(test_file ${VIDEOPIPELINE_TESTS})
+        get_filename_component(test_file_name ${test_file} NAME_WE)
+        set(test_target_name "test_videopipeline_${test_file_name}")
+        
+        add_executable(${test_target_name} ${test_file})
+        target_include_directories(${test_target_name} PRIVATE 
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/grpc/include
+            ${FFMPEG_INCLUDE_DIRS}
+        )
+        target_link_libraries(${test_target_name} 
+            PRIVATE 
+                myapp_lib
+                spdlog::spdlog
+                Boost::asio
+                Boost::system
+                Boost::json
+                Boost::process
+                Boost::pool
+                async_simple::async_simple
+                yaml-cpp::yaml-cpp                
+                ${FFMPEG_LIBRARIES}
+        )
+        
+        # 如果是 Windows 且提供了 SQLite3 库路径，则使用它
+        if(WIN32 AND DEFINED SQLITE3_LIB_PATH_TEST)
+            list(APPEND TEST_LINK_LIBS "${SQLITE3_LIB_PATH_TEST}")
+        else()
+            list(APPEND TEST_LINK_LIBS sqlite3)
+        endif()
+        
+        target_link_libraries(${test_target_name} 
+            PRIVATE 
+                ${TEST_LINK_LIBS}
+        )
+        
+        # 添加测试
+        add_test(NAME ${test_target_name} COMMAND ${test_target_name})
+        
+        message(STATUS "Added test: ${test_target_name}")
+    endforeach()
     
     # 为包含 gRPC 的测试添加特殊链接
-    if(TARGET test_video_pipeline_test_video_pipeline_grpc)
-        target_link_libraries(test_video_pipeline_test_video_pipeline_grpc PRIVATE
+    if(TARGET test_videopipeline_test_video_pipeline_grpc)
+        target_link_libraries(test_videopipeline_test_video_pipeline_grpc PRIVATE
             grpc_lib
         )
-        message(STATUS "Added gRPC link to: test_video_pipeline_test_video_pipeline_grpc")
+        message(STATUS "Added gRPC link to: test_videopipeline_test_video_pipeline_grpc")
     endif()
+endif()
+
+if(BUILD_PULLER_TESTS)
+    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/puller")
+endif()
+
+if(BUILD_DECODER_TESTS)
+    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/decoder")
+endif()
+
+if(BUILD_PREPROCESS_TESTS)
+    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/preprocess/format_converter")
+endif()
+
+if(BUILD_POSTPROCESS_TESTS)
+    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/postprocess/osd")
+endif()
+
+if(BUILD_ALG_TESTS)
+    create_test_from_dir("${CMAKE_CURRENT_LIST_DIR}/alg/grpc")
     
-    # FrameRateController 测试不需要额外链接
-    if(TARGET test_video_pipeline_test_frame_rate_controller)
-        message(STATUS "Added frame rate controller test: test_video_pipeline_test_frame_rate_controller")
+    # 为 GrpcToAlg 测试添加 gRPC 链接
+    if(TARGET test_alg_grpc_test_grpc_to_alg)
+        target_link_libraries(test_alg_grpc_test_grpc_to_alg PRIVATE
+            grpc_lib
+        )
+        message(STATUS "Added gRPC link to: test_alg_grpc_test_grpc_to_alg")
     endif()
 endif()
 
@@ -185,7 +257,9 @@ endif()
 if(NOT (BUILD_SQLITE_TESTS OR BUILD_NET_TESTS OR BUILD_ZLM_TESTS OR 
         BUILD_LOG_TESTS OR BUILD_CONFIG_TESTS OR BUILD_FFMPEG_TESTS OR 
         BUILD_COMMON_TESTS OR BUILD_BOOST_TESTS OR BUILD_ASYNC_SIMPLE_TESTS OR 
-        BUILD_SERVICE_TESTS OR BUILD_VIDEO_PIPELINE_TESTS))
+        BUILD_SERVICE_TESTS OR BUILD_VIDEO_PIPELINE_TESTS OR
+        BUILD_PULLER_TESTS OR BUILD_DECODER_TESTS OR 
+        BUILD_PREPROCESS_TESTS OR BUILD_POSTPROCESS_TESTS OR BUILD_ALG_TESTS))
     
     message(STATUS "No specific test type enabled, building all tests...")
     

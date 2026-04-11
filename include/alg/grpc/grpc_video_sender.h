@@ -5,8 +5,6 @@
 #include <memory>
 #include <string>
 
-namespace video_pipeline {
-
 /**
  * @brief gRPC 视频发送器（第一阶段简化版）
  * 
@@ -72,5 +70,3 @@ private:
     /// @brief 运行状态
     std::atomic<bool> running_{false};
 };
-
-} // namespace video_pipeline
