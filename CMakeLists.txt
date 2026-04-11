@@ -22,6 +22,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 add_subdirectory(modules/log)
 add_subdirectory(modules/net)
 add_subdirectory(modules/sqlite)
+add_subdirectory(modules/zlmediakit)
+add_subdirectory(modules/config)
+add_subdirectory(modules/api)
+add_subdirectory(modules/service)
 
 
 # 自动检测本地 vcpkg（如果存在）
@@ -104,6 +108,10 @@ if(WIN32)
             log_lib  # 添加日志模块
             net_lib  # 添加网络模块
             sqlite_lib  # 添加 SQLite 模块
+            zlmediakit_lib  # 添加 ZLMediaKit 模块
+            config_lib  # 添加配置模块
+            api_lib  # 添加 API 模块
+            service_lib  # 添加服务模块
             spdlog::spdlog
             Boost::asio
             Boost::system
