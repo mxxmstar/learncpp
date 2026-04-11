@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.18)
 project(MySelfContainedApp LANGUAGES CXX)
 
+# 设置 CMake 策略以消除 Boost 警告
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -16,6 +21,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 # 添加模块化库（按依赖顺序）
 add_subdirectory(modules/log)
 add_subdirectory(modules/net)
+add_subdirectory(modules/sqlite)
 
 
 # 自动检测本地 vcpkg（如果存在）
@@ -97,6 +103,7 @@ if(WIN32)
         PRIVATE
             log_lib  # 添加日志模块
             net_lib  # 添加网络模块
+            sqlite_lib  # 添加 SQLite 模块
             spdlog::spdlog
             Boost::asio
             Boost::system
@@ -108,8 +115,6 @@ if(WIN32)
             yaml-cpp::yaml-cpp
             ${OpenCV_LIBS}
             ${FFMPEG_LIBRARIES}
-            # sqlite3
-            "${SQLITE3_LIB_PATH}"
             ntdll
             user32
             shell32
