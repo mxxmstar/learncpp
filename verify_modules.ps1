@@ -10,7 +10,7 @@ Write-Host "  模块化重构验证" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$Modules = @("log", "net", "puller", "sqlite", "zlmediakit", "config", "api", "service")
+$Modules = @("log", "net", "puller", "camera", "decoder", "preprocess", "postprocess", "alg", "grpc", "videopipeline", "sqlite", "zlmediakit", "config", "web")
 $AllPassed = $true
 
 foreach ($Module in $Modules) {

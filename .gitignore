@@ -13,6 +13,8 @@ file.txt
 !src/log/
 !include/log/
 !modules/log/
+modules/grpc/generated/
+modules/alg/generated/
 
 .idea/
 .vs/
