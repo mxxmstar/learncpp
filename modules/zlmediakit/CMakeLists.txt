@@ -43,6 +43,11 @@ if(WIN32)
     target_compile_options(zlmediakit_lib PRIVATE /utf-8)
 endif()
 
+# 定义项目根目录（用于定位 tools 目录）
+target_compile_definitions(zlmediakit_lib PRIVATE
+    PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}"
+)
+
 # 如果启用测试，添加测试子目录
 if(BUILD_ZLM_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
     enable_testing()

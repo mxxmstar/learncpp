@@ -16,13 +16,22 @@
 static ZLMProcessManager::Config createProcessConfig(const ZlmConfig& zlm_config) {
     ZLMProcessManager::Config cfg;
     cfg.debug_terminal = zlm_config.debug_terminal;
+    
+    // 使用编译时定义的项目根目录，确保在任何位置运行都能找到 tools 目录
+#ifdef PROJECT_ROOT_DIR
+    std::filesystem::path project_root(PROJECT_ROOT_DIR);
+#else
+    // 如果没有定义 PROJECT_ROOT_DIR，回退到当前路径的父目录
+    std::filesystem::path project_root = std::filesystem::current_path().parent_path();
+    LOG_MAIN_WARN_AT("ZLMProcessManager: PROJECT_ROOT_DIR not defined, using parent of current path");
+#endif
+    
 #ifdef _WIN32    
-    // 使用绝对路径，避免工作目录问题
-    auto work_dir_path = std::filesystem::current_path().parent_path() / "tools" / "win32" / "zlmediakit";
+    auto work_dir_path = project_root / "tools" / "win32" / "zlmediakit";
     cfg.work_dir = work_dir_path.string();
     LOG_MAIN_INFO_AT("ZLMProcessManager: Setting work_dir to: {}", cfg.work_dir);
 #else
-    auto work_dir_path = std::filesystem::current_path().parent_path() / "tools" / "linux" / "zlmediakit";
+    auto work_dir_path = project_root / "tools" / "linux" / "zlmediakit";
     cfg.work_dir = work_dir_path.string();
     LOG_MAIN_INFO_AT("ZLMProcessManager: Setting work_dir to: {}", cfg.work_dir);
 #endif
@@ -55,18 +64,25 @@ ZLMProcessManager::~ZLMProcessManager() {
 
 std::string ZLMProcessManager::GetZlmediakitPath() {
     std::filesystem::path exec_path;
-#ifdef _WIN32
-    exec_path = std::filesystem::path("tools") / "win32" / "zlmediakit" / "MediaServer.exe";
+    
+    // 使用编译时定义的项目根目录，确保在任何位置运行都能找到 tools 目录
+#ifdef PROJECT_ROOT_DIR
+    std::filesystem::path project_root(PROJECT_ROOT_DIR);
 #else
-    exec_path = std::filesystem::path("tools") / "linux" / "zlmediakit" / "MediaServer";
+    // 如果没有定义 PROJECT_ROOT_DIR，回退到当前路径的父目录
+    std::filesystem::path project_root = std::filesystem::current_path().parent_path();
+    LOG_MAIN_WARN_AT("ZLMProcessManager: PROJECT_ROOT_DIR not defined, using parent of current path");
+#endif
+    
+#ifdef _WIN32
+    exec_path = project_root / "tools" / "win32" / "zlmediakit" / "MediaServer.exe";
+#else
+    exec_path = project_root / "tools" / "linux" / "zlmediakit" / "MediaServer";
 #endif    
-
-    std::filesystem::path parent_path = std::filesystem::current_path().parent_path();
-    exec_path = parent_path / exec_path; 
     
     LOG_MAIN_INFO_AT("ZLMProcessManager: Looking for ZLMediaKit at: {}", exec_path.string());
+    LOG_MAIN_INFO_AT("ZLMProcessManager: Project root: {}", project_root.string());
     LOG_MAIN_INFO_AT("ZLMProcessManager: Current path: {}", std::filesystem::current_path().string());
-    LOG_MAIN_INFO_AT("ZLMProcessManager: Parent path: {}", parent_path.string());
     
     if (std::filesystem::exists(exec_path)) {
         LOG_MAIN_INFO_AT("ZLMProcessManager: Found ZLMediaKit at: {}", exec_path.string());

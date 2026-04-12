@@ -91,8 +91,7 @@ add_subdirectory(modules/puller)  # puller 模块依赖 net 和 log
 add_subdirectory(modules/sqlite)
 add_subdirectory(modules/zlmediakit)
 add_subdirectory(modules/config)
-add_subdirectory(modules/api)
-add_subdirectory(modules/service)
+add_subdirectory(modules/web)  # web 模块（合并了 api 和 service）
 
 # 主程序只包含 main.cpp，其他功能通过模块链接
 add_executable(${PROJECT_NAME} apps/main.cpp)
@@ -112,8 +111,7 @@ if(WIN32)
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             config_lib  # 添加配置模块
-            api_lib  # 添加 API 模块
-            service_lib  # 添加服务模块
+            web_lib  # 添加 Web 模块（包含 API 和 Service）
             spdlog::spdlog
             Boost::asio
             Boost::system
