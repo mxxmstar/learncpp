@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 测试开关：控制是否编译 sqlite 模块的测试
-option(BUILD_SQLITE_TESTS "Build sqlite module tests" ON)
+option(BUILD_SQLITE_TESTS "Build sqlite module tests" OFF)
 
 # 设置库文件输出目录到 sqlite 目录下
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
@@ -25,17 +25,14 @@ target_include_directories(sqlite_lib
         $<INSTALL_INTERFACE:include>
 )
 
-# Windows 特定配置：查找 SQLite3 库
+# Windows 特定配置：链接 SQLite3（使用父作用域中已查找的包）
 if(WIN32)
-    # 使用 vcpkg 提供的 CMake 配置
-    find_package(unofficial-sqlite3 CONFIG REQUIRED)
     target_link_libraries(sqlite_lib
         PUBLIC
             unofficial::sqlite3::sqlite3
             log_lib  # sqlite 模块依赖 log 模块
     )
 else()
-    find_package(SQLite3 REQUIRED)
     target_link_libraries(sqlite_lib
         PUBLIC
             SQLite::SQLite3

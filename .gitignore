@@ -17,6 +17,7 @@ file.txt
 .idea/
 .vs/
 manual_download/
+vcpkg_installed/
 hls/
 .vs/VSWorkspaceState.json
 .vs/slnx.sqlite

@@ -25,10 +25,7 @@ target_include_directories(config_lib
         $<INSTALL_INTERFACE:include>
 )
 
-# 查找依赖
-find_package(yaml-cpp CONFIG REQUIRED)
-
-# 链接依赖
+# 链接依赖（使用父作用域中已查找的包）
 target_link_libraries(config_lib
     PUBLIC
         yaml-cpp::yaml-cpp

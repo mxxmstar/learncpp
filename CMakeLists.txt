@@ -1,4 +1,12 @@
 cmake_minimum_required(VERSION 3.18)
+
+# ⚠️ 重要：vcpkg toolchain 必须在 project() 之前设置
+# 自动检测本地 vcpkg（如果存在）
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE FILEPATH "Vcpkg toolchain file")
+    message(STATUS "Using vcpkg toolchain: ${CMAKE_TOOLCHAIN_FILE}")
+endif()
+
 project(MySelfContainedApp LANGUAGES CXX)
 
 # 设置 CMake 策略以消除 Boost 警告
@@ -18,33 +26,25 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 # gRPC 模块已迁移到 modules/alg/grpc/
 # add_subdirectory(grpc)
 
-# 添加模块化库（按依赖顺序）
-add_subdirectory(modules/log)
-add_subdirectory(modules/net)
-add_subdirectory(modules/sqlite)
-add_subdirectory(modules/zlmediakit)
-add_subdirectory(modules/config)
-add_subdirectory(modules/api)
-add_subdirectory(modules/service)
-
-
-# 自动检测本地 vcpkg（如果存在）
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
-    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
-    # 默认安装到项目内的 vcpkg_installed/
-    # set(VCPKG_INSTALLED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed")
-endif()
-
-# 查找依赖
-# find_package(fmt CONFIG REQUIRED)
+# 查找依赖 - 这些会被所有子模块共享
+# 0. 查找 fmt（log 模块需要）
+find_package(fmt CONFIG REQUIRED)
 # 1. 查找 spdlog（无额外组件）
 find_package(spdlog CONFIG REQUIRED)
 # 2. 查找 Boost，并指定需要的组件（asio 是 header-only，system 需要链接）
-find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool filesystem lockfree)
+find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool filesystem lockfree beast)
 # 3. 查找 async_simple
 find_package(async_simple CONFIG REQUIRED)
 # 4. 查找 yaml-cpp
 find_package(yaml-cpp CONFIG REQUIRED)
+# 4.5 查找 nlohmann_json（zlmediakit 和 api 模块需要）
+find_package(nlohmann_json CONFIG REQUIRED)
+# 4.6 查找 SQLite3（sqlite 模块需要）
+if(WIN32)
+    find_package(unofficial-sqlite3 CONFIG REQUIRED)
+else()
+    find_package(SQLite3 REQUIRED)
+endif()
 # 5. 查找 FFmpeg（用于视频编解码模块）fmpeg 包使用的是传统的 FindFFMPEG 模块，而不是现代的 Config 模式。
 find_package(ffmpeg REQUIRED)
 # 设置 FFmpeg 库变量（供测试使用）- 使用完整路径
@@ -59,25 +59,16 @@ if(WIN32)
 else()
     set(FFMPEG_LIBRARIES avcodec avformat avutil swresample swscale)
 endif()
-# 6. 尝试查找 SQLite
-find_package(sqlite3 CONFIG)
-# 7. 查找 OpenCV（用于视频处理模块）
+# 6. 查找 OpenCV（用于视频处理模块）
 find_package(OpenCV REQUIRED)
 # 设置 OpenCV 库变量
 if(NOT DEFINED OpenCV_LIBS)
     # 如果 OpenCV_LIBS 未定义，手动指定常用模块
     set(OpenCV_LIBS opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio opencv_highgui)
 endif()
-# 8. 查找 gRPC 和 Protobuf
+# 7. 查找 gRPC 和 Protobuf
 find_package(gRPC CONFIG REQUIRED)
 find_package(Protobuf CONFIG REQUIRED)
-# 设置 SQLite3 库路径（供测试使用）
-if(WIN32)
-    set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/sqlite3.lib")
-    if(NOT EXISTS "${SQLITE3_LIB_PATH}")
-        set(SQLITE3_LIB_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib/sqlite3.lib")
-    endif()
-endif()
 
 # 定义预处理器宏来解决 WinSock 冲突
 if(WIN32)
@@ -93,6 +84,16 @@ if(MSVC)
     #add_compile_options(/ZI)
 endif()
 
+# 添加模块化库（按依赖顺序）- 在 find_package 之后
+add_subdirectory(modules/log)
+add_subdirectory(modules/net)
+add_subdirectory(modules/puller)  # puller 模块依赖 net 和 log
+add_subdirectory(modules/sqlite)
+add_subdirectory(modules/zlmediakit)
+add_subdirectory(modules/config)
+add_subdirectory(modules/api)
+add_subdirectory(modules/service)
+
 # 主程序只包含 main.cpp，其他功能通过模块链接
 add_executable(${PROJECT_NAME} apps/main.cpp)
 
@@ -107,6 +108,7 @@ if(WIN32)
         PRIVATE
             log_lib  # 添加日志模块
             net_lib  # 添加网络模块
+            puller_lib  # 添加拉流器模块
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             config_lib  # 添加配置模块

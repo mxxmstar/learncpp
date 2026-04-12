@@ -25,11 +25,7 @@ target_include_directories(log_lib
         $<INSTALL_INTERFACE:include>
 )
 
-# 查找依赖
-find_package(spdlog CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
-
-# 链接依赖
+# 链接依赖（使用父作用域中已查找的包）
 target_link_libraries(log_lib
     PUBLIC
         spdlog::spdlog

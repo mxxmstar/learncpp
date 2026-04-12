@@ -1,7 +1,18 @@
  1、 RTSP 转 RTMP 推到 ZLmediakit 服务
  .\ffmpeg.exe -rtsp_transport tcp -i rtsp://192.168.66.166/live/mainstream -c:v copy -c:a aac -f flv rtmp://127.0.0.1:1935/live/proxy_cam1
 
-2、MP4转H264
+2、查看摄像头设备列表
+ .\ffmpeg.exe -list_devices true -f dshow -i dummy
+
+3、 推流到zlmediakit
+.\ffmpeg.exe -f dshow -i video="USB2.0 UVC PC Camera" -video_size 1280x720 -framerate 25 -c:v libx264 -preset ultrafast -tune zerolatency -c:a aac -f flv rtmp://127.0.0.1:1935/live/usb_cam
+无音频
+.\ffmpeg.exe -f dshow -rtbufsize 100M -i video="USB2.0 UVC PC Camera" -r 15 -s 640x480 -c:v libx264 -preset ultrafast -tune zerolatency -an -f flv rtmp://127.0.0.1:1935/live/proxy_cam1
+有音频
+.\ffmpeg.exe -f dshow -rtbufsize 100M -i video="USB2.0 UVC PC Camera" -r 15 -s 640x480 -c:v libx264 -preset ultrafast -tune zerolatency -c:a aac -f flv rtmp://127.0.0.1:1935/live/proxy_cam1
+
+
+3、MP4转H264
  .\ffmpeg.exe -i test.mp4 -vcodec copy -an -f h264 test.h264
 
  

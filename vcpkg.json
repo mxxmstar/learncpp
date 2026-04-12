@@ -3,6 +3,7 @@
   "version-string": "0.1.0",
   "dependencies": [
     "spdlog",
+    "fmt",
     "boost-asio",
     "boost-beast",
     "boost-system",
@@ -13,6 +14,7 @@
     "boost-redis",
     "boost-pool",
     "boost-lockfree",
+    "boost-filesystem",
     "zlmediakit",
     "ffmpeg",
     "opencv",

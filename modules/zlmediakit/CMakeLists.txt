@@ -25,11 +25,7 @@ target_include_directories(zlmediakit_lib
         $<INSTALL_INTERFACE:include>
 )
 
-# 查找依赖
-find_package(nlohmann_json CONFIG REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem process)
-
-# 链接依赖
+# 链接依赖（使用父作用域中已查找的包）
 target_link_libraries(zlmediakit_lib
     PUBLIC
         nlohmann_json::nlohmann_json

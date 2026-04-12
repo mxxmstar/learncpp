@@ -1,9 +1,9 @@
-﻿// SQLite 澶氬疄渚嬩娇鐢ㄧず锟?
+﻿// SQLite 多实例测试
 #include "sqlite/sqlite.h"
 #include <iostream>
 #include <cassert>
 #include "log/logmanager.h"
-
+#include <filesystem>
 
 
 void test_multiple_instances() {
@@ -13,7 +13,7 @@ void test_multiple_instances() {
     SQLite orders_db("orders.db", 5);
     SQLite logs_db("logs.db", 2);
     
-    // 鍦ㄥ悇涓暟鎹簱涓垱寤鸿〃
+    //表结构
     users_db.CreateTable("users", {
         {"id", "INTEGER PRIMARY KEY AUTOINCREMENT"},
         {"name", "TEXT NOT NULL"},
@@ -82,7 +82,7 @@ void test_multiple_instances() {
                   << " at " << SQLite::GetColumnText(stmt, 3) << std::endl;
     });
     
-    // 璺ㄦ暟鎹簱鏌ヨ锛堢粺璁★級
+    // 统计记录数
     int user_count = 0, order_count = 0, log_count = 0;
     users_db.Count("users", "", {}, user_count);
     orders_db.Count("orders", "", {}, order_count);
@@ -96,7 +96,8 @@ void test_multiple_instances() {
 
 void test_move_semantics() {
     std::cout << "\n=== Testing Move Semantics ===" << std::endl;
-        
+    std::remove("temp1.db");
+
     SQLite db1("temp1.db", 3);
     db1.CreateTable("test", {{"id", "INTEGER"}});
     db1.Insert("test", {{"id", "1"}});
@@ -131,7 +132,7 @@ void test_factory_pattern() {
         {"expire", "INTEGER"}
     });
     
-    // 浣跨敤鏁版嵁锟?
+    // 插入数据
     databases["main"]->Insert("data", {
         {"key", "config"},
         {"value", "production"}
@@ -143,7 +144,7 @@ void test_factory_pattern() {
         {"expire", "3600"}
     });
     
-    // 鏌ヨ
+    // 查询数据
     std::cout << "--- Main Database ---" << std::endl;
     databases["main"]->Query("SELECT * FROM data", [](void* stmt) {
         std::cout << "Key: " << SQLite::GetColumnText(stmt, 0) 
@@ -160,14 +161,14 @@ void test_factory_pattern() {
 
 void test_mixed_usage() {
     std::cout << "\n=== Testing Mixed Usage (Multiple Instances) ===" << std::endl;
-    
-    // 鍚屾椂浣跨敤鍗曚緥鍜岀洿鎺ュ疄锟?
+    std::remove("direct.db");
+    // 内存数据库 ，每次连接看到的是不同的数据库
     SQLite singleton_db(":memory:", 2);
-    // singleton_db 已自动初始化  // 鍐呭瓨鏁版嵁搴撲綔涓哄崟锟?
+    // singleton_db 已自动初始化
     
     SQLite direct_db("direct.db", 3);
     
-    // 鍦ㄤ袱涓笉鍚岀殑鏁版嵁搴撲腑鎿嶄綔
+    // 创建表
     singleton_db.CreateTable("singleton_table", {{"id", "INTEGER"}});
     direct_db.CreateTable("direct_table", {{"id", "INTEGER"}});
     
@@ -193,7 +194,7 @@ void test_transaction_with_multiple_dbs() {
     db1.CreateTable("table1", {{"value", "INTEGER"}});
     db2.CreateTable("table2", {{"value", "INTEGER"}});
     
-    // 鍦ㄤ袱涓暟鎹簱涓垎鍒娇鐢ㄤ簨锟?
+    // 插入数据
     {
         SQLite::Transaction trans1(db1);
         db1.Insert("table1", {{"value", "1"}});
@@ -208,7 +209,7 @@ void test_transaction_with_multiple_dbs() {
         trans2.Commit();
     }
     
-    // 楠岃瘉缁撴灉
+    // 查询数据
     int count1 = 0, count2 = 0;
     db1.Count("table1", "", {}, count1);
     db2.Count("table2", "", {}, count2);
