@@ -352,7 +352,7 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='Video Processing gRPC Server')
-    parser.add_argument('--port', type=int, default=50052, help='Server port')
+    parser.add_argument('--port', type=int, default=50053, help='Server port')
     parser.add_argument('--model', type=str, default=None, help='YOLOv5 model path')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda'],
                        help='Inference device')

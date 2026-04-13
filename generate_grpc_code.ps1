@@ -1,7 +1,8 @@
 # gRPC 代码生成脚本
 # 用于手动生成 .proto 文件的 C++ 代码
 
-$PROTOC = "tools/win32/protobuf/protoc.exe"
+# 使用 vcpkg 安装的 protoc 和插件（确保版本一致）
+$PROTOC = "out/build/x64-Debug/vcpkg_installed/x64-windows/tools/protobuf/protoc.exe"
 $PLUGIN = "out/build/x64-Debug/vcpkg_installed/x64-windows/tools/grpc/grpc_cpp_plugin.exe"
 
 Write-Host "Protoc: $PROTOC"
