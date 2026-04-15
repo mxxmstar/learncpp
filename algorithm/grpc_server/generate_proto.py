@@ -36,10 +36,10 @@ def generate_grpc_code():
                 print(f"  - {file}")
         
     except subprocess.CalledProcessError as e:
-        print(f"✗ Code generation failed: {e}")
+        print(f"Code generation failed: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

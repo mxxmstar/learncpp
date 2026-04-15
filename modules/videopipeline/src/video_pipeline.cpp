@@ -3,7 +3,9 @@
 #include "preprocess/format_converter/yuv_to_bgr_converter.h"     // YUV 到 BGR 转换
 #include "alg/grpc/grpc_video_sender.h"  // gRPC 视频发送器
 #include "log/logmanager.h"
-
+extern "C" {
+#include <libswscale/swscale.h>
+}
 // 已移除命名空间引用
 
 VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConfig& config)
@@ -287,31 +289,87 @@ void VideoPipeline::encodeAndSendToGrpc(const VideoFrame& frame) {
     
     try {
         // 检查帧数据是否有效
-        if (!frame.data[0] || !frame.data[1] || !frame.data[2]) {
+        if (!frame.data[0] || !frame.data[1]) {
             LOG_MAIN_WARN_AT("Invalid YUV data pointers, skipping gRPC send");
             grpc_frames_failed_++;
             return;
         }
-        
+
         if (frame.width <= 0 || frame.height <= 0) {
-            LOG_MAIN_WARN_AT("Invalid frame dimensions {}x{}, skipping gRPC send", 
-                            frame.width, frame.height);
+            LOG_MAIN_WARN_AT("Invalid frame dimensions {}x{}, skipping gRPC send",
+                frame.width, frame.height);
             grpc_frames_failed_++;
             return;
         }
-        
-        // 只支持 YUV420P 格式
-        if (frame.format != 0) {  // AV_PIX_FMT_YUV420P
+
+        // 支持的像素格式：YUV420P(0), NV12(12), NV21(13)
+        bool supported_format = (frame.format == 0 ||   // AV_PIX_FMT_YUV420P
+            frame.format == 12 ||  // AV_PIX_FMT_NV12
+            frame.format == 13);   // AV_PIX_FMT_NV21
+
+        if (!supported_format) {
             LOG_MAIN_WARN_AT("Unsupported pixel format: {}, skipping gRPC send", frame.format);
             grpc_frames_failed_++;
             return;
         }
-        
-        // 使用转换器将 YUV 转换为 BGR
-        cv::Mat bgr_mat = yuv_converter_->Convert(
-            frame.data[0], frame.data[1], frame.data[2],
-            frame.width, frame.height);
-        
+
+        cv::Mat bgr_mat;
+
+        // 根据像素格式选择不同的转换方式
+        if (frame.format == 0) {
+            // YUV420P: 三个独立平面
+            bgr_mat = yuv_converter_->Convert(
+                frame.data[0], frame.data[1], frame.data[2],
+                frame.width, frame.height);
+        }
+        else if (frame.format == 12 || frame.format == 13) {
+            // NV12/NV21: 使用 FFmpeg sws_scale 转换为 YUV420P，然后再用转换器            
+
+            // 创建 SwsContext
+            SwsContext* sws_ctx = sws_getContext(
+                frame.width, frame.height,
+                static_cast<AVPixelFormat>(frame.format),
+                frame.width, frame.height,
+                AV_PIX_FMT_YUV420P,
+                SWS_BILINEAR, nullptr, nullptr, nullptr);
+
+            if (!sws_ctx) {
+                LOG_MAIN_WARN_AT("Failed to create SwsContext for format {}", frame.format);
+                grpc_frames_failed_++;
+                return;
+            }
+
+            // 分配目标帧（YUV420P）
+            AVFrame* dst_frame = av_frame_alloc();
+            dst_frame->format = AV_PIX_FMT_YUV420P;
+            dst_frame->width = frame.width;
+            dst_frame->height = frame.height;
+            av_frame_get_buffer(dst_frame, 32);
+
+            // 准备源数据指针
+            const uint8_t* src_data[4] = {
+                frame.data[0],
+                frame.data[1],
+                frame.data[2],
+                nullptr
+            };
+
+            // 执行转换
+            sws_scale(sws_ctx,
+                src_data, frame.linesize,
+                0, frame.height,
+                dst_frame->data, dst_frame->linesize);
+
+            // 使用现有的转换器将 YUV420P 转为 BGR
+            bgr_mat = yuv_converter_->Convert(
+                dst_frame->data[0], dst_frame->data[1], dst_frame->data[2],
+                dst_frame->width, dst_frame->height);
+
+            // 清理
+            av_frame_free(&dst_frame);
+            sws_freeContext(sws_ctx);
+        }
+
         if (bgr_mat.empty()) {
             LOG_MAIN_WARN_AT("YUV to BGR conversion failed, skipping gRPC send");
             grpc_frames_failed_++;

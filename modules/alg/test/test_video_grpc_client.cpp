@@ -10,7 +10,7 @@
 #include <chrono>
 #include <atomic>
 #include <csignal>
-
+#include "log/logmanager.h"
 using namespace grpc_module;
 
 // ==================== Graceful Shutdown ====================
@@ -57,7 +57,7 @@ void TestDetectionStream() {
     std::cout << "Test 1: Detection Stream (Metadata)" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     
-    VideoGrpcClient client("localhost:50052");
+    VideoGrpcClient client("localhost:50053");
     
     // 连接
     if (!client.Connect()) {
@@ -164,7 +164,7 @@ void TestVideoProcessStream() {
     std::cout << "Test 2: Video Process Stream (Processed Video)" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     
-    VideoGrpcClient client("localhost:50052");
+    VideoGrpcClient client("localhost:50053");
     
     // 连接
     if (!client.Connect()) {
@@ -290,6 +290,10 @@ int main() {
     std::cout << "# Testing communication with Python gRPC Server" << std::endl;
     std::cout << std::string(60, '#') << std::endl;
     
+    // 初始化日志管理器
+    LogManager& log_mgr = LogManager::getInstance();
+    log_mgr.Init();
+
     // 设置优雅关闭
     SetupGracefulShutdown();
     
@@ -298,8 +302,8 @@ int main() {
     std::cout << "2. Video Process Stream (Processed video)" << std::endl;
     std::cout << "Enter choice (1 or 2): ";
     
-    int choice;
-    std::cin >> choice;
+    int choice = 1;
+    //std::cin >> choice;
     
     switch (choice) {
         case 1:

@@ -3,7 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include "video_pipeline/video_pipeline_manager.h"
-#include "video_pipeline/algorithm/base_algorithm.h"
+#include "video_pipeline/algorithm/i_algorithm.h"
 #include "video_pipeline/output/result_output.h"
 #include "video_pipeline/processor/osd_renderer.h"
 #include "log/logmanager.h"

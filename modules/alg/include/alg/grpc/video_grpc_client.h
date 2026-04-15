@@ -25,12 +25,22 @@ namespace video_processing {
 
 namespace grpc_module {
 
-// 回调类型定义
+/**
+ * @brief 检测结果回调函数
+ * 
+ * @param frame_id 帧ID
+ * @param boxes 检测框
+ * @param processing_time_ms 处理时间（毫秒）
+ */
 using DetectionCallback = std::function<void(const std::string& frame_id, 
                                              const std::vector<std::map<std::string, float>>& boxes,
                                              int64_t processing_time_ms)>;
 
 using ProcessedFrameData = std::vector<uint8_t>; // JPEG 编码的数据
+
+/**
+ * @brief 经过算法处理后的视频帧的回调函数
+ */
 using ProcessedFrameCallback = std::function<void(const std::string& frame_id,
                                                   const ProcessedFrameData& frame_data,
                                                   int width,
@@ -131,9 +141,9 @@ public:
      * @brief 获取统计信息
      */
     struct Statistics {
-        int frames_sent = 0;
-        int frames_received = 0;
-        double avg_latency_ms = 0.0;
+        int frames_sent = 0;     // 发送的帧数
+        int frames_received = 0;     // 接收的帧数
+        double avg_latency_ms = 0.0;     // 平均延迟（毫秒）
     };
     
     Statistics GetStatistics() const;
@@ -143,23 +153,23 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
     
-    std::string target_;
-    std::shared_ptr<grpc::Channel> channel_;
-    std::atomic<bool> connected_{false};
+    std::string target_;     // gRPC 服务器地址
+    std::shared_ptr<grpc::Channel> channel_;     // gRPC 通道
+    std::atomic<bool> connected_{false};     // 是否已连接
     
     // 检测流
-    std::unique_ptr<grpc::ClientContext> detection_context_;
-    std::unique_ptr<grpc::ClientReaderWriter<video_processing::VideoFrame, video_processing::DetectionResult>> detection_stream_;
-    std::thread detection_thread_;
-    DetectionCallback detection_callback_;
-    std::atomic<bool> detection_running_{false};
+    std::unique_ptr<grpc::ClientContext> detection_context_;     // 检测流上下文
+    std::unique_ptr<grpc::ClientReaderWriter<video_processing::VideoFrame, video_processing::DetectionResult>> detection_stream_;     // 检测流
+    std::thread detection_thread_;     // 检测线程
+    DetectionCallback detection_callback_;     // 检测结果回调函数
+    std::atomic<bool> detection_running_{false};     // 是否正在运行检测流
     
     // 视频处理流
-    std::unique_ptr<grpc::ClientContext> video_context_;
-    std::unique_ptr<grpc::ClientReaderWriter<video_processing::VideoFrame, video_processing::ProcessedFrame>> video_stream_;
-    std::thread video_thread_;
-    ProcessedFrameCallback video_callback_;
-    std::atomic<bool> video_running_{false};
+    std::unique_ptr<grpc::ClientContext> video_context_;     // 视频处理流上下文
+    std::unique_ptr<grpc::ClientReaderWriter<video_processing::VideoFrame, video_processing::ProcessedFrame>> video_stream_;     // 视频处理流
+    std::thread video_thread_;     // 视频处理线程
+    ProcessedFrameCallback video_callback_;     // 视频处理结果回调函数
+    std::atomic<bool> video_running_{false};     // 是否正在运行视频处理流
     
     // 统计信息
     mutable std::mutex stats_mutex_;

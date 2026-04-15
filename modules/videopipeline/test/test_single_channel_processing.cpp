@@ -3,7 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include "videopipeline/video_pipeline.h"
-#include "alg/base_algorithm.h"  // base_algorithm 在 alg 模块
+#include "alg/i_algorithm.h"  // i_algorithm 在 alg 模块
 #include "postprocess/result_output.h"  // result_output 在 postprocess 模块
 #include "postprocess/osd/osd_renderer.h"  // OSD 渲染器在 postprocess 模块
 #include "log/logmanager.h"

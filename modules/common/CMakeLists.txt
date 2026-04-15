@@ -1,0 +1,40 @@
+cmake_minimum_required(VERSION 3.18)
+project(common_lib LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 收集源文件
+file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
+
+# 创建库
+add_library(${PROJECT_NAME} ${LIB_SOURCES})
+
+# 设置包含目录
+target_include_directories(${PROJECT_NAME} 
+    PUBLIC 
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# 链接依赖
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        log_lib  # SignalHandler 和 Application 需要日志
+)
+
+# Windows 特定配置
+if(WIN32)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+endif()
+
+# 测试（可选）
+if(BUILD_TESTS)
+    file(GLOB TEST_SOURCES "test/*.cpp")
+    if(TEST_SOURCES)
+        foreach(TEST_FILE ${TEST_SOURCES})
+            get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
+            add_executable(test_${TEST_NAME} ${TEST_FILE})
+            target_link_libraries(test_${TEST_NAME} PRIVATE ${PROJECT_NAME})
+        endforeach()
+    endif()
+endif()

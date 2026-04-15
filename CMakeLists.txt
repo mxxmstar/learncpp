@@ -99,6 +99,7 @@ add_subdirectory(modules/sqlite)
 add_subdirectory(modules/zlmediakit)
 add_subdirectory(modules/config)
 add_subdirectory(modules/web)  # web 模块（合并了 api 和 service）
+add_subdirectory(modules/common)  # common 模块（信号处理、应用框架）
 
 # 主程序只包含 main.cpp，其他功能通过模块链接
 add_executable(${PROJECT_NAME} apps/main.cpp)
@@ -126,6 +127,7 @@ if(WIN32)
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             config_lib  # 添加配置模块
             web_lib  # 添加 Web 模块（包含 API 和 Service）
+            common_lib  # 添加通用模块（信号处理、应用框架）
             spdlog::spdlog
             Boost::asio
             Boost::system
@@ -228,4 +230,37 @@ endif()
 #     add_subdirectory(test)
 # endif()
 
+# ==================== Application Framework 示例应用 ====================
+if(BUILD_TESTS)
+    # 创建使用 Application 框架的示例应用
+    add_executable(app_with_framework 
+        apps/app_with_framework.cpp
+    )
+    
+    target_include_directories(app_with_framework PRIVATE include)
+    
+    if(WIN32)
+        target_link_libraries(app_with_framework
+            PRIVATE
+                common_lib  # 信号处理、应用框架
+                log_lib
+                videopipeline_lib
+                spdlog::spdlog
+                Boost::asio
+                Boost::system
+                ${OpenCV_LIBS}
+                ${FFMPEG_LIBRARIES}
+                yaml-cpp::yaml-cpp
+        )
+    else()
+        target_link_libraries(app_with_framework
+            PRIVATE
+                common_lib
+                spdlog::spdlog
+                Boost::asio
+                Boost::system
+                yaml-cpp::yaml-cpp
+        )
+    endif()
+endif()
 

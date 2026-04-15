@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    std::cout << "✓ VideoPipeline started successfully" << std::endl;
+    std::cout << "VideoPipeline started successfully" << std::endl;
     std::cout << "\nWaiting for frames..." << std::endl;
     std::cout << "(Press Ctrl+C to stop early)" << std::endl;
     
@@ -245,30 +245,30 @@ int main(int argc, char* argv[]) {
     bool test_passed = true;
     
     if (pipeline->getGrpcFramesSent() == 0) {
-        std::cout << "✗ FAILED: No frames sent via gRPC" << std::endl;
+        std::cout << "FAILED: No frames sent via gRPC" << std::endl;
         test_passed = false;
     } else {
-        std::cout << "✓ PASSED: Frames sent via gRPC: " << pipeline->getGrpcFramesSent() << std::endl;
+        std::cout << "PASSED: Frames sent via gRPC: " << pipeline->getGrpcFramesSent() << std::endl;
     }
     
     if (pipeline->getGrpcFramesFailed() > pipeline->getGrpcFramesSent()) {
-        std::cout << "✗ WARNING: High failure rate" << std::endl;
+        std::cout << "WARNING: High failure rate" << std::endl;
     } else {
-        std::cout << "✓ PASSED: Acceptable failure rate" << std::endl;
+        std::cout << "PASSED: Acceptable failure rate" << std::endl;
     }
     
     if (pipeline->getFramesDecoded() == 0) {
-        std::cout << "✗ FAILED: No frames decoded" << std::endl;
+        std::cout << "FAILED: No frames decoded" << std::endl;
         test_passed = false;
     } else {
-        std::cout << "✓ PASSED: Frames decoded: " << pipeline->getFramesDecoded() << std::endl;
+        std::cout << "PASSED: Frames decoded: " << pipeline->getFramesDecoded() << std::endl;
     }
     
     std::cout << std::string(70, '-') << std::endl;
     if (test_passed) {
-        std::cout << "# Overall: TEST PASSED ✓" << std::endl;
+        std::cout << "# Overall: TEST PASSED" << std::endl;
     } else {
-        std::cout << "# Overall: TEST FAILED ✗" << std::endl;
+        std::cout << "# Overall: TEST FAILED" << std::endl;
     }
     std::cout << std::string(70, '-') << std::endl;
     

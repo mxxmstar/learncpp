@@ -1,7 +1,7 @@
 #include "alg/grpc/video_grpc_client.h"
 #include "video_processing.grpc.pb.h"
+#include "log/logmanager.h"
 #include <opencv2/opencv.hpp>
-#include <iostream>
 #include <chrono>
 #include <sstream>
 #include <iomanip>
@@ -34,17 +34,17 @@ bool VideoGrpcClient::Connect(int timeout_seconds) {
         auto deadline = std::chrono::system_clock::now() + 
                        std::chrono::seconds(timeout_seconds);
         
-        if (!channel_->WaitForConnected(deadline)) {
-            std::cerr << "[VideoGrpcClient] Connection timeout to " << target_ << std::endl;
+        if (!channel_->WaitForConnected(deadline)) {            
+            LOG_MAIN_ERROR_AT("[VideoGrpcClient] Connection timeout to {}", target_);
             return false;
         }
         
         connected_ = true;
-        std::cout << "[VideoGrpcClient] Connected to " << target_ << std::endl;
+        LOG_MAIN_INFO_AT("[VideoGrpcClient] Connected to {}", target_);
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "[VideoGrpcClient] Connection failed: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Connection failed: {}", e.what());
         return false;
     }
 }
@@ -59,19 +59,19 @@ void VideoGrpcClient::Disconnect() {
     }
     
     connected_ = false;
-    std::cout << "[VideoGrpcClient] Disconnected" << std::endl;
+    LOG_MAIN_INFO_AT("[VideoGrpcClient] Disconnected");
 }
 
 // ========== 场景 1: 检测对象 ==========
 
 bool VideoGrpcClient::StartDetectionStream(DetectionCallback callback) {
     if (!connected_) {
-        std::cerr << "[VideoGrpcClient] Not connected" << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Not connected");
         return false;
     }
     
     if (detection_running_) {
-        std::cerr << "[VideoGrpcClient] Detection stream already running" << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Detection stream already running");
         return false;
     }
     
@@ -84,7 +84,7 @@ bool VideoGrpcClient::StartDetectionStream(DetectionCallback callback) {
         detection_stream_ = stub->DetectObjects(detection_context_.get());
         
         if (!detection_stream_) {
-            std::cerr << "[VideoGrpcClient] Failed to start detection stream" << std::endl;
+            LOG_MAIN_ERROR_AT("[VideoGrpcClient] Failed to start detection stream");
             return false;
         }
         
@@ -95,11 +95,11 @@ bool VideoGrpcClient::StartDetectionStream(DetectionCallback callback) {
         // 启动读取线程
         detection_thread_ = std::thread(&VideoGrpcClient::DetectionStreamWorker, this);
         
-        std::cout << "[VideoGrpcClient] Detection stream started" << std::endl;
+        LOG_MAIN_INFO_AT("[VideoGrpcClient] Detection stream started");
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "[VideoGrpcClient] Start detection stream failed: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Start detection stream failed: {}", e.what());
         detection_running_ = false;
         return false;
     }
@@ -110,7 +110,7 @@ bool VideoGrpcClient::SendFrameForDetection(const std::vector<uint8_t>& frame_da
                                             int height,
                                             const std::string& frame_id) {
     if (!detection_running_) {
-        std::cerr << "[VideoGrpcClient] Detection stream not running" << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Detection stream not running");
         return false;
     }
     
@@ -120,7 +120,7 @@ bool VideoGrpcClient::SendFrameForDetection(const std::vector<uint8_t>& frame_da
         
         // 发送
         if (!detection_stream_->Write(video_frame)) {
-            std::cerr << "[VideoGrpcClient] Failed to write frame" << std::endl;
+            LOG_MAIN_ERROR_AT("[VideoGrpcClient] Failed to write frame");
             return false;
         }
         
@@ -133,7 +133,7 @@ bool VideoGrpcClient::SendFrameForDetection(const std::vector<uint8_t>& frame_da
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "[VideoGrpcClient] Send frame failed: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Send frame failed: {}", e.what());
         return false;
     }
 }
@@ -160,11 +160,11 @@ void VideoGrpcClient::StopDetectionStream() {
     detection_stream_.reset();
     detection_callback_ = nullptr;
     
-    std::cout << "[VideoGrpcClient] Detection stream stopped" << std::endl;
+    LOG_MAIN_INFO_AT("[VideoGrpcClient] Detection stream stopped");
 }
 
 void VideoGrpcClient::DetectionStreamWorker() {
-    std::cout << "[VideoGrpcClient] Detection worker started" << std::endl;
+    LOG_MAIN_INFO_AT("[VideoGrpcClient] Detection worker started");
     
     try {
         video_processing::DetectionResult result;
@@ -211,22 +211,22 @@ void VideoGrpcClient::DetectionStreamWorker() {
         }
         
     } catch (const std::exception& e) {
-        std::cerr << "[VideoGrpcClient] Detection worker exception: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Detection worker exception: {}", e.what());
     }
     
-    std::cout << "[VideoGrpcClient] Detection worker stopped" << std::endl;
+    LOG_MAIN_INFO_AT("[VideoGrpcClient] Detection worker stopped");
 }
 
 // ========== 场景 2: 处理并返回视频 ==========
 
 bool VideoGrpcClient::StartVideoProcessStream(ProcessedFrameCallback callback) {
     if (!connected_) {
-        std::cerr << "[VideoGrpcClient] Not connected" << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Not connected");
         return false;
     }
     
     if (video_running_) {
-        std::cerr << "[VideoGrpcClient] Video process stream already running" << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Video process stream already running");
         return false;
     }
     
@@ -239,7 +239,7 @@ bool VideoGrpcClient::StartVideoProcessStream(ProcessedFrameCallback callback) {
         video_stream_ = stub->ProcessAndReturnVideo(video_context_.get());
         
         if (!video_stream_) {
-            std::cerr << "[VideoGrpcClient] Failed to start video process stream" << std::endl;
+            LOG_MAIN_ERROR_AT("[VideoGrpcClient] Failed to start video process stream");
             return false;
         }
         
@@ -250,11 +250,11 @@ bool VideoGrpcClient::StartVideoProcessStream(ProcessedFrameCallback callback) {
         // 启动读取线程
         video_thread_ = std::thread(&VideoGrpcClient::VideoProcessStreamWorker, this);
         
-        std::cout << "[VideoGrpcClient] Video process stream started" << std::endl;
+        LOG_MAIN_INFO_AT("[VideoGrpcClient] Video process stream started");
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "[VideoGrpcClient] Start video process stream failed: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Start video process stream failed: {}", e.what());
         video_running_ = false;
         return false;
     }
@@ -265,7 +265,7 @@ bool VideoGrpcClient::SendFrameForProcessing(const std::vector<uint8_t>& frame_d
                                              int height,
                                              const std::string& frame_id) {
     if (!video_running_) {
-        std::cerr << "[VideoGrpcClient] Video process stream not running" << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Video process stream not running");
         return false;
     }
     
@@ -275,7 +275,7 @@ bool VideoGrpcClient::SendFrameForProcessing(const std::vector<uint8_t>& frame_d
         
         // 发送
         if (!video_stream_->Write(video_frame)) {
-            std::cerr << "[VideoGrpcClient] Failed to write frame" << std::endl;
+            LOG_MAIN_ERROR_AT("[VideoGrpcClient] Failed to write frame");
             return false;
         }
         
@@ -288,7 +288,7 @@ bool VideoGrpcClient::SendFrameForProcessing(const std::vector<uint8_t>& frame_d
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "[VideoGrpcClient] Send frame failed: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Send frame failed: {}", e.what());
         return false;
     }
 }
@@ -315,11 +315,11 @@ void VideoGrpcClient::StopVideoProcessStream() {
     video_stream_.reset();
     video_callback_ = nullptr;
     
-    std::cout << "[VideoGrpcClient] Video process stream stopped" << std::endl;
+    LOG_MAIN_INFO_AT("[VideoGrpcClient] Video process stream stopped");
 }
 
 void VideoGrpcClient::VideoProcessStreamWorker() {
-    std::cout << "[VideoGrpcClient] Video process worker started" << std::endl;
+    LOG_MAIN_INFO_AT("[VideoGrpcClient] Video process worker started");
     
     try {
         video_processing::ProcessedFrame result;
@@ -352,15 +352,14 @@ void VideoGrpcClient::VideoProcessStreamWorker() {
         // 检查最终状态
         grpc::Status status = video_stream_->Finish();
         if (!status.ok()) {
-            std::cerr << "[VideoGrpcClient] Video process stream error: " 
-                     << status.error_message() << std::endl;
+            LOG_MAIN_ERROR_AT("[VideoGrpcClient] Video process stream error: {}", status.error_message());
         }
         
     } catch (const std::exception& e) {
-        std::cerr << "[VideoGrpcClient] Video process worker exception: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[VideoGrpcClient] Video process worker exception: {}", e.what());
     }
     
-    std::cout << "[VideoGrpcClient] Video process worker stopped" << std::endl;
+    LOG_MAIN_INFO_AT("[VideoGrpcClient] Video process worker stopped");
 }
 
 // ========== 辅助方法 ==========

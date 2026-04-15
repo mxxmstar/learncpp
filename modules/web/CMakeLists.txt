@@ -32,6 +32,8 @@ target_link_libraries(web_lib
     PUBLIC
         nlohmann_json::nlohmann_json
         yaml-cpp::yaml-cpp
+        Boost::filesystem
+        Boost::process
         log_lib           # web 模块依赖 log 模块
         net_lib           # web 模块依赖 net 模块
         zlmediakit_lib    # web 模块依赖 zlmediakit 模块
@@ -43,6 +45,15 @@ if(WIN32)
     target_compile_definitions(web_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
     # 使用 UTF-8 编码，避免中文注释导致的编译错误
     target_compile_options(web_lib PRIVATE /utf-8)
+    # 链接 Windows 系统库
+    target_link_libraries(web_lib
+        PUBLIC
+            ntdll
+            shell32
+            advapi32
+            user32
+            ws2_32
+    )
 endif()
 
 # 如果启用测试，添加测试子目录

@@ -12,7 +12,7 @@ add_executable(test_single_channel_processing
 target_link_libraries(test_single_channel_processing
     PRIVATE
         videopipeline_lib
-        alg_lib        # base_algorithm 在 alg 模块
+        alg_lib        # i_algorithm 在 alg 模块
         postprocess_lib  # result_output 和 osd_renderer 在 postprocess 模块
         log_lib
 )

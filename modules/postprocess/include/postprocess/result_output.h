@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-//#include "algorithm/base_algorithm.h"
+//#include "algorithm/i_algorithm.h"
 #include "log/logmanager.h"
 #include <string>
 #include <fstream>

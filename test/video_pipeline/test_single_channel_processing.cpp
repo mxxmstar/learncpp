@@ -3,7 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include "video_pipeline/video_pipeline.h"
-#include "video_pipeline/algorithm/base_algorithm.h"
+#include "video_pipeline/algorithm/i_algorithm.h"
 #include "video_pipeline/output/result_output.h"
 #include "video_pipeline/processor/osd_renderer.h"  // 【新增】OSD 渲染器
 #include "log/logmanager.h"
