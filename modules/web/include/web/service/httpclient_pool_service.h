@@ -24,6 +24,7 @@ public:
     Net::HttpClientPool* getHttpClientPool() { return pool_.get(); }
     
 private:
+    /// @brief 主 io_context，用于接收 HTTP 请求和处理响应
     boost::asio::io_context& ctx_;
     ClientPoolConfig config_;
     std::unique_ptr<Net::HttpClientPool> pool_ = nullptr;

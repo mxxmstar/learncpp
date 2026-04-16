@@ -1,36 +1,8 @@
 #include "sqlite/sqlite.h"
 #include "log/logmanager.h"
 #include <sqlite3.h>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
 #include <sstream>
 #include <iostream>
-struct SQLite::Impl {
-    std::string db_path;
-    std::queue<sqlite3*> available;
-    std::mutex mutex;
-    std::condition_variable cv;
-    bool shutdown = false;
-    int pool_size = 5;
-    sqlite3* transaction_db = nullptr;  // 当前事务使用的数据库连接
-    
-    bool Open(sqlite3*& db) {
-        int rc = sqlite3_open(db_path.c_str(), &db);
-        if (rc) {
-            LOG_MAIN_ERROR_AT("Cannot open database: {}", sqlite3_errmsg(db));
-            sqlite3_close(db);
-            return false;
-        }
-        return true;
-    }
-    
-    void Close(sqlite3* db) {
-        if (db) {
-            sqlite3_close(db);
-        }
-    }
-};
 
 // 构造函数实现
 SQLite::SQLite(const std::string& db_path, int pool_size) {
@@ -62,31 +34,27 @@ SQLite& SQLite::operator=(SQLite&& other) noexcept {
 
 void SQLite::Init(const std::string& db_path, int pool_size) {
     impl_ = std::make_unique<Impl>();
-    impl_->db_path = db_path;
-    impl_->pool_size = pool_size;
     
-    for (int i = 0; i < pool_size; ++i) {
-        sqlite3* db = nullptr;
-        if (impl_->Open(db)) {
-            impl_->available.push(db);
-        }
-    }
+    // 配置连接池
+    SQLiteConnectionPool::Config config;
+    config.db_path = db_path;
+    config.min_connections = pool_size;
+    config.max_connections = pool_size * 4;  // 最大连接数是最小值的4倍
+    config.connection_timeout_ms = 5000;
+    config.enable_health_check = true;
+    config.health_check_interval_seconds = 60;
     
-    LOG_MAIN_INFO_AT("SQLite initialized with {} connections", pool_size);
+    // 创建连接池
+    impl_->pool = std::make_unique<SQLiteConnectionPool>(config);
+    
+    LOG_MAIN_INFO_AT("SQLite initialized with {} connections (pool)", pool_size);
 }
 
 void SQLite::Shutdown() {
-    std::lock_guard lock(impl_->mutex);
-    impl_->shutdown = true;
-    
-    while (!impl_->available.empty()) {
-        auto db = impl_->available.front();
-        impl_->available.pop();
-        impl_->Close(db);
+    if (impl_ && impl_->pool) {
+        impl_->pool->shutdown();
+        LOG_MAIN_INFO_AT("SQLite shutdown");
     }
-    
-    impl_->cv.notify_all();
-    LOG_MAIN_INFO_AT("SQLite shutdown");
 }
 
 SQLite::Error SQLite::Execute(const std::string& sql) {
@@ -94,50 +62,45 @@ SQLite::Error SQLite::Execute(const std::string& sql) {
 }
 
 SQLite::Error SQLite::ExecuteWithParams(const std::string& sql, const std::vector<std::string>& params) {
-    std::unique_lock lock(impl_->mutex);
-    
-    impl_->cv.wait(lock, [this] { return !impl_->available.empty() || impl_->shutdown; });
-    
-    if (impl_->shutdown || impl_->available.empty()) {
-        return { ErrorCode::SHUTDOWN, "Database is shutdown or no available connection" };
+    if (!impl_ || !impl_->pool) {
+        return { ErrorCode::SHUTDOWN, "Database not initialized" };
     }
     
-    auto db = impl_->available.front();
-    impl_->available.pop();
-    lock.unlock();
-    
-    sqlite3_stmt* stmt = nullptr;
-    Error error = { ErrorCode::OK, "" };
-    // 准备 SQL 语句
-    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-        // 绑定参数（防止 SQL 注入）
-        for (size_t i = 0; i < params.size(); ++i) {
-            sqlite3_bind_text(stmt, static_cast<int>(i + 1), params[i].c_str(), -1, SQLITE_TRANSIENT);
-        }
-        // 执行 SQL 语句
-        int rc = sqlite3_step(stmt);
-        if (rc != SQLITE_DONE) {
-            error = { ErrorCode::EXECUTE_FAILED, std::string("Execute error: ") + sqlite3_errmsg(db) };
-            LOG_MAIN_ERROR_AT("SQLite execute error: {}", sqlite3_errmsg(db));
+    try {
+        // 从连接池获取连接（RAII，自动释放）
+        auto pooled_conn = impl_->pool->acquire();
+        sqlite3* db = pooled_conn.get();
+        
+        sqlite3_stmt* stmt = nullptr;
+        Error error = { ErrorCode::OK, "" };
+        
+        // 准备 SQL 语句
+        if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+            // 绑定参数（防止 SQL 注入）
+            for (size_t i = 0; i < params.size(); ++i) {
+                sqlite3_bind_text(stmt, static_cast<int>(i + 1), params[i].c_str(), -1, SQLITE_TRANSIENT);
+            }
+            // 执行 SQL 语句
+            int rc = sqlite3_step(stmt);
+            if (rc != SQLITE_DONE) {
+                error = { ErrorCode::EXECUTE_FAILED, std::string("Execute error: ") + sqlite3_errmsg(db) };
+                LOG_MAIN_ERROR_AT("SQLite execute error: {}", sqlite3_errmsg(db));
+            } else {
+                int changes = sqlite3_changes(db);
+                LOG_MAIN_DEBUG_AT("Execute affected rows: {}", changes);
+            }
+            sqlite3_finalize(stmt);
         } else {
-            int changes = sqlite3_changes(db);
-            std::cout << "Execute affected rows: " << changes << std::endl;
+            error = { ErrorCode::PREPARE_STATEMENT_FAILED, std::string("Prepare error: ") + sqlite3_errmsg(db) };
+            LOG_MAIN_ERROR_AT("SQLite prepare error: {}", sqlite3_errmsg(db));
         }
-        sqlite3_finalize(stmt);
-    } else {
-        error = { ErrorCode::PREPARE_STATEMENT_FAILED, std::string("Prepare error: ") + sqlite3_errmsg(db) };
-        LOG_MAIN_ERROR_AT("SQLite prepare error: {}", sqlite3_errmsg(db));
+        
+        return error;
+        
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("SQLite execute exception: {}", e.what());
+        return { ErrorCode::EXECUTE_FAILED, std::string("Exception: ") + e.what() };
     }
-    
-    lock.lock();
-    if (!impl_->shutdown) {
-        impl_->available.push(db);
-    } else {
-        impl_->Close(db);
-    }
-    impl_->cv.notify_all();
-    
-    return error;
 }
 
 SQLite::Error SQLite::Query(const std::string& sql, RowParser parser) {
@@ -145,46 +108,40 @@ SQLite::Error SQLite::Query(const std::string& sql, RowParser parser) {
 }
 
 SQLite::Error SQLite::QueryWithParams(const std::string& sql, const std::vector<std::string>& params, RowParser parser) {
-    std::unique_lock lock(impl_->mutex);
-    
-    impl_->cv.wait(lock, [this] { return !impl_->available.empty() || impl_->shutdown; });
-    
-    if (impl_->shutdown || impl_->available.empty()) {
-        return { ErrorCode::SHUTDOWN, "Database is shutdown or no available connection" };
+    if (!impl_ || !impl_->pool) {
+        return { ErrorCode::SHUTDOWN, "Database not initialized" };
     }
     
-    auto db = impl_->available.front();
-    impl_->available.pop();
-    lock.unlock();
-    
-    sqlite3_stmt* stmt = nullptr;
-    Error error = { ErrorCode::OK, "" };
-    
-    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-        for (size_t i = 0; i < params.size(); ++i) {
-            sqlite3_bind_text(stmt, static_cast<int>(i + 1), params[i].c_str(), -1, SQLITE_TRANSIENT);
+    try {
+        // 从连接池获取连接（RAII，自动释放）
+        auto pooled_conn = impl_->pool->acquire();
+        sqlite3* db = pooled_conn.get();
+        
+        sqlite3_stmt* stmt = nullptr;
+        Error error = { ErrorCode::OK, "" };
+        
+        if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+            for (size_t i = 0; i < params.size(); ++i) {
+                sqlite3_bind_text(stmt, static_cast<int>(i + 1), params[i].c_str(), -1, SQLITE_TRANSIENT);
+            }
+            
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                if (parser) {
+                    parser(stmt);
+                }
+            }
+            sqlite3_finalize(stmt);
+        } else {
+            error = { ErrorCode::QUERY_FAILED, std::string("Query prepare error: ") + sqlite3_errmsg(db) };
+            LOG_MAIN_ERROR_AT("SQLite query prepare error: {}", sqlite3_errmsg(db));
         }
         
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            if (parser) {
-                parser(stmt);
-            }
-        }
-        sqlite3_finalize(stmt);
-    } else {
-        error = { ErrorCode::QUERY_FAILED, std::string("Query prepare error: ") + sqlite3_errmsg(db) };
-        LOG_MAIN_ERROR_AT("SQLite query prepare error: {}", sqlite3_errmsg(db));
+        return error;
+        
+    } catch (const std::exception& e) {
+        LOG_MAIN_ERROR_AT("SQLite query exception: {}", e.what());
+        return { ErrorCode::QUERY_FAILED, std::string("Exception: ") + e.what() };
     }
-    
-    lock.lock();
-    if (!impl_->shutdown) {
-        impl_->available.push(db);
-    } else {
-        impl_->Close(db);
-    }
-    impl_->cv.notify_all();
-    
-    return error;
 }
 
 SQLite::Error SQLite::CreateTable(const std::string& table_name, const std::map<std::string, std::string>& columns) {

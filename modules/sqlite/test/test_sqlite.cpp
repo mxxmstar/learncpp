@@ -22,19 +22,19 @@ public:
         
         Cleanup();
         
-        std::cout << "\n�?All tests passed!" << std::endl;
+        std::cout << "\nAll tests passed!" << std::endl;
     }
 
 private:
     std::unique_ptr<SQLite> db_;
     
     void Setup() {
-        db_ = std::make_unique<SQLite>(":memory:", 1);  // 使用内存数据库进行测�?
+        db_ = std::make_unique<SQLite>(":memory:", 1);  // 使用内存数据库进行测试
         std::cout << "Setting up test environment...\n" << std::endl;
     }
     
     void Cleanup() {
-        db_.reset();  // 自动调用析构函数�?Shutdown()
+        db_.reset();  // 自动调用析构函数进行清理
         std::cout << "Cleaning up test environment...\n" << std::endl;
     }
     

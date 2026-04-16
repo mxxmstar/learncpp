@@ -4,11 +4,13 @@
 #include <string>
 #include <functional>
 #include <map>
+#include <vector>
 #include <any>
 #include "common/signal_handler.h"
 
 // 前向声明
 class LogManager;
+class IService;  // 【修改】改为 IService
 
 /// @brief 应用程序框架
 /// 提供依赖注入、配置管理、生命周期管理等功能
@@ -107,6 +109,48 @@ public:
     bool initLogger(const std::string& log_dir = "logs", 
                    const std::string& log_level = "info");
     
+    // ==================== IService 管理 ====================
+    
+    /// @brief 注册 IService 服务（自动管理生命周期）
+    template<typename T, typename... Args>
+    bool registerService(Args&&... args) {
+        try {
+            auto service = std::make_shared<T>(std::forward<Args>(args)...);
+            if (!service) {
+                return false;
+            }
+            
+            std::string name = service->getName();
+            
+            // 检查是否已存在
+            if (services_.find(name) != services_.end()) {
+                return false;
+            }
+            
+            services_[name] = service;
+            service_order_.push_back(name);
+            
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+    
+    /// @brief 获取 IService 服务
+    template<typename T>
+    T* getService() {
+        for (auto& [name, service] : services_) {
+            auto typed_service = dynamic_cast<T*>(service.get());
+            if (typed_service) {
+                return typed_service;
+            }
+        }
+        return nullptr;
+    }
+    
+    /// @brief 通过名称获取服务
+    std::shared_ptr<IService> getService(const std::string& name) const;
+    
 private:
     /// @brief 执行初始化阶段
     bool initialize();
@@ -119,9 +163,6 @@ private:
     
     /// @brief 优雅关闭
     void gracefulShutdown();
-    
-    // 依赖注入容器
-    std::map<std::string, std::any> services_;
     
     // 配置存储
     std::map<std::string, std::any> config_values_;
@@ -137,6 +178,10 @@ private:
     
     // 信号处理器
     SignalHandler signal_handler_;
+    
+    // IService 服务管理
+    std::map<std::string, std::shared_ptr<IService>> services_;
+    std::vector<std::string> service_order_;  // 注册顺序（用于逆序停止）
     
     // 日志管理器（原始指针，避免循环依赖）
     LogManager* log_manager_ = nullptr;

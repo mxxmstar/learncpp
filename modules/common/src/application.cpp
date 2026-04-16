@@ -78,6 +78,14 @@ bool Application::initLogger(const std::string& log_dir, const std::string& log_
     }
 }
 
+std::shared_ptr<IService> Application::getService(const std::string& name) const {
+    auto it = services_.find(name);
+    if (it != services_.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+
 int Application::run() {
     std::cout << "\n========================================" << std::endl;
     std::cout << "  Application Starting" << std::endl;
@@ -140,7 +148,22 @@ void Application::requestStop() {
 bool Application::initialize() {
     std::cout << "[Application] Initializing..." << std::endl;
     
-    // 执行所有初始化回调
+    // TODO: 初始化所有 IService 服务（IService 尚未实现）
+    /*
+    std::cout << "[Application] Initializing services..." << std::endl;
+    for (const auto& name : service_order_) {
+        auto service = services_[name];
+        if (!service->isInitialized()) {
+            std::cout << "[Application] Initializing service '" << name << "'" << std::endl;
+            if (!service->initialize()) {
+                std::cerr << "[Application] Failed to initialize service '" << name << "'" << std::endl;
+                return false;
+            }
+        }
+    }
+    */
+    
+    // 2. 执行所有初始化回调
     for (size_t i = 0; i < init_callbacks_.size(); ++i) {
         try {
             std::cout << "[Application] Running init callback #" << (i + 1) << std::endl;
@@ -162,7 +185,24 @@ bool Application::initialize() {
 bool Application::start() {
     std::cout << "[Application] Starting..." << std::endl;
     
-    // 执行所有启动回调
+    // TODO: 启动所有 IService 服务（IService 尚未实现）
+    /*
+    std::cout << "[Application] Starting services..." << std::endl;
+    for (const auto& name : service_order_) {
+        auto service = services_[name];
+        if (!service->isRunning()) {
+            std::cout << "[Application] Starting service '" << name << "'" << std::endl;
+            if (!service->start()) {
+                std::cerr << "[Application] Failed to start service '" << name << "'" << std::endl;
+                // 启动失败，停止已启动的服务
+                stop();
+                return false;
+            }
+        }
+    }
+    */
+    
+    // 2. 执行所有启动回调
     for (size_t i = 0; i < start_callbacks_.size(); ++i) {
         try {
             std::cout << "[Application] Running start callback #" << (i + 1) << std::endl;
@@ -188,7 +228,21 @@ void Application::stop() {
     
     std::cout << "[Application] Stopping..." << std::endl;
     
-    // 执行所有停止回调（逆序执行）
+    // TODO: 停止所有 IService 服务（IService 尚未实现）
+    /*
+    std::cout << "[Application] Stopping services..." << std::endl;
+    for (auto it = service_order_.rbegin(); it != service_order_.rend(); ++it) {
+        const auto& name = *it;
+        auto service = services_[name];
+        
+        if (service->isRunning()) {
+            std::cout << "[Application] Stopping service '" << name << "'" << std::endl;
+            service->stop();
+        }
+    }
+    */
+    
+    // 2. 执行所有停止回调（逆序执行）
     for (auto it = stop_callbacks_.rbegin(); it != stop_callbacks_.rend(); ++it) {
         try {
             (*it)();

@@ -5,6 +5,8 @@
 #include <mutex>
 #include <vector>
 #include <string>
+#include <map>
+#include <condition_variable>
 
 /// @brief 跨平台信号处理器
 /// 支持 Windows 和 Linux/macOS 的信号处理

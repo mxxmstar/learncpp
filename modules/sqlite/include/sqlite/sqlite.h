@@ -7,6 +7,7 @@
 #include <map>
 #include <sqlite3.h>
 #include <stdexcept>
+#include "sqlite/connection_pool.h"  // 引入独立的连接池
 class SQLite {
 public:
     // 错误码定义
@@ -282,7 +283,10 @@ public:
     };
 
 private:
-    struct Impl;
+    struct Impl {
+        std::unique_ptr<SQLiteConnectionPool> pool;  // 使用独立的连接池
+        sqlite3* transaction_db = nullptr;  // 当前事务使用的数据库连接
+    };
     std::unique_ptr<Impl> impl_;
   
 };

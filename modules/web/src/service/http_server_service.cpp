@@ -25,7 +25,7 @@ bool HttpServerService::initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", getName());
     
     try {
-        // 创建 io_context
+        // 创建主 io_context
         io_context_ = std::make_unique<boost::asio::io_context>();
         
         // 创建 HTTP 服务器        
@@ -87,7 +87,7 @@ void HttpServerService::stop() {
             server_->Stop();
         }
         
-        // 停止 io_context
+        // 停止主 io_context
         if (io_context_) {
             io_context_->stop();
         }
