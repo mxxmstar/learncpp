@@ -88,7 +88,7 @@ endif()
 add_subdirectory(modules/log)
 add_subdirectory(modules/net)
 add_subdirectory(modules/puller)  # puller 模块依赖 net 和 log
-#add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
+add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
 #add_subdirectory(modules/decoder)  # decoder 模块依赖 FFmpeg 和 log
 #add_subdirectory(modules/preprocess)  # preprocess 模块依赖 OpenCV, decoder 和 log
 #add_subdirectory(modules/postprocess)  # postprocess 模块依赖 OpenCV, decoder 和 log

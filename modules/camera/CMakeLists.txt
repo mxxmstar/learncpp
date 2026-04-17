@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 测试开关
-option(BUILD_CAMERA_TESTS "Build camera module tests" OFF)
+option(BUILD_CAMERA_TESTS "Build camera module tests" ON)
 
 # 设置库文件输出目录
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
@@ -31,6 +31,7 @@ target_link_libraries(camera_lib
         Boost::json
         log_lib
         net_lib
+        sqlite_lib  # CameraStorage 需要 SQLite
 )
 
 # Windows 特定配置
