@@ -3,6 +3,7 @@
 #include <thread>
 #include "config/common_config.h"
 #include "log/logmanager.h"
+#include "log/logger_utils.h"  // 添加转换函数
 #include "application/service_container.h"
 #include "web/service/http_server_service.h"
 #include "zlmediakit/service/zlm_service.h"
@@ -38,9 +39,13 @@ int testHttpServerOnly() {
         // 2. 初始化日志        
         // 使用 mainlog 配置初始化
         if (config.logs.count("mainlog") > 0) {
-            log_mgr.ReloadFromConfig(config.logs.at("mainlog").toLoggerConfig());
+            auto logger_cfg = log_utils::convertToLoggerConfig(config.logs.at("mainlog"), "main");
+            log_mgr.ReloadFromConfig(logger_cfg);
         } else {
-            log_mgr.ReloadFromConfig(LogConfig().toLoggerConfig());
+            LoggerConfig default_cfg;
+            default_cfg.name = "main";
+            default_cfg.level = spdlog::level::info;
+            log_mgr.ReloadFromConfig(default_cfg);
         }
         
         std::cout << "[Config] Loaded from: " << config_mgr.getConfigPath() << std::endl;
@@ -130,9 +135,13 @@ int testWithZLM() {
         // 3. 重新加载日志配置（第二阶段：使用配置文件）
         // 使用 mainlog 配置初始化
         if (config.logs.count("mainlog") > 0) {
-            log_mgr.ReloadFromConfig(config.logs.at("mainlog").toLoggerConfig());
+            auto logger_cfg = log_utils::convertToLoggerConfig(config.logs.at("mainlog"), "main");
+            log_mgr.ReloadFromConfig(logger_cfg);
         } else {
-            log_mgr.ReloadFromConfig(LogConfig().toLoggerConfig());
+            LoggerConfig default_cfg;
+            default_cfg.name = "main";
+            default_cfg.level = spdlog::level::info;
+            log_mgr.ReloadFromConfig(default_cfg);
         }
         LOG_MAIN_INFO_AT("Application starting...");
         LOG_MAIN_INFO_AT("Config loaded from: {}", config_mgr.getConfigPath());

@@ -17,10 +17,11 @@ target_include_directories(${PROJECT_NAME}
 )
 
 # 链接依赖
+# SignalHandler 使用日志宏输出信号处理信息
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        log_lib  # Application 和 SignalHandler 需要日志
-        common_lib        # 通用service接口
+        log_lib     # SignalHandler 需要日志
+        common_lib  # IService 接口
 )
 
 # Windows 特定配置

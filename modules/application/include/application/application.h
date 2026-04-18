@@ -9,8 +9,7 @@
 #include "application/signal_handler.h"
 
 // 前向声明
-class LogManager;
-class IService;  // 【修改】改为 IService
+class IService;
 
 /// @brief 应用程序框架
 /// 提供依赖注入、配置管理、生命周期管理等功能
@@ -103,12 +102,6 @@ public:
     /// @brief 获取信号处理器
     SignalHandler& getSignalHandler() { return signal_handler_; }
     
-    // ==================== 日志系统 ====================
-    
-    /// @brief 初始化日志系统
-    bool initLogger(const std::string& log_dir = "logs", 
-                   const std::string& log_level = "info");
-    
     // ==================== IService 管理 ====================
     
     /// @brief 注册 IService 服务（自动管理生命周期）
@@ -182,7 +175,4 @@ private:
     // IService 服务管理
     std::map<std::string, std::shared_ptr<IService>> services_;
     std::vector<std::string> service_order_;  // 注册顺序（用于逆序停止）
-    
-    // 日志管理器（原始指针，避免循环依赖）
-    LogManager* log_manager_ = nullptr;
 };

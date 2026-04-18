@@ -11,7 +11,7 @@
 /// 封装 AsioHttpServer，提供 HTTP 服务
 class HttpServerService : public IService {
 public:
-    explicit HttpServerService(const ServerConfig& config);
+    explicit HttpServerService(const HttpServerConfig& config);
     ~HttpServerService() override;
     
     bool initialize() override;
@@ -28,7 +28,7 @@ public:
     Net::AsioHttpServer* getHttpServer() { return server_.get(); }
     
 private:
-    ServerConfig config_;
+    HttpServerConfig config_;
     std::unique_ptr<boost::asio::io_context> io_context_;
     std::unique_ptr<Net::AsioHttpServer> server_;
     bool initialized_ = false;

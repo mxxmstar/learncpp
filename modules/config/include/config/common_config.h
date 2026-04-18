@@ -6,46 +6,36 @@
 #include <memory>
 #include <mutex>
 #include <filesystem>
-#include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
-#include <vector>
-#include <string>
 #include <map>
-#include "log/logger.h"  // 包含 LoggerConfig 和 RotationPolicy
-#include "net/httpclientpool.h"  // 包含 HttpClientPool::Config
+#include <atomic>
+#include <any>
 
-
-struct ServerConfig {
+/// @brief 主http服务器配置
+struct HttpServerConfig {
     std::string host = "127.0.0.1";
-    int port = 8080;
-    int threads = 4;
+    int port = 8080;    
 };
 
 /// @brief 客户端池配置（支持多实例）
-struct ClientPoolConfig {
-    std::string host = "127.0.0.1";
-    uint16_t port = 8888;
+struct HttpClientPoolConfig {
+    /// @brief 目标主机地址
+    std::string dst_host = "127.0.0.1";
+    /// @brief 目标主机端口
+    uint16_t dst_port = 8888;
+    /// @brief 初始连接数
     std::size_t init_size = 5;
+    /// @brief 最大连接数
     std::size_t max_size = 20;
+    /// @brief 连接超时时间（毫秒）
     int connect_timeout_ms = 30000;
+    /// @brief 空闲超时时间（秒）
     int idle_timeout_sec = 300;
+    /// @brief 每个客户端最大请求数
     std::size_t max_requests_per_client = 100;
-    
-    /// @brief 转换为 HttpClientPool::Config
-    Net::HttpClientPool::Config toHttpClientPoolConfig() const {
-        Net::HttpClientPool::Config config;
-        config.host = host;
-        config.port = port;
-        config.init_size = init_size;
-        config.max_size = max_size;
-        config.connect_timeout_ms = connect_timeout_ms;
-        config.idle_timeout_sec = idle_timeout_sec;
-        config.max_requests_per_client = max_requests_per_client;
-        return config;
-    }
 };
 
-// TODO: 增加模块日志配置
+/// @brief 日志配置
 struct LogConfig {
     std::string level = "info";
     std::string dir = "./logs";
@@ -54,90 +44,59 @@ struct LogConfig {
     size_t max_files = 5;    
     bool console = true;
     bool json_format = false;
-    
-    /// @brief 转换为 LoggerConfig
-    /// @param logger_name 日志器名称
-    /// @return LoggerConfig 对象
-    LoggerConfig toLoggerConfig(const std::string& logger_name = "main") const {
-        LoggerConfig config(logger_name, parseLevel(level));
-        config.log_dir = dir;
-        config.policy = parseRotation(rotation);
-        config.max_file_size_mb = max_file_size_mb;
-        config.max_files = max_files;
-        config.write_to_console = console;
-        config.is_json = json_format;
-        return config;
-    }
-
-private:
-    /// @brief 解析日志级别字符串
-    static spdlog::level::level_enum parseLevel(const std::string& level_str) {
-        if (level_str == "trace") return spdlog::level::trace;
-        if (level_str == "debug") return spdlog::level::debug;
-        if (level_str == "info") return spdlog::level::info;
-        if (level_str == "warn") return spdlog::level::warn;
-        if (level_str == "error") return spdlog::level::err;
-        if (level_str == "critical") return spdlog::level::critical;
-        return spdlog::level::info;  // 默认
-    }
-    
-    /// @brief 解析滚动策略字符串
-    static RotationPolicy parseRotation(const std::string& rotation_str) {
-        if (rotation_str == "daily") {
-            return RotationPolicy::DAILY;
-        }
-		else if (rotation_str == "filesize") {
-			return RotationPolicy::FILESIZE;
-        }
-        return RotationPolicy::DAILY;  // 默认
-    }
 };
 
+/// @brief 线程池配置
 struct ThreadPoolConfig {
     int min_threads = 2;
     int max_threads = 8;
     int queue_size = 1000;
 };
 
+/// @brief ZLM服务器配置
 struct ZlmConfig {
     std::string zlm_host = "127.0.0.1";
     int zlm_port = 8888;
     std::string secret = "";
-    bool debug_terminal = true;
-    int rtmp_port = 1935;
-    int rtsp_port = 554;
+    bool debug_terminal = true;    
 };
 
+/// @brief WebSocket服务器配置
 struct WebSocketConfig {
     std::string host = "127.0.0.1";
-    uint16_t port = 8081;
+    uint16_t port = 8090;
     int heartbeat_interval = 10;
     int timeout = 30;
 };
 
+/// @brief 摄像头数据库配置
 struct CameraDbConfig {
     std::string db_path = "./data/camera.db";
-    std::string host = "localhost";
-    int port = 3306;
-    std::string name = "cameras";
-    std::string user = "root";
-    std::string password = "";
-    int pool_size = 10;
+    int pool_size = 1;
+    // 使用 SQLite3 不需要 host 和 port
+    // std::string host = "localhost";
+    // int port = 3306;
+    // std::string name = "cameras";
+    // std::string user = "root";
+    // std::string password = "";
+    
 };
 
+/// @brief 用户数据库配置
 struct UserDbConfig {
     std::string db_path = "./data/user.db";
-    std::string host = "localhost";
-    int port = 3306;
-    std::string name = "users";
-    std::string user = "root";
-    std::string password = "";
-    int pool_size = 10;
+    int pool_size = 1;
+    // std::string host = "localhost";
+    // int port = 3306;
+    // std::string name = "users";
+    // std::string user = "root";
+    // std::string password = "";
 };
 
+/// @brief 应用程序配置
 struct AppConfig {
-    ServerConfig server;
-    ClientPoolConfig zlm_client;  ///< ZLM 客户端池配置
+    HttpServerConfig server;
+    HttpClientPoolConfig zlm_client;  ///< ZLM 客户端池配置
     std::map<std::string, LogConfig> logs;
     ZlmConfig zlm;
     WebSocketConfig websocket;
@@ -148,6 +107,7 @@ struct AppConfig {
 class ConfigManager {
 public:
     using ConfigChangeCallback = std::function<void(const AppConfig&)>;
+    using FieldChangeCallback = std::function<void(const std::string& field, const std::any& old_value, const std::any& new_value)>;
 
     static ConfigManager& getInstance();
 
@@ -167,6 +127,34 @@ public:
     void setChangeCallback(ConfigChangeCallback callback);
     void checkAndReload();
 
+    /// @brief 打印配置内容到控制台（用于调试）
+    void dump() const;
+    
+    // ==================== 动态配置更新功能 ====================
+    
+    /// @brief 更新整个配置（原子操作）
+    /// @param new_config 新配置
+    /// @return 成功返回 true
+    bool updateConfig(const AppConfig& new_config);
+    
+    /// @brief 获取配置版本号
+    /// @return 当前配置版本号
+    uint64_t getConfigVersion() const;
+    
+    /// @brief 回滚到指定版本
+    /// @param version 目标版本号
+    /// @return 成功返回 true
+    bool rollbackToVersion(uint64_t version);
+    
+    /// @brief 注册字段变更回调
+    /// @param field_path 字段路径，如 "server.port"
+    /// @param callback 回调函数
+    void onFieldChange(const std::string& field_path, FieldChangeCallback callback);
+    
+    /// @brief 移除字段变更回调
+    /// @param field_path 字段路径
+    void removeFieldChangeCallback(const std::string& field_path);
+
     std::string getConfigPath() const { return config_path_; }
 
 private:
@@ -178,15 +166,22 @@ private:
     void applyDefaults();
     void parseConfig(const YAML::Node& node);
     YAML::Node toYaml() const;
+    
+    // 辅助函数：获取字段的 any 值
+    std::any getFieldAnyValue(const AppConfig& config, const std::string& field_path) const;
+    
+    // 辅助函数：触发字段变更回调
+    void triggerFieldCallbacks(const AppConfig& old_config, const AppConfig& new_config);
 
     AppConfig config_;
     std::string config_path_;
     std::filesystem::file_time_type last_write_time_;
     mutable std::mutex mutex_;
     ConfigChangeCallback change_callback_;
+    
+    // 动态配置相关
+    std::atomic<uint64_t> config_version_{0};  // 配置版本号
+    std::vector<AppConfig> config_history_;     // 配置历史（用于回滚）
+    static constexpr size_t MAX_HISTORY_SIZE = 10;  // 最多保存 10 个版本
+    std::map<std::string, std::vector<FieldChangeCallback>> field_callbacks_;  // 字段回调
 };
-
-namespace config_utils {
-    spdlog::level::level_enum parseLogLevel(const std::string& level);
-    std::string logLevelToString(spdlog::level::level_enum level);
-}

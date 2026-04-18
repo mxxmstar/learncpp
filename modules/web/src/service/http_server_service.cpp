@@ -6,7 +6,7 @@ using namespace Net;
 class AsioHttpServer;
 
 
-HttpServerService::HttpServerService(const ServerConfig& config)
+HttpServerService::HttpServerService(const HttpServerConfig& config)
     : config_(config) {
 }
 

@@ -10,7 +10,7 @@
 /// 封装 HttpClientPool，提供连接池管理服务
 class HttpClientPoolService : public IService {
 public:
-    explicit HttpClientPoolService(boost::asio::io_context& ctx, const ClientPoolConfig& config);
+    explicit HttpClientPoolService(boost::asio::io_context& ctx, const HttpClientPoolConfig& config);
     ~HttpClientPoolService() override;
     
     bool initialize() override;
@@ -26,7 +26,7 @@ public:
 private:
     /// @brief 主 io_context，用于接收 HTTP 请求和处理响应
     boost::asio::io_context& ctx_;
-    ClientPoolConfig config_;
+    HttpClientPoolConfig config_;
     std::unique_ptr<Net::HttpClientPool> pool_ = nullptr;
     bool initialized_ = false;
     bool running_ = false;

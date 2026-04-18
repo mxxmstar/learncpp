@@ -1,6 +1,6 @@
 #include "application/application.h"
+#include "common/service/iservice.h"
 #include "log/logmanager.h"
-#include <iostream>
 #include <fstream>
 #include <thread>
 #include <chrono>
@@ -12,11 +12,11 @@
 #endif
 
 Application::Application() {
-    std::cout << "[Application] Constructing..." << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Constructing...");
 }
 
 Application::~Application() {
-    std::cout << "[Application] Destructing..." << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Destructing...");
     
     // 确保完全停止
     if (running_.load()) {
@@ -30,13 +30,13 @@ Application& Application::getInstance() {
 }
 
 bool Application::loadConfig(const std::string& config_path) {
-    std::cout << "[Application] Loading config from: " << config_path << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Loading config from: {}", config_path);
     
     // 检查文件是否存在
     std::ifstream file(config_path);
     if (!file.is_open()) {
-        std::cerr << "[Application] Warning: Config file not found: " << config_path << std::endl;
-        std::cerr << "[Application] Using default configuration" << std::endl;
+        LOG_MAIN_WARN_AT("[Application] Config file not found: {}", config_path);
+        LOG_MAIN_WARN_AT("[Application] Using default configuration");
         return false;
     }
     
@@ -48,7 +48,7 @@ bool Application::loadConfig(const std::string& config_path) {
     setConfig("log.dir", "logs");
     setConfig("log.level", "info");
     
-    std::cout << "[Application] Config loaded successfully" << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Config loaded successfully");
     return true;
 }
 
@@ -64,20 +64,6 @@ void Application::onStop(StopCallback callback) {
     stop_callbacks_.push_back(callback);
 }
 
-bool Application::initLogger(const std::string& log_dir, const std::string& log_level) {
-    try {
-        log_manager_ = &LogManager::getInstance();
-        log_manager_->Init();
-        
-        std::cout << "[Application] Logger initialized: dir=" << log_dir 
-                  << ", level=" << log_level << std::endl;
-        return true;
-    } catch (const std::exception& e) {
-        std::cerr << "[Application] Failed to initialize logger: " << e.what() << std::endl;
-        return false;
-    }
-}
-
 std::shared_ptr<IService> Application::getService(const std::string& name) const {
     auto it = services_.find(name);
     if (it != services_.end()) {
@@ -87,41 +73,41 @@ std::shared_ptr<IService> Application::getService(const std::string& name) const
 }
 
 int Application::run() {
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "  Application Starting" << std::endl;
-    std::cout << "========================================\n" << std::endl;
+    LOG_MAIN_INFO_AT("========================================");
+    LOG_MAIN_INFO_AT("Application Starting");
+    LOG_MAIN_INFO_AT("========================================");
     
     // 1. 初始化信号处理
     if (!signal_handler_.initialize()) {
-        std::cerr << "[Application] Failed to initialize signal handler" << std::endl;
+        LOG_MAIN_ERROR_AT("[Application] Failed to initialize signal handler");
         return 1;
     }
     
     // 注册信号回调
     signal_handler_.registerCallback(SignalHandler::SIGINT_VAL, [this](int signum) {
-        std::cout << "\n[Application] Received " << SignalHandler::getSignalName(signum) << std::endl;
+        LOG_MAIN_INFO_AT("\n[Application] Received {}", SignalHandler::getSignalName(signum));
         requestStop();
     });
     
     signal_handler_.registerCallback(SignalHandler::SIGTERM_VAL, [this](int signum) {
-        std::cout << "\n[Application] Received " << SignalHandler::getSignalName(signum) << std::endl;
+        LOG_MAIN_INFO_AT("\n[Application] Received {}", SignalHandler::getSignalName(signum));
         requestStop();
     });
     
     // 2. 执行初始化阶段
     if (!initialize()) {
-        std::cerr << "[Application] Initialization failed" << std::endl;
+        LOG_MAIN_ERROR_AT("[Application] Initialization failed");
         return 1;
     }
     
     // 3. 执行启动阶段
     if (!start()) {
-        std::cerr << "[Application] Start failed" << std::endl;
+        LOG_MAIN_ERROR_AT("[Application] Start failed");
         stop();
         return 1;
     }
     
-    std::cout << "\n[Application] Running... (Press Ctrl+C to stop)" << std::endl;
+    LOG_MAIN_INFO_AT("\n[Application] Running... (Press Ctrl+C to stop)");
     
     // 4. 主循环：等待停止信号
     while (running_.load() && !signal_handler_.shouldStop()) {
@@ -132,92 +118,86 @@ int Application::run() {
     // 5. 优雅关闭
     gracefulShutdown();
     
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "  Application Stopped" << std::endl;
-    std::cout << "========================================" << std::endl;
+    LOG_MAIN_INFO_AT("\n========================================");
+    LOG_MAIN_INFO_AT("  Application Stopped");
+    LOG_MAIN_INFO_AT("========================================");
     
     return 0;
 }
 
 void Application::requestStop() {
-    std::cout << "[Application] Stop requested" << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Stop requested");
     running_.store(false);
     signal_handler_.requestStop();
 }
 
 bool Application::initialize() {
-    std::cout << "[Application] Initializing..." << std::endl;
-    
-    // TODO: 初始化所有 IService 服务（IService 尚未实现）
-    /*
-    std::cout << "[Application] Initializing services..." << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Initializing...");        
+    LOG_MAIN_INFO_AT("[Application] Initializing services...");
     for (const auto& name : service_order_) {
         auto service = services_[name];
         if (!service->isInitialized()) {
-            std::cout << "[Application] Initializing service '" << name << "'" << std::endl;
+            LOG_MAIN_INFO_AT("[Application] Initializing service '{}'", name);
             if (!service->initialize()) {
-                std::cerr << "[Application] Failed to initialize service '" << name << "'" << std::endl;
+                LOG_MAIN_ERROR_AT("[Application] Failed to initialize service '{}'", name);
                 return false;
             }
         }
-    }
-    */
+    }    
     
     // 2. 执行所有初始化回调
     for (size_t i = 0; i < init_callbacks_.size(); ++i) {
         try {
-            std::cout << "[Application] Running init callback #" << (i + 1) << std::endl;
+            LOG_MAIN_INFO_AT("[Application] Running init callback #{}", (i + 1));
             if (!init_callbacks_[i]()) {
-                std::cerr << "[Application] Init callback #" << (i + 1) << " failed" << std::endl;
+                LOG_MAIN_ERROR_AT("[Application] Init callback #{} failed", (i + 1));
                 return false;
             }
         } catch (const std::exception& e) {
-            std::cerr << "[Application] Init callback exception: " << e.what() << std::endl;
+            LOG_MAIN_ERROR_AT("[Application] Init callback exception: {}", e.what());
             return false;
         }
     }
     
     initialized_.store(true);
-    std::cout << "[Application] Initialized successfully" << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Initialized successfully");
     return true;
 }
 
 bool Application::start() {
-    std::cout << "[Application] Starting..." << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Starting...");    
     
-    // TODO: 启动所有 IService 服务（IService 尚未实现）
-    /*
-    std::cout << "[Application] Starting services..." << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Starting services...");
     for (const auto& name : service_order_) {
         auto service = services_[name];
         if (!service->isRunning()) {
-            std::cout << "[Application] Starting service '" << name << "'" << std::endl;
+            LOG_MAIN_INFO_AT("[Application] Starting service '{}'", name);
             if (!service->start()) {
-                std::cerr << "[Application] Failed to start service '" << name << "'" << std::endl;
+                LOG_MAIN_ERROR_AT("[Application] Failed to start service '{}'", name);
                 // 启动失败，停止已启动的服务
                 stop();
                 return false;
             }
         }
     }
-    */
+    
     
     // 2. 执行所有启动回调
     for (size_t i = 0; i < start_callbacks_.size(); ++i) {
         try {
-            std::cout << "[Application] Running start callback #" << (i + 1) << std::endl;
+            LOG_MAIN_INFO_AT("[Application] Running start callback #{}", (i + 1));
             if (!start_callbacks_[i]()) {
-                std::cerr << "[Application] Start callback #" << (i + 1) << " failed" << std::endl;
+                LOG_MAIN_ERROR_AT("[Application] Start callback #{} failed", (i + 1));
                 return false;
             }
         } catch (const std::exception& e) {
-            std::cerr << "[Application] Start callback exception: " << e.what() << std::endl;
+            LOG_MAIN_ERROR_AT("[Application] Start callback exception: {}", e.what());
             return false;
         }
     }
     
     running_.store(true);
-    std::cout << "[Application] Started successfully" << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Started successfully");
     return true;
 }
 
@@ -225,38 +205,34 @@ void Application::stop() {
     if (!running_.load()) {
         return;
     }
-    
-    std::cout << "[Application] Stopping..." << std::endl;
-    
-    // TODO: 停止所有 IService 服务（IService 尚未实现）
-    /*
-    std::cout << "[Application] Stopping services..." << std::endl;
+        
+    LOG_MAIN_INFO_AT("[Application] Stopping services...");    
     for (auto it = service_order_.rbegin(); it != service_order_.rend(); ++it) {
         const auto& name = *it;
         auto service = services_[name];
         
-        if (service->isRunning()) {
-            std::cout << "[Application] Stopping service '" << name << "'" << std::endl;
+        if (service->isRunning()) {            
+            LOG_MAIN_INFO_AT("[Application] Stopping service '{}'", name);
             service->stop();
         }
     }
-    */
+    
     
     // 2. 执行所有停止回调（逆序执行）
     for (auto it = stop_callbacks_.rbegin(); it != stop_callbacks_.rend(); ++it) {
         try {
             (*it)();
         } catch (const std::exception& e) {
-            std::cerr << "[Application] Stop callback exception: " << e.what() << std::endl;
+            LOG_MAIN_ERROR_AT("[Application] Stop callback exception: {}", e.what());
         }
     }
     
     running_.store(false);
-    std::cout << "[Application] Stopped" << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Stopped");
 }
 
 void Application::gracefulShutdown() {
-    std::cout << "\n[Application] Graceful shutdown initiated..." << std::endl;
+    LOG_MAIN_INFO_AT("\n[Application] Graceful shutdown initiated...");
     
     // 1. 停止接收新请求
     running_.store(false);
@@ -265,7 +241,7 @@ void Application::gracefulShutdown() {
     auto shutdown_start = std::chrono::steady_clock::now();
     const auto timeout = std::chrono::seconds(10);
     
-    std::cout << "[Application] Waiting for tasks to complete..." << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Waiting for tasks to complete...");
     
     // 3. 执行清理
     stop();
@@ -274,5 +250,5 @@ void Application::gracefulShutdown() {
     auto shutdown_duration = std::chrono::steady_clock::now() - shutdown_start;
     auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(shutdown_duration).count();
     
-    std::cout << "[Application] Shutdown completed in " << duration_ms << "ms" << std::endl;
+    LOG_MAIN_INFO_AT("[Application] Shutdown completed in {}ms", duration_ms);
 }

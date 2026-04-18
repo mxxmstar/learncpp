@@ -1,8 +1,7 @@
 servers:
-  mainserver:
+  http_server:
     host: 127.0.0.1
-    port: 8080
-    threads: 4
+    port: 8080    
 
 clients:
   zlm:
@@ -16,11 +15,11 @@ clients:
 
 logs:
   mainlog:
-    level: info
+    level: debug
     dir: ./logs
+    rotation: daily
     max_file_size_mb: 100
     max_files: 5
-    rotation: daily
     console: true
     json_format: false
   errorlog:
@@ -39,24 +38,27 @@ zlm:
 
 websocket:
   host: 127.0.0.1
-  port: 8081
+  port: 8090
   heartbeat_interval: 10
   timeout: 30
 
 camera_db:
   db_path: ./data/camera.db
-  host: localhost
-  port: 3306
-  name: cameras
-  user: root
-  password: ""
-  pool_size: 10
+  # 使用 SQLite3 直接 1 个连接即可
+  pool_size: 1
+  # host: localhost
+  # port: 3306
+  # name: cameras
+  # user: root
+  # password: ""  
 
 user_db:
   db_path: ./data/user.db
-  host: localhost
-  port: 3306
-  name: users
-  user: root
-  password: ""
-  pool_size: 10
+  # 使用 SQLite3 直接 1 个连接即可
+  pool_size: 1
+  # host: localhost
+  # port: 3306
+  # name: users
+  # user: root
+  # password: ""
+  

@@ -1,5 +1,5 @@
 #include "application/signal_handler.h"
-#include <iostream>
+#include "log/logmanager.h"
 #include <csignal>
 
 #ifdef _WIN32
@@ -13,7 +13,7 @@ SignalHandler* SignalHandler::instance_ = nullptr;
 
 SignalHandler::SignalHandler() {
     if (instance_ != nullptr) {
-        std::cerr << "[SignalHandler] Warning: Multiple instances created!" << std::endl;
+        LOG_MAIN_WARN_AT("[SignalHandler] Multiple instances created!");
     }
     instance_ = this;
 }
@@ -35,18 +35,18 @@ bool SignalHandler::initialize() {
 #ifdef _WIN32
     // Windows: 注册控制台信号处理
     if (signal(SIGINT, platformSignalHandler) == SIG_ERR) {
-        std::cerr << "[SignalHandler] Failed to register SIGINT handler" << std::endl;
+        LOG_MAIN_ERROR_AT("[SignalHandler] Failed to register SIGINT handler");
         return false;
     }
     
     if (signal(SIGTERM, platformSignalHandler) == SIG_ERR) {
-        std::cerr << "[SignalHandler] Failed to register SIGTERM handler" << std::endl;
+        LOG_MAIN_ERROR_AT("[SignalHandler] Failed to register SIGTERM handler");
         return false;
     }
     
     // Windows 也支持 Ctrl+Break
     if (signal(SIGBREAK, platformSignalHandler) == SIG_ERR) {
-        std::cerr << "[SignalHandler] Failed to register SIGBREAK handler" << std::endl;
+        LOG_MAIN_WARN_AT("[SignalHandler] Failed to register SIGBREAK handler");
         // 不返回 false，因为这不是关键信号
     }
 #else
@@ -57,23 +57,23 @@ bool SignalHandler::initialize() {
     sa.sa_flags = 0;  // 不使用 SA_RESTART，让系统调用可以被中断
     
     if (sigaction(SIGINT, &sa, nullptr) == -1) {
-        std::cerr << "[SignalHandler] Failed to register SIGINT handler" << std::endl;
+        LOG_MAIN_ERROR_AT("[SignalHandler] Failed to register SIGINT handler");
         return false;
     }
     
     if (sigaction(SIGTERM, &sa, nullptr) == -1) {
-        std::cerr << "[SignalHandler] Failed to register SIGTERM handler" << std::endl;
+        LOG_MAIN_ERROR_AT("[SignalHandler] Failed to register SIGTERM handler");
         return false;
     }
     
     // SIGHUP: 重新加载配置
     if (sigaction(SIGHUP, &sa, nullptr) == -1) {
-        std::cerr << "[SignalHandler] Failed to register SIGHUP handler" << std::endl;
+        LOG_MAIN_WARN_AT("[SignalHandler] Failed to register SIGHUP handler");
         // 不返回 false
     }
 #endif
     
-    std::cout << "[SignalHandler] Initialized successfully" << std::endl;
+    LOG_MAIN_INFO_AT("[SignalHandler] Initialized successfully");
     return true;
 }
 
@@ -98,7 +98,7 @@ void SignalHandler::requestStop() {
         try {
             callback(signum);
         } catch (const std::exception& e) {
-            std::cerr << "[SignalHandler] Callback exception: " << e.what() << std::endl;
+            LOG_MAIN_ERROR_AT("[SignalHandler] Callback exception: {}", e.what());
         }
     }
 }
@@ -147,7 +147,7 @@ void SignalHandler::platformSignalHandler(int signum) {
         // 回调会在主线程中通过 waitForSignal 或轮询触发
         
 #ifdef _WIN32
-        std::cout << "\n[SignalHandler] Received " << getSignalName(signum) << std::endl;
+        LOG_MAIN_INFO_AT("\n[SignalHandler] Received {}", getSignalName(signum));
 #else
         // Linux 下 write 是异步安全的，cout 不是
         const char* msg = "\n[SignalHandler] Received signal\n";

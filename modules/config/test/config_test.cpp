@@ -3,7 +3,7 @@
 #include <thread>
 #include <chrono>
 #include "config/common_config.h"
-#include "log/logmanager.h"
+
 void test_load_config() {
     std::cout << "[TEST] Loading config file..." << std::endl;
     

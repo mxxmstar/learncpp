@@ -7,11 +7,15 @@
 
 int main() {
     try {
-        // // 获取 Application 实例
-        // auto& app = Application::getInstance();
+         // 获取 Application 实例
+        auto& app = Application::getInstance();
         
-        // // ==================== 1. 加载配置 ====================
-        // app.loadConfig("tools/config.yaml");
+         // ==================== 1. 加载配置 ====================
+        app.loadConfig("../tools/config.yaml");
+
+        LogManager& log_manager = LogManager::getInstance();
+        log_manager.Init();
+        
         
         // // ==================== 2. 初始化日志系统 ====================
         // if (!app.initLogger("logs", "debug")) {

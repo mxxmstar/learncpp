@@ -6,7 +6,7 @@ namespace Net {
     class HttpClientPool;
 }
 
-HttpClientPoolService::HttpClientPoolService(boost::asio::io_context& ctx, const ClientPoolConfig& config)
+HttpClientPoolService::HttpClientPoolService(boost::asio::io_context& ctx, const HttpClientPoolConfig& config)
     : ctx_(ctx), config_(config) {
 }
 
@@ -28,15 +28,22 @@ bool HttpClientPoolService::initialize() {
         // 创建并初始化 HttpClientPool（不再使用单例）
         pool_ = std::make_unique<Net::HttpClientPool>();
         
-        // 直接使用 ClientPoolConfig 配置连接池
-        Net::HttpClientPool::Config pool_config = config_.toHttpClientPoolConfig();
+        // 手动转换配置
+        Net::HttpClientPool::Config pool_config;
+        pool_config.host = config_.dst_host;
+        pool_config.port = config_.dst_port;
+        pool_config.init_size = config_.init_size;
+        pool_config.max_size = config_.max_size;
+        pool_config.connect_timeout_ms = config_.connect_timeout_ms;
+        pool_config.idle_timeout_sec = config_.idle_timeout_sec;
+        pool_config.max_requests_per_client = config_.max_requests_per_client;
         
         // 初始化连接池
         pool_->Init(ctx_, pool_config);
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, init_size: {}, max_size: {})", 
-                        getName(), config_.host, config_.port, config_.init_size, config_.max_size);
+                        getName(), config_.dst_host, config_.dst_port, config_.init_size, config_.max_size);
         return true;
         
     } catch (const std::exception& e) {
