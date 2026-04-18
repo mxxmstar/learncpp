@@ -31,6 +31,7 @@ target_link_libraries(postprocess_lib
         ${OpenCV_LIBS}
         decoder_lib  # 可能依赖 VideoFrame
         log_lib
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

@@ -6,7 +6,7 @@
 #include <map>
 #include <vector>
 #include <any>
-#include "common/signal_handler.h"
+#include "application/signal_handler.h"
 
 // 前向声明
 class LogManager;

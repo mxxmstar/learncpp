@@ -14,6 +14,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 # 收集源文件
 file(GLOB ZLM_SOURCES "src/*.cpp")
+file(GLOB ZLM_SERVICE_SOURCES "src/service/*.cpp")
+list(APPEND ZLM_SOURCES ${ZLM_SERVICE_SOURCES})
 
 # 创建静态库
 add_library(zlmediakit_lib STATIC ${ZLM_SOURCES})
@@ -31,9 +33,11 @@ target_link_libraries(zlmediakit_lib
         nlohmann_json::nlohmann_json
         Boost::filesystem
         Boost::process
-        log_lib  # zlmediakit 模块依赖 log 模块
-        net_lib  # zlmediakit 模块依赖 net 模块
-        config_lib  # zlmediakit 模块依赖 config 模块
+        application_lib   # zlmediakit 模块依赖 application 模块（IService）
+        log_lib           # zlmediakit 模块依赖 log 模块
+        net_lib           # zlmediakit 模块依赖 net 模块
+        config_lib        # zlmediakit 模块依赖 config 模块
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

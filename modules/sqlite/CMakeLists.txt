@@ -31,12 +31,14 @@ if(WIN32)
         PUBLIC
             unofficial::sqlite3::sqlite3
             log_lib  # sqlite 模块依赖 log 模块
+            common_lib        # 通用service接口
     )
 else()
     target_link_libraries(sqlite_lib
         PUBLIC
             SQLite::SQLite3
             log_lib  # sqlite 模块依赖 log 模块
+            common_lib        # 通用service接口
     )
 endif()
 

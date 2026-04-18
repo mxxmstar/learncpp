@@ -98,8 +98,9 @@ add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
 add_subdirectory(modules/sqlite)
 add_subdirectory(modules/zlmediakit)
 add_subdirectory(modules/config)
+add_subdirectory(modules/common)  # common 模块（IService 接口）
+add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
 add_subdirectory(modules/web)  # web 模块（合并了 api 和 service）
-add_subdirectory(modules/common)  # common 模块（信号处理、应用框架）
 add_subdirectory(modules/ffmpeg_opt)  # ffmpeg_opt 模块（FFmpeg 推流工具）
 
 # 主程序只包含 main.cpp，其他功能通过模块链接
@@ -114,6 +115,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/grpc/incl
 if(WIN32)
     target_link_libraries(${PROJECT_NAME}
         PRIVATE
+            common_lib        # 通用service接口
             log_lib  # 添加日志模块
             net_lib  # 添加网络模块
             puller_lib  # 添加拉流器模块
@@ -128,7 +130,7 @@ if(WIN32)
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             config_lib  # 添加配置模块
             web_lib  # 添加 Web 模块（包含 API 和 Service）
-            common_lib  # 添加通用模块（信号处理、应用框架）
+            application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
             spdlog::spdlog
             Boost::asio
             Boost::system
@@ -243,7 +245,8 @@ if(BUILD_TESTS)
     if(WIN32)
         target_link_libraries(app_with_framework
             PRIVATE
-                common_lib  # 信号处理、应用框架
+                application_lib  # Application 框架、IService
+                common_lib       # 通用工具
                 log_lib
                 #videopipeline_lib
                 spdlog::spdlog
@@ -256,6 +259,7 @@ if(BUILD_TESTS)
     else()
         target_link_libraries(app_with_framework
             PRIVATE
+                application_lib
                 common_lib
                 spdlog::spdlog
                 Boost::asio

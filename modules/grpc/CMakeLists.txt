@@ -47,6 +47,7 @@ target_link_libraries(grpc_lib
         gRPC::grpc++
         protobuf::libprotobuf
         log_lib
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

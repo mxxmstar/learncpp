@@ -31,6 +31,7 @@ target_link_libraries(puller_lib
         Boost::asio
         Boost::beast
         log_lib  # puller 模块依赖 log 模块
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

@@ -1,6 +1,6 @@
 #include "web/api/stream_api_handler.h"
-#include "web/service/service_container.h"
-#include "web/service/zlm_service.h"
+#include "application/service_container.h"
+#include "zlmediakit/service/zlm_service.h"
 #include "log/logmanager.h"
 #include <boost/json.hpp>
 
@@ -53,7 +53,7 @@ void StreamApiHandler::handleAddStreamProxy(const json::object& req, json::objec
 
     try {
         // 2. 获取 ZLMService
-        auto zlm_svc = ServiceContainer::getInstance().getService<ZLMService>();
+        auto zlm_svc = ServiceContainer::getInstance().getService<zlmediakit::ZLMService>();
         if (!zlm_svc || !zlm_svc->isInitialized()) {
             rsp["code"] = 503;
             rsp["msg"] = "ZLMService is not initialized";

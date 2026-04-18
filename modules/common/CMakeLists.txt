@@ -17,9 +17,11 @@ target_include_directories(${PROJECT_NAME}
 )
 
 # 链接依赖
+# 目前 common_lib 只有头文件接口，不需要链接其他库
+# 未来添加通用工具函数实现时，可以在此添加依赖
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        log_lib  # SignalHandler 和 Application 需要日志
+        # 预留：未来可以添加依赖
 )
 
 # Windows 特定配置

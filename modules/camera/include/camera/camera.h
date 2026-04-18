@@ -48,7 +48,7 @@ struct CameraBaseInfo {
     static CameraBaseInfo FromJsonObject(const boost::json::object& obj);
 };
 
-/// @brief 摄像头连接信息（cameras_connection 表）
+/// @brief 摄像头rtsp连接信息（cameras_connection 表）
 struct CameraConnectionInfo {
     std::string uuid;               // 外键，关联 cameras_base.uuid
     std::string rtsp_url;           // RTSP 地址（主要）

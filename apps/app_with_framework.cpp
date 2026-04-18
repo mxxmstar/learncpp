@@ -1,4 +1,4 @@
-#include "common/application.h"
+#include "application/application.h"
 // #include "video_pipeline/video_pipeline.h"  // 暂时注释，videopipeline 模块未启用
 #include "log/logmanager.h"
 #include <iostream>

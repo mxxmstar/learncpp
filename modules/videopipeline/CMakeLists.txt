@@ -39,6 +39,7 @@ target_link_libraries(videopipeline_lib
         net_lib
         Boost::asio
         Boost::lockfree
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

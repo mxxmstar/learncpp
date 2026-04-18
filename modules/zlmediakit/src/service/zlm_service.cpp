@@ -1,10 +1,13 @@
-#include "web/service/zlm_service.h"
+#include "zlmediakit/service/zlm_service.h"
 #include "log/logmanager.h"
-#include "web/service/httpclient_pool_service.h"
-#include "web/service/service_container.h"
+#include "net/httpclientpool.h"  // 直接依赖 net 模块，而不是 web 模块
 
-ZLMService::ZLMService(boost::asio::io_context& ctx, const ZlmConfig& config)
-    : ctx_(ctx), config_(config) {
+namespace zlmediakit {
+
+ZLMService::ZLMService(boost::asio::io_context& ctx, 
+                      Net::HttpClientPool* http_pool,
+                      const ZlmConfig& config)
+    : ctx_(ctx), http_pool_(http_pool), config_(config) {
 }
 
 ZLMService::~ZLMService() {
@@ -22,17 +25,16 @@ bool ZLMService::initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", getName());
     
     try {
-        // 获取 HttpClientPool（通过 Service）
-        auto http_pool_svc = ServiceContainer::getInstance().getService<HttpClientPoolService>();
-        if (!http_pool_svc || !http_pool_svc->isInitialized()) {
-            LOG_MAIN_ERROR_AT("{}: HttpClientPoolService is not initialized. Please register it before ZLMService", getName());
+        // 检查 HTTP 客户端池是否有效
+        if (!http_pool_) {
+            LOG_MAIN_ERROR_AT("{}: HttpClientPool is null", getName());
             return false;
         }
         
-        LOG_MAIN_INFO_AT("{}: HttpClientPoolService is ready", getName());
+        LOG_MAIN_INFO_AT("{}: HttpClientPool is ready", getName());
         
         // 使用 new 创建 ZLMManager，并传入必要的参数
-        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(ctx_, http_pool_svc->getHttpClientPool(), config_));
+        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(ctx_, http_pool_, config_));
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, secret: {})", 
@@ -96,3 +98,5 @@ void ZLMService::stop() {
         LOG_MAIN_ERROR_AT("{}: Stop failed: {}", getName(), e.what());
     }
 }
+
+} // namespace zlmediakit

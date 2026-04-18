@@ -33,6 +33,7 @@ target_link_libraries(net_lib
         Boost::json
         spdlog::spdlog
         log_lib  # net 模块依赖 log 模块
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

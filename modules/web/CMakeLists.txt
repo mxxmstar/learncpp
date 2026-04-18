@@ -34,10 +34,14 @@ target_link_libraries(web_lib
         yaml-cpp::yaml-cpp
         Boost::filesystem
         Boost::process
+        application_lib   # web 模块依赖 application 模块（IService, ServiceContainer）
         log_lib           # web 模块依赖 log 模块
         net_lib           # web 模块依赖 net 模块
         zlmediakit_lib    # web 模块依赖 zlmediakit 模块
         config_lib        # web 模块依赖 config 模块
+        camera_lib        # web 模块依赖 camera 模块（Camera API）
+        sqlite_lib        # web 模块依赖 sqlite 模块（通过 camera_lib 间接依赖）
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

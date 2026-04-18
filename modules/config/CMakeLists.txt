@@ -31,6 +31,7 @@ target_link_libraries(config_lib
         yaml-cpp::yaml-cpp
         log_lib  # config 模块依赖 log 模块
         net_lib  # config 模块依赖 net 模块
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

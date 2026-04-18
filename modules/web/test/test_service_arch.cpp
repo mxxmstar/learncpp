@@ -3,9 +3,9 @@
 #include <thread>
 #include "config/common_config.h"
 #include "log/logmanager.h"
-#include "web/service/service_container.h"
+#include "application/service_container.h"
 #include "web/service/http_server_service.h"
-#include "web/service/zlm_service.h"
+#include "zlmediakit/service/zlm_service.h"
 #include "web/service/httpclient_pool_service.h"
 #include "web/api/api_router_registrar.h"
 
@@ -151,7 +151,14 @@ int testWithZLM() {
         container.registerService<HttpClientPoolService>(shared_ctx, config.zlm_client);
         
         // 7. 注册 ZLMediaKit 服务
-        container.registerService<ZLMService>(shared_ctx, config.zlm);
+        // 注意：ZLMService 需要 HttpClientPool，所以要在 HttpClientPoolService 之后注册
+        auto http_pool_svc = container.getService<HttpClientPoolService>();
+        if (http_pool_svc) {
+            container.registerService<zlmediakit::ZLMService>(shared_ctx, http_pool_svc->getHttpClientPool(), config.zlm);
+        } else {
+            LOG_MAIN_ERROR_AT("Failed to get HttpClientPoolService");
+            return 1;
+        }
         
         // 8. 初始化所有服务
         std::cout << "[Init] Initializing " << container.getServiceCount() << " services..." << std::endl;
@@ -181,7 +188,7 @@ int testWithZLM() {
         
         // 10. 获取服务
         auto http_svc = container.getService<HttpServerService>();
-        auto zlm_svc = container.getService<ZLMService>();
+        auto zlm_svc = container.getService<zlmediakit::ZLMService>();
         
         if (http_svc && zlm_svc) {
             std::cout << "[Service] Both services obtained successfully" << std::endl;

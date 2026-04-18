@@ -39,6 +39,7 @@ target_link_libraries(alg_lib
         ${OpenCV_LIBS}
         log_lib
         grpc_lib  # alg 依赖 grpc 模块的通用基础设施
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

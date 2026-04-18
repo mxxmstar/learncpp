@@ -32,6 +32,7 @@ target_link_libraries(camera_lib
         log_lib
         net_lib
         sqlite_lib  # CameraStorage 需要 SQLite
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

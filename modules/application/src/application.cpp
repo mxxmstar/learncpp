@@ -1,4 +1,4 @@
-#include "common/application.h"
+#include "application/application.h"
 #include "log/logmanager.h"
 #include <iostream>
 #include <fstream>

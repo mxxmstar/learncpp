@@ -30,6 +30,7 @@ target_link_libraries(log_lib
     PUBLIC
         spdlog::spdlog
         fmt::fmt
+        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

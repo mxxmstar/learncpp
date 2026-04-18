@@ -37,6 +37,7 @@ target_include_directories(ffmpeg_opt_lib PUBLIC
 # 链接依赖库
 target_link_libraries(ffmpeg_opt_lib PUBLIC
     log_lib
+    common_lib        # 通用service接口
 )
 
 # 定义 FFmpeg 路径宏
