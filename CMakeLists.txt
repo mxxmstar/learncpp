@@ -145,7 +145,6 @@ if(WIN32)
             ntdll
             user32
             shell32
-            # grpc_lib  # gRPC 已迁移到 modules/alg/grpc/
     )
 else()
     target_link_libraries(${PROJECT_NAME}
@@ -245,16 +244,36 @@ if(BUILD_TESTS)
     if(WIN32)
         target_link_libraries(app_with_framework
             PRIVATE
-                application_lib  # Application 框架、IService
-                common_lib       # 通用工具
-                log_lib
-                #videopipeline_lib
-                spdlog::spdlog
-                Boost::asio
-                Boost::system
-                ${OpenCV_LIBS}
-                ${FFMPEG_LIBRARIES}
-                yaml-cpp::yaml-cpp
+            common_lib        # 通用service接口
+            log_lib  # 添加日志模块
+            net_lib  # 添加网络模块
+            puller_lib  # 添加拉流器模块
+            #camera_lib  # 添加相机模块
+            #decoder_lib  # 添加解码器模块
+            #preprocess_lib  # 添加预处理模块
+            #postprocess_lib  # 添加后处理模块
+            #grpc_lib  # 添加 gRPC 基础设施模块
+            #alg_lib  # 添加算法模块（依赖 grpc_lib）
+            #videopipeline_lib  # 添加视频管道模块
+            sqlite_lib  # 添加 SQLite 模块
+            zlmediakit_lib  # 添加 ZLMediaKit 模块
+            config_lib  # 添加配置模块
+            web_lib  # 添加 Web 模块（包含 API 和 Service）
+            application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
+            spdlog::spdlog
+            Boost::asio
+            Boost::system
+            Boost::uuid
+            Boost::json
+            Boost::process
+            Boost::pool
+            async_simple::async_simple
+            yaml-cpp::yaml-cpp
+            ${OpenCV_LIBS}
+            ${FFMPEG_LIBRARIES}
+            ntdll
+            user32
+            shell32
         )
     else()
         target_link_libraries(app_with_framework

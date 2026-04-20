@@ -1,5 +1,7 @@
 #include "log/logmanager.h"
 #include <spdlog/spdlog.h>
+#include <thread>
+#include <chrono>
 
 LogManager& LogManager::getInstance() {
     static LogManager instance;
@@ -156,5 +158,28 @@ void LogManager::Shutdown() {
     for (auto& logger : loggers_) {
         logger.second->Flush();
     }
+}
+
+void LogManager::FlushAll() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    // 刷新所有注册的 logger
+    for (auto& [name, logger] : loggers_) {
+        if (logger) {
+            auto spd_logger = logger->GetSpdLogger();
+            if (spd_logger) {
+                spd_logger->flush();
+            }
+        }
+    }
+    
+    // 刷新 spdlog 的全局注册表中的所有 logger
+    spdlog::apply_all([](std::shared_ptr<spdlog::logger> l) {
+        l->flush();
+    });
+    
+    // 短暂延迟，确保异步线程有足够时间处理完队列中的消息
+    // 这对于程序即将退出时特别重要
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 }
 

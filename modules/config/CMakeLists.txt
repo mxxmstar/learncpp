@@ -29,6 +29,7 @@ target_include_directories(config_lib
 target_link_libraries(config_lib
     PUBLIC
         yaml-cpp::yaml-cpp
+        log_lib  # Config 模块现在使用 LOG_MAIN_*_AT �?
 )
 
 # Windows 特定配置

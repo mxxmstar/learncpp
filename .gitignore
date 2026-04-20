@@ -13,6 +13,9 @@ file.txt
 !src/log/
 !include/log/
 !modules/log/
+!modules/include/log/
+
+
 modules/grpc/generated/
 modules/alg/generated/
 

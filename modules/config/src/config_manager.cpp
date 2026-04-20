@@ -1,7 +1,7 @@
 #include "config/common_config.h"
+#include "log/logmanager.h"
 #include <fstream>
 #include <sstream>
-#include <iostream>
 
 ConfigManager& ConfigManager::getInstance() {
     static ConfigManager instance;
@@ -16,7 +16,7 @@ bool ConfigManager::load(const std::string& config_path) {
         
         if (!std::filesystem::exists(config_path)) {
             applyDefaults();
-            std::cerr << "[Config] Config file '" << config_path << "' not found, using default configuration" << std::endl;
+            LOG_MAIN_WARN_AT("[Config] Config file '{}' not found, using default configuration", config_path);
             return true;
         }
 
@@ -28,7 +28,7 @@ bool ConfigManager::load(const std::string& config_path) {
         return true;
     } catch (const std::exception& e) {
         applyDefaults();
-        std::cerr << "[Config] Failed to load config: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[Config] Failed to load config: {}", e.what());
         return false;
     }
 }
@@ -197,7 +197,7 @@ void ConfigManager::parseConfig(const YAML::Node& node) {
         const auto& zlm = node["zlm"];
         if (zlm["zlm_host"]) m.zlm_host = zlm["zlm_host"].as<std::string>();
         if (zlm["zlm_port"]) m.zlm_port = zlm["zlm_port"].as<int>();
-        std::cout << "[Config] Loaded ZLM port: " << m.zlm_port << std::endl;
+        LOG_MAIN_INFO_AT("[Config] Loaded ZLM port: {}", m.zlm_port);
         if (zlm["secret"]) {
             m.secret = zlm["secret"].as<std::string>();         
             // std::cout << "[Config] Loaded ZLM secret: " << m.secret << std::endl;
@@ -275,61 +275,71 @@ YAML::Node ConfigManager::toYaml() const {
 }
 
 void ConfigManager::dump() const {
-    std::cout << "\n========== AppConfig Dump ==========" << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("========== AppConfig Dump ==========");
     
     // HTTP Server
-    std::cout << "\n[HTTP Server]" << std::endl;
-    std::cout << "  host: " << config_.server.host << std::endl;
-    std::cout << "  port: " << config_.server.port << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("[HTTP Server]");
+    LOG_MAIN_INFO_AT("  host: {}", config_.server.host);
+    LOG_MAIN_INFO_AT("  port: {}", config_.server.port);
     
     // ZLM Client Pool
-    std::cout << "\n[ZLM Client Pool]" << std::endl;
-    std::cout << "  dst_host: " << config_.zlm_client.dst_host << std::endl;
-    std::cout << "  dst_port: " << config_.zlm_client.dst_port << std::endl;
-    std::cout << "  init_size: " << config_.zlm_client.init_size << std::endl;
-    std::cout << "  max_size: " << config_.zlm_client.max_size << std::endl;
-    std::cout << "  connect_timeout_ms: " << config_.zlm_client.connect_timeout_ms << std::endl;
-    std::cout << "  idle_timeout_sec: " << config_.zlm_client.idle_timeout_sec << std::endl;
-    std::cout << "  max_requests_per_client: " << config_.zlm_client.max_requests_per_client << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("[ZLM Client Pool]");
+    LOG_MAIN_INFO_AT("  dst_host: {}", config_.zlm_client.dst_host);
+    LOG_MAIN_INFO_AT("  dst_port: {}", config_.zlm_client.dst_port);
+    LOG_MAIN_INFO_AT("  init_size: {}", config_.zlm_client.init_size);
+    LOG_MAIN_INFO_AT("  max_size: {}", config_.zlm_client.max_size);
+    LOG_MAIN_INFO_AT("  connect_timeout_ms: {}", config_.zlm_client.connect_timeout_ms);
+    LOG_MAIN_INFO_AT("  idle_timeout_sec: {}", config_.zlm_client.idle_timeout_sec);
+    LOG_MAIN_INFO_AT("  max_requests_per_client: {}", config_.zlm_client.max_requests_per_client);
     
     // Logs
-    std::cout << "\n[Logs]" << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("[Logs]");
     for (const auto& [name, log_cfg] : config_.logs) {
-        std::cout << "  [" << name << "]" << std::endl;
-        std::cout << "    level: " << log_cfg.level << std::endl;
-        std::cout << "    dir: " << log_cfg.dir << std::endl;
-        std::cout << "    rotation: " << log_cfg.rotation << std::endl;
-        std::cout << "    max_file_size_mb: " << log_cfg.max_file_size_mb << std::endl;
-        std::cout << "    max_files: " << log_cfg.max_files << std::endl;
-        std::cout << "    console: " << (log_cfg.console ? "true" : "false") << std::endl;
-        std::cout << "    json_format: " << (log_cfg.json_format ? "true" : "false") << std::endl;
+        LOG_MAIN_INFO_AT("  [{}]", name);
+        LOG_MAIN_INFO_AT("    level: {}", log_cfg.level);
+        LOG_MAIN_INFO_AT("    dir: {}", log_cfg.dir);
+        LOG_MAIN_INFO_AT("    rotation: {}", log_cfg.rotation);
+        LOG_MAIN_INFO_AT("    max_file_size_mb: {}", log_cfg.max_file_size_mb);
+        LOG_MAIN_INFO_AT("    max_files: {}", log_cfg.max_files);
+        LOG_MAIN_INFO_AT("    console: {}", log_cfg.console ? "true" : "false");
+        LOG_MAIN_INFO_AT("    json_format: {}", log_cfg.json_format ? "true" : "false");
     }
     
     // ZLM Server
-    std::cout << "\n[ZLM Server]" << std::endl;
-    std::cout << "  zlm_host: " << config_.zlm.zlm_host << std::endl;
-    std::cout << "  zlm_port: " << config_.zlm.zlm_port << std::endl;
-    std::cout << "  secret: " << (config_.zlm.secret.empty() ? "(empty)" : "***") << std::endl;
-    std::cout << "  debug_terminal: " << (config_.zlm.debug_terminal ? "true" : "false") << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("[ZLM Server]");
+    LOG_MAIN_INFO_AT("  zlm_host: {}", config_.zlm.zlm_host);
+    LOG_MAIN_INFO_AT("  zlm_port: {}", config_.zlm.zlm_port);
+    LOG_MAIN_INFO_AT("  secret: {}", config_.zlm.secret.empty() ? "(empty)" : "***");
+    LOG_MAIN_INFO_AT("  debug_terminal: {}", config_.zlm.debug_terminal ? "true" : "false");
     
     // WebSocket
-    std::cout << "\n[WebSocket]" << std::endl;
-    std::cout << "  host: " << config_.websocket.host << std::endl;
-    std::cout << "  port: " << config_.websocket.port << std::endl;
-    std::cout << "  heartbeat_interval: " << config_.websocket.heartbeat_interval << std::endl;
-    std::cout << "  timeout: " << config_.websocket.timeout << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("[WebSocket]");
+    LOG_MAIN_INFO_AT("  host: {}", config_.websocket.host);
+    LOG_MAIN_INFO_AT("  port: {}", config_.websocket.port);
+    LOG_MAIN_INFO_AT("  heartbeat_interval: {}", config_.websocket.heartbeat_interval);
+    LOG_MAIN_INFO_AT("  timeout: {}", config_.websocket.timeout);
     
     // Camera DB
-    std::cout << "\n[Camera DB]" << std::endl;
-    std::cout << "  db_path: " << config_.camera_db.db_path << std::endl;
-    std::cout << "  pool_size: " << config_.camera_db.pool_size << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("[Camera DB]");
+    LOG_MAIN_INFO_AT("  db_path: {}", config_.camera_db.db_path);
+    LOG_MAIN_INFO_AT("  pool_size: {}", config_.camera_db.pool_size);
     
     // User DB
-    std::cout << "\n[User DB]" << std::endl;
-    std::cout << "  db_path: " << config_.user_db.db_path << std::endl;
-    std::cout << "  pool_size: " << config_.user_db.pool_size << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("[User DB]");
+    LOG_MAIN_INFO_AT("  db_path: {}", config_.user_db.db_path);
+    LOG_MAIN_INFO_AT("  pool_size: {}", config_.user_db.pool_size);
     
-    std::cout << "\n======================================\n" << std::endl;
+    LOG_MAIN_INFO_AT("");
+    LOG_MAIN_INFO_AT("======================================");
+    LOG_MAIN_INFO_AT("");
 }
 
 // ==================== 动态配置更新功能实现 ====================
@@ -345,9 +355,9 @@ bool ConfigManager::updateConfig(const AppConfig& new_config) {
         auto errors = getValidationErrors();
         if (!errors.empty()) {
             config_ = temp_config;  // 恢复旧配置
-            std::cerr << "[Config] Validation failed:" << std::endl;
+            LOG_MAIN_ERROR_AT("[Config] Validation failed:");
             for (const auto& err : errors) {
-                std::cerr << "  - " << err << std::endl;
+                LOG_MAIN_ERROR_AT("  - {}", err);
             }
             return false;
         }
@@ -369,12 +379,11 @@ bool ConfigManager::updateConfig(const AppConfig& new_config) {
             change_callback_(config_);
         }
         
-        std::cout << "[Config] Configuration updated successfully (version: " 
-                  << config_version_.load() << ")" << std::endl;
+        LOG_MAIN_INFO_AT("[Config] Configuration updated successfully (version: {})", config_version_.load());
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "[Config] Failed to update config: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[Config] Failed to update config: {}", e.what());
         return false;
     }
 }
@@ -390,13 +399,13 @@ bool ConfigManager::rollbackToVersion(uint64_t version) {
     // 当前版本是 config_version_，历史中最后一个是 version-1
     uint64_t current_version = config_version_.load();
     if (version >= current_version) {
-        std::cerr << "[Config] Cannot rollback to current or future version" << std::endl;
+        LOG_MAIN_ERROR_AT("[Config] Cannot rollback to current or future version");
         return false;
     }
     
     size_t history_index = config_history_.size() - (current_version - version);
     if (history_index >= config_history_.size()) {
-        std::cerr << "[Config] Version " << version << " not found in history" << std::endl;
+        LOG_MAIN_ERROR_AT("[Config] Version {} not found in history", version);
         return false;
     }
     
@@ -413,11 +422,11 @@ bool ConfigManager::rollbackToVersion(uint64_t version) {
             change_callback_(config_);
         }
         
-        std::cout << "[Config] Rolled back to version " << version << std::endl;
+        LOG_MAIN_INFO_AT("[Config] Rolled back to version {}", version);
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "[Config] Failed to rollback: " << e.what() << std::endl;
+        LOG_MAIN_ERROR_AT("[Config] Failed to rollback: {}", e.what());
         return false;
     }
 }
@@ -491,7 +500,7 @@ void ConfigManager::triggerFieldCallbacks(const AppConfig& old_config, const App
                     try {
                         callback(field_path, old_value, new_value);
                     } catch (const std::exception& e) {
-                        std::cerr << "[Config] Field callback exception: " << e.what() << std::endl;
+                        LOG_MAIN_ERROR_AT("[Config] Field callback exception: {}", e.what());
                     }
                 }
             }
