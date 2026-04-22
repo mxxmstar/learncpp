@@ -38,7 +38,7 @@ src/
 - `initialize()` - 初始化（只进行一次）
 - `start()` - 启动
 - `stop()` - 停止
-- `getName()` - 获取服务名称
+- `GetName()` - 获取服务名称
 - `isRunning()` - 是否正在运行
 - `isInitialized()` - 是否已初始化
 
@@ -133,7 +133,7 @@ public:
     bool initialize() override;
     bool start() override;
     void stop() override;
-    const char* getName() const override { return "XxxService"; }
+    const char* GetName() const override { return "XxxService"; }
     bool isRunning() const override { return running_; }
     bool isInitialized() const override { return initialized_; }
     
@@ -164,7 +164,7 @@ XxxService::~XxxService() {
 bool XxxService::initialize() {
     if (initialized_) return true;
     
-    LOG_MAIN_INFO_AT("{}: Initializing...", getName());
+    LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     // 初始化逻辑
     
     initialized_ = true;
@@ -175,7 +175,7 @@ bool XxxService::start() {
     if (!initialized_) return false;
     if (running_) return true;
     
-    LOG_MAIN_INFO_AT("{}: Starting...", getName());
+    LOG_MAIN_INFO_AT("{}: Starting...", GetName());
     // 启动逻辑
     
     running_ = true;
@@ -185,7 +185,7 @@ bool XxxService::start() {
 void XxxService::stop() {
     if (!running_) return;
     
-    LOG_MAIN_INFO_AT("{}: Stopping...", getName());
+    LOG_MAIN_INFO_AT("{}: Stopping...", GetName());
     // 停止逻辑
     
     running_ = false;

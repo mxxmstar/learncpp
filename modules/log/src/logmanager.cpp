@@ -1,4 +1,5 @@
 #include "log/logmanager.h"
+#include "config/common_config.h"  // 需要 LogConfig 的完整定义
 #include <spdlog/spdlog.h>
 #include <thread>
 #include <chrono>
@@ -26,6 +27,7 @@ void LogManager::Init(const std::string& base_dir, int async_threads) {
     auto main_config = LoggerConfig("main", spdlog::level::trace);
     loggers_["main"] = std::make_shared<Logger>(main_config);
     auto error_config = LoggerConfig("error", spdlog::level::err);
+    error_config.write_to_console = false;
     loggers_["error"] = std::make_shared<Logger>(error_config);
     
     initialized_ = true;
@@ -86,12 +88,23 @@ void LogManager::ReloadFromConfig(const LoggerConfig& config) {
     LOG_MAIN_INFO_AT("Logger '{}' configuration reloaded", config.name);
 }
 
-// // 新增重载版本：直接从 LogConfig 重新加载
-// void LogManager::ReloadFromConfig(const LogConfig& config) {
-//     // 使用转换接口将 LogConfig 转换为 LoggerConfig
-//     ReloadFromConfig(config.toLoggerConfig("main"));
-// }
-
+void LogManager::ReloadFromConfigs(const std::map<std::string, LogConfig>& configs) {
+    if (!initialized_) {
+        Init();
+    }
+    
+    LOG_MAIN_INFO_AT("[LogManager] Reloading {} logger configurations...", configs.size());
+    
+    for (const auto& [name, log_cfg] : configs) {
+        // 转换为 LoggerConfig
+        LoggerConfig logger_cfg = ConvertToLoggerConfig(log_cfg, name);
+        
+        // 调用单个配置的 ReloadFromConfig
+        ReloadFromConfig(logger_cfg);
+    }
+    
+    LOG_MAIN_INFO_AT("[LogManager] All logger configurations reloaded successfully");
+}
 
 void LogManager::RegisterLogger(const LoggerConfig& config) {
     std::lock_guard<std::mutex> lock(mutex_); // 保护 loggers_ 线程安全
@@ -181,5 +194,37 @@ void LogManager::FlushAll() {
     // 短暂延迟，确保异步线程有足够时间处理完队列中的消息
     // 这对于程序即将退出时特别重要
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+}
+
+LoggerConfig LogManager::ConvertToLoggerConfig(const LogConfig& cfg, const std::string& name) {
+    LoggerConfig logger_cfg;
+    logger_cfg.name = name;
+    
+    // 映射日志级别字符串到 spdlog 枚举
+    if (cfg.level == "trace") logger_cfg.level = spdlog::level::trace;
+    else if (cfg.level == "debug") logger_cfg.level = spdlog::level::debug;
+    else if (cfg.level == "info") logger_cfg.level = spdlog::level::info;
+    else if (cfg.level == "warn" || cfg.level == "warning") logger_cfg.level = spdlog::level::warn;
+    else if (cfg.level == "error") logger_cfg.level = spdlog::level::err;
+    else if (cfg.level == "critical") logger_cfg.level = spdlog::level::critical;
+    else logger_cfg.level = spdlog::level::info;  // 默认
+    
+    logger_cfg.log_dir = cfg.dir;
+    logger_cfg.write_to_console = cfg.console;
+    logger_cfg.is_json = cfg.json_format;
+    
+    // 映射滚动策略
+    if (cfg.rotation == "daily") {
+        logger_cfg.policy = RotationPolicy::DAILY;
+    } else if (cfg.rotation == "filesize") {
+        logger_cfg.policy = RotationPolicy::FILESIZE;
+    } else {
+        logger_cfg.policy = RotationPolicy::NONE;
+    }
+    
+    logger_cfg.max_file_size_mb = cfg.max_file_size_mb;
+    logger_cfg.max_files = cfg.max_files;
+    
+    return logger_cfg;
 }
 

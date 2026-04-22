@@ -26,7 +26,7 @@ void ApiRouterRegistrar::RegisterAllRoutes() {
     router.RegisterRoute("/api/ping", [](const boost::json::object& req, boost::json::object& rsp) {
         rsp["code"] = 200;
         rsp["msg"] = "pong";
-        rsp["timestamp"] = std::to_string(std::time(nullptr));
+        rsp["timestamp"] = static_cast<int64_t>(std::time(nullptr));  // 使用整数类型
     });
     LOG_MAIN_INFO_AT("Registered route: /api/ping");
 

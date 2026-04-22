@@ -2,7 +2,7 @@ build/
 out/
 bin/
 logs/
-log/
+
 modules/*/lib/
 
 include/ylt/

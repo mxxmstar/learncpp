@@ -31,6 +31,7 @@ target_link_libraries(log_lib
         spdlog::spdlog
         fmt::fmt
         common_lib        # 通用service接口
+        config_lib        # 需要 LogConfig 结构体定义
 )
 
 # Windows 特定配置

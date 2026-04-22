@@ -22,13 +22,13 @@ int main() {
     //     std::signal(SIGTERM, signalHandler);
         
     //     // 2. 加载配置
-    //     ConfigManager& config_mgr = ConfigManager::getInstance();
-    //     if (!config_mgr.load("tools/config.yaml")) {
+    //     ConfigManager& config_mgr = ConfigManager::GetInstance();
+    //     if (!config_mgr.Load("tools/config.yaml")) {
     //         std::cerr << "Failed to load config" << std::endl;
     //         return 1;
     //     }
         
-    //     const auto& config = config_mgr.getConfig();
+    //     const auto& config = config_mgr.GetConfig();
         
     //     // 3. 初始化日志
     //     LogManager& log_mgr = LogManager::getInstance();
@@ -41,7 +41,7 @@ int main() {
         
     //     LOG_MAIN_INFO_AT("========================================");
     //     LOG_MAIN_INFO_AT("Application starting...");
-    //     LOG_MAIN_INFO_AT("Config loaded from: {}", config_mgr.getConfigPath());
+    //     LOG_MAIN_INFO_AT("Config loaded from: {}", config_mgr.GetConfigPath());
     //     LOG_MAIN_INFO_AT("========================================");
         
     //     // 4. 创建服务容器

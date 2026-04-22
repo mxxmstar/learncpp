@@ -12,17 +12,17 @@ HttpClientPoolService::HttpClientPoolService(boost::asio::io_context& ctx, const
 
 HttpClientPoolService::~HttpClientPoolService() {
     if (running_) {
-        stop();
+        Stop();
     }
 }
 
-bool HttpClientPoolService::initialize() {
+bool HttpClientPoolService::Initialize() {
     if (initialized_) {
-        LOG_MAIN_INFO_AT("{}: Already initialized", getName());
+        LOG_MAIN_INFO_AT("{}: Already initialized", GetName());
         return true;
     }
     
-    LOG_MAIN_INFO_AT("{}: Initializing...", getName());
+    LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     
     try {
         // 创建并初始化 HttpClientPool（不再使用单例）
@@ -43,47 +43,47 @@ bool HttpClientPoolService::initialize() {
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, init_size: {}, max_size: {})", 
-                        getName(), config_.dst_host, config_.dst_port, config_.init_size, config_.max_size);
+                        GetName(), config_.dst_host, config_.dst_port, config_.init_size, config_.max_size);
         return true;
         
     } catch (const std::exception& e) {
-        LOG_MAIN_ERROR_AT("{}: Initialization failed: {}", getName(), e.what());
+        LOG_MAIN_ERROR_AT("{}: Initialization failed: {}", GetName(), e.what());
         return false;
     }
 }
 
-bool HttpClientPoolService::start() {
+bool HttpClientPoolService::Start() {
     if (!initialized_) {
-        LOG_MAIN_ERROR_AT("{}: Not initialized", getName());
+        LOG_MAIN_ERROR_AT("{}: Not initialized", GetName());
         return false;
     }
     
     if (running_) {
-        LOG_MAIN_WARN_AT("{}: Already running", getName());
+        LOG_MAIN_WARN_AT("{}: Already running", GetName());
         return true;
     }
     
-    LOG_MAIN_INFO_AT("{}: Starting...", getName());
+    LOG_MAIN_INFO_AT("{}: Starting...", GetName());
     
     try {
         // HttpClientPool 在 Init 后就已经可以使用了，不需要额外的启动步骤
         running_ = true;
-        LOG_MAIN_INFO_AT("{}: Started successfully", getName());
+        LOG_MAIN_INFO_AT("{}: Started successfully", GetName());
         return true;
         
     } catch (const std::exception& e) {
-        LOG_MAIN_ERROR_AT("{}: Start failed: {}", getName(), e.what());
+        LOG_MAIN_ERROR_AT("{}: Start failed: {}", GetName(), e.what());
         return false;
     }
 }
 
-void HttpClientPoolService::stop() {
+void HttpClientPoolService::Stop() {
     if (!running_) {
-        LOG_MAIN_WARN_AT("{}: Not running", getName());
+        LOG_MAIN_WARN_AT("{}: Not running", GetName());
         return;
     }
     
-    LOG_MAIN_INFO_AT("{}: Stopping...", getName());
+    LOG_MAIN_INFO_AT("{}: Stopping...", GetName());
     
     try {
         // 停止连接池（如果 HttpClientPool 有 Stop 方法的话）
@@ -92,9 +92,9 @@ void HttpClientPoolService::stop() {
         }
         
         running_ = false;
-        LOG_MAIN_INFO_AT("{}: Stopped", getName());
+        LOG_MAIN_INFO_AT("{}: Stopped", GetName());
         
     } catch (const std::exception& e) {
-        LOG_MAIN_ERROR_AT("{}: Stop failed: {}", getName(), e.what());
+        LOG_MAIN_ERROR_AT("{}: Stop failed: {}", GetName(), e.what());
     }
 }

@@ -54,7 +54,7 @@ void StreamApiHandler::handleAddStreamProxy(const json::object& req, json::objec
     try {
         // 2. 获取 ZLMService
         auto zlm_svc = ServiceContainer::getInstance().getService<zlmediakit::ZLMService>();
-        if (!zlm_svc || !zlm_svc->isInitialized()) {
+        if (!zlm_svc || !zlm_svc->IsInitialized()) {
             rsp["code"] = 503;
             rsp["msg"] = "ZLMService is not initialized";
             return;

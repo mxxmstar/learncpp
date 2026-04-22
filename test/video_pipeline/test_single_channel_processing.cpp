@@ -84,7 +84,7 @@ int main() {
             algorithm = std::make_unique<MotionDetectionAlgorithm>();
         }
         
-        std::cout << "Using algorithm: " << algorithm->getName() << std::endl;
+        std::cout << "Using algorithm: " << algorithm->GetName() << std::endl;
         
         // 创建结果输出器（组合使用）
         std::vector<std::shared_ptr<IResultOutput>> outputs;

@@ -109,53 +109,53 @@ public:
     using ConfigChangeCallback = std::function<void(const AppConfig&)>;
     using FieldChangeCallback = std::function<void(const std::string& field, const std::any& old_value, const std::any& new_value)>;
 
-    static ConfigManager& getInstance();
+    static ConfigManager& GetInstance();
 
-    bool load(const std::string& config_path);
-    bool reload();
-    bool save(const std::string& config_path = "");
+    bool Load(const std::string& config_path);
+    bool Reload();
+    bool Save(const std::string& config_path = "");
 
-    const AppConfig& getConfig() const;
-    AppConfig& getConfig();
+    const AppConfig& GetConfig() const;
+    AppConfig& GetConfig();
 
     template<typename T>
-    T get(const std::string& key, const T& default_value = T{}) const;
+    T Get(const std::string& key, const T& default_value = T{}) const;
 
-    bool validate() const;
-    std::vector<std::string> getValidationErrors() const;
+    bool Validate() const;
+    std::vector<std::string> GetValidationErrors() const;
 
-    void setChangeCallback(ConfigChangeCallback callback);
-    void checkAndReload();
+    void SetChangeCallback(ConfigChangeCallback callback);
+    void CheckAndReload();
 
     /// @brief 打印配置内容到控制台（用于调试）
-    void dump() const;
+    void Dump() const;
     
     // ==================== 动态配置更新功能 ====================
     
     /// @brief 更新整个配置（原子操作）
     /// @param new_config 新配置
     /// @return 成功返回 true
-    bool updateConfig(const AppConfig& new_config);
+    bool UpdateConfig(const AppConfig& new_config);
     
     /// @brief 获取配置版本号
     /// @return 当前配置版本号
-    uint64_t getConfigVersion() const;
+    uint64_t GetConfigVersion() const;
     
     /// @brief 回滚到指定版本
     /// @param version 目标版本号
     /// @return 成功返回 true
-    bool rollbackToVersion(uint64_t version);
+    bool RollbackToVersion(uint64_t version);
     
     /// @brief 注册字段变更回调
     /// @param field_path 字段路径，如 "server.port"
     /// @param callback 回调函数
-    void onFieldChange(const std::string& field_path, FieldChangeCallback callback);
+    void OnFieldChange(const std::string& field_path, FieldChangeCallback callback);
     
     /// @brief 移除字段变更回调
     /// @param field_path 字段路径
-    void removeFieldChangeCallback(const std::string& field_path);
+    void RemoveFieldChangeCallback(const std::string& field_path);
 
-    std::string getConfigPath() const { return config_path_; }
+    std::string GetConfigPath() const { return config_path_; }
 
 private:
     ConfigManager() = default;

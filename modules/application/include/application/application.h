@@ -23,19 +23,19 @@ public:
     ~Application();
     
     /// @brief 获取单例实例
-    static Application& getInstance();
+    static Application& GetInstance();
     
     // ==================== 依赖注入容器 ====================
     
     /// @brief 注册服务（单例）
     template<typename T, typename... Args>
-    void registerService(const std::string& name, Args&&... args) {
+    void RegisterService(const std::string& name, Args&&... args) {
         services_[name] = std::make_shared<T>(std::forward<Args>(args)...);
     }
     
     /// @brief 获取服务
     template<typename T>
-    std::shared_ptr<T> getService(const std::string& name) const {
+    std::shared_ptr<T> GetService(const std::string& name) const {
         auto it = services_.find(name);
         if (it == services_.end()) {
             return nullptr;
@@ -48,72 +48,47 @@ public:
     }
     
     /// @brief 检查服务是否存在
-    bool hasService(const std::string& name) const {
+    bool HasService(const std::string& name) const {
         return services_.find(name) != services_.end();
-    }
-    
-    // ==================== 配置管理 ====================
-    
-    /// @brief 加载配置文件
-    bool loadConfig(const std::string& config_path);
-    
-    /// @brief 获取配置项
-    template<typename T>
-    T getConfig(const std::string& key, const T& default_value = T{}) const {
-        auto it = config_values_.find(key);
-        if (it == config_values_.end()) {
-            return default_value;
-        }
-        try {
-            return std::any_cast<T>(it->second);
-        } catch (const std::bad_any_cast&) {
-            return default_value;
-        }
-    }
-    
-    /// @brief 设置配置项
-    template<typename T>
-    void setConfig(const std::string& key, const T& value) {
-        config_values_[key] = value;
     }
     
     // ==================== 生命周期管理 ====================
     
     /// @brief 注册初始化回调
-    void onInit(InitCallback callback);
+    void OnInit(InitCallback callback);
     
     /// @brief 注册启动回调
-    void onStart(StartCallback callback);
+    void OnStart(StartCallback callback);
     
     /// @brief 注册停止回调
-    void onStop(StopCallback callback);
+    void OnStop(StopCallback callback);
     
     /// @brief 运行应用程序（阻塞直到收到停止信号）
-    int run();
+    int Run();
     
     /// @brief 请求停止
-    void requestStop();
+    void RequestStop();
     
     /// @brief 检查是否正在运行
-    bool isRunning() const { return running_.load(); }
+    bool IsRunning() const { return running_.load(); }
     
     // ==================== 信号处理 ====================
     
     /// @brief 获取信号处理器
-    SignalHandler& getSignalHandler() { return signal_handler_; }
+    SignalHandler& GetSignalHandler() { return signal_handler_; }
     
     // ==================== IService 管理 ====================
     
     /// @brief 注册 IService 服务（自动管理生命周期）
     template<typename T, typename... Args>
-    bool registerService(Args&&... args) {
+    bool RegisterService(Args&&... args) {
         try {
             auto service = std::make_shared<T>(std::forward<Args>(args)...);
             if (!service) {
                 return false;
             }
             
-            std::string name = service->getName();
+            std::string name = service->GetName();
             
             // 检查是否已存在
             if (services_.find(name) != services_.end()) {
@@ -131,7 +106,7 @@ public:
     
     /// @brief 获取 IService 服务
     template<typename T>
-    T* getService() {
+    T* GetService() {
         for (auto& [name, service] : services_) {
             auto typed_service = dynamic_cast<T*>(service.get());
             if (typed_service) {
@@ -142,7 +117,7 @@ public:
     }
     
     /// @brief 通过名称获取服务
-    std::shared_ptr<IService> getService(const std::string& name) const;
+    std::shared_ptr<IService> GetService(const std::string& name) const;
     
 private:
     /// @brief 执行初始化阶段
@@ -156,9 +131,6 @@ private:
     
     /// @brief 优雅关闭
     void gracefulShutdown();
-    
-    // 配置存储
-    std::map<std::string, std::any> config_values_;
     
     // 生命周期回调
     std::vector<InitCallback> init_callbacks_;

@@ -38,7 +38,7 @@ public:
     virtual AlgorithmResult process(cv::Mat& frame, int channel_id, int64_t pts) = 0;
     
     /// @brief 获取算法名称
-    virtual std::string getName() const = 0;
+    virtual std::string GetName() const = 0;
 };
 
 /// @brief 空算法实现（用于测试）
@@ -62,7 +62,7 @@ public:
         return result;
     }
     
-    std::string getName() const override { return "NullAlgorithm"; }
+    std::string GetName() const override { return "NullAlgorithm"; }
 };
 
 /// @brief 运动检测算法（简单的帧差法）
@@ -115,7 +115,7 @@ public:
         return result;
     }
     
-    std::string getName() const override { return "MotionDetection"; }
+    std::string GetName() const override { return "MotionDetection"; }
     
 private:
     cv::Mat background_;  // 背景帧

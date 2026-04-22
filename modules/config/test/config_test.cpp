@@ -7,8 +7,8 @@
 void test_load_config() {
     std::cout << "[TEST] Loading config file..." << std::endl;
     
-    auto& cm = ConfigManager::getInstance();
-    bool result = cm.load("../tools/config.yaml");
+    auto& cm = ConfigManager::GetInstance();
+    bool result = cm.Load("../tools/config.yaml");
     
     assert(result && "Failed to load config");
     std::cout << "  [PASS] Config loaded successfully" << std::endl;
@@ -17,7 +17,7 @@ void test_load_config() {
 void test_read_server_config() {
     std::cout << "[TEST] Reading server config..." << std::endl;
     
-    const auto& config = ConfigManager::getInstance().getConfig();
+    const auto& config = ConfigManager::GetInstance().GetConfig();
     
     assert(config.server.host == "127.0.0.1" && "Wrong host");
     assert(config.server.port == 8080 && "Wrong port");
@@ -31,7 +31,7 @@ void test_read_server_config() {
 void test_read_log_config() {
     std::cout << "[TEST] Reading log config..." << std::endl;
     
-    const auto& config = ConfigManager::getInstance().getConfig();
+    const auto& config = ConfigManager::GetInstance().GetConfig();
     
     // 测试 map 格式的日志配置
     assert(config.logs.count("mainlog") > 0 && "Should have mainlog");
@@ -56,7 +56,7 @@ void test_read_log_config() {
 void test_read_database_config() {
     std::cout << "[TEST] Reading database config..." << std::endl;
     
-    const auto& config = ConfigManager::getInstance().getConfig();
+    const auto& config = ConfigManager::GetInstance().GetConfig();
     
     // 测试 camera_db 和 user_db 配置
     assert(config.camera_db.port == 3306 && "Wrong camera db port");
@@ -80,7 +80,7 @@ void test_read_thread_pool_config() {
 void test_read_zlm_config() {
     std::cout << "[TEST] Reading zlm config..." << std::endl;
     
-    const auto& config = ConfigManager::getInstance().getConfig();
+    const auto& config = ConfigManager::GetInstance().GetConfig();
     
     assert(config.zlm.zlm_host == "127.0.0.1" && "Wrong zlm host");
     assert(config.zlm.zlm_port == 8888 && "Wrong zlm port");
@@ -95,14 +95,14 @@ void test_read_zlm_config() {
 void test_validation() {
     std::cout << "[TEST] Testing validation..." << std::endl;
     
-    auto& cm = ConfigManager::getInstance();
+    auto& cm = ConfigManager::GetInstance();
     
-    assert(cm.validate() && "Default config should be valid");
+    assert(cm.Validate() && "Default config should be valid");
     
-    auto errors = cm.getValidationErrors();
+    auto errors = cm.GetValidationErrors();
     assert(errors.empty() && "Should have no errors");
     
-    auto& config = cm.getConfig();
+    auto& config = cm.GetConfig();
     int original_port = config.server.port;
     config.server.port = -1;
     
@@ -118,11 +118,11 @@ void test_validation() {
 void test_hot_reload() {
     std::cout << "[TEST] Testing hot reload..." << std::endl;
     
-    auto& cm = ConfigManager::getInstance();
-    cm.load("../tools/config.yaml");
+    auto& cm = ConfigManager::GetInstance();
+    cm.Load("../tools/config.yaml");
     
     bool callback_called = false;
-    cm.setChangeCallback([&callback_called](const AppConfig& config) {
+    cm.SetChangeCallback([&callback_called](const AppConfig& config) {
         callback_called = true;
         std::cout << "  [CALLBACK] Config changed!" << std::endl;
     });
@@ -135,14 +135,14 @@ void test_hot_reload() {
 void test_save_config() {
     std::cout << "[TEST] Testing save config..." << std::endl;
     
-    auto& cm = ConfigManager::getInstance();
-    cm.load("../tools/config.yaml");
-    
-    bool result = cm.save("../tools/config_test_save.yaml");
+    auto& cm = ConfigManager::GetInstance();
+    cm.Load("../tools/config.yaml");
+        
+    bool result = cm.Save("../tools/config_test_save.yaml");
     assert(result && "Failed to save config");
-    
-    cm.load("../tools/config_test_save.yaml");
-    const auto& config = cm.getConfig();
+        
+    cm.Load("../tools/config_test_save.yaml");
+    const auto& config = cm.GetConfig();
     assert(config.server.port == 8080 && "Saved config mismatch");
     
     std::filesystem::remove("../tools/config_test_save.yaml");

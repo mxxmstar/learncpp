@@ -16,7 +16,7 @@ public:
     bool initialize() override;
     bool start() override;
     void stop() override;
-    const char* getName() const override { return "ZLMService"; }
+    const char* GetName() const override { return "ZLMService"; }
     bool isRunning() const override { return running_; }
     bool isInitialized() const override { return initialized_; }
     

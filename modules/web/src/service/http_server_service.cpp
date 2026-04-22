@@ -12,17 +12,22 @@ HttpServerService::HttpServerService(const HttpServerConfig& config)
 
 HttpServerService::~HttpServerService() {
     if (running_) {
-        stop();
+        Stop();
+    }
+    
+    // 确保线程被清理
+    if (io_thread_ && io_thread_->joinable()) {
+        io_thread_->join();
     }
 }
 
-bool HttpServerService::initialize() {
+bool HttpServerService::Initialize() {
     if (initialized_) {
-        LOG_MAIN_INFO_AT("{}: Already initialized", getName());
+        LOG_MAIN_INFO_AT("{}: Already initialized", GetName());
         return true;
     }
     
-    LOG_MAIN_INFO_AT("{}: Initializing...", getName());
+    LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     
     try {
         // 创建主 io_context
@@ -35,27 +40,27 @@ bool HttpServerService::initialize() {
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {})", 
-                        getName(), config_.host, config_.port);
+                        GetName(), config_.host, config_.port);
         return true;
         
     } catch (const std::exception& e) {
-        LOG_MAIN_ERROR_AT("{}: Initialization failed: {}", getName(), e.what());
+        LOG_MAIN_ERROR_AT("{}: Initialization failed: {}", GetName(), e.what());
         return false;
     }
 }
 
-bool HttpServerService::start() {
+bool HttpServerService::Start() {
     if (!initialized_) {
-        LOG_MAIN_ERROR_AT("{}: Not initialized", getName());
+        LOG_MAIN_ERROR_AT("{}: Not initialized", GetName());
         return false;
     }
     
     if (running_) {
-        LOG_MAIN_WARN_AT("{}: Already running", getName());
+        LOG_MAIN_WARN_AT("{}: Already running", GetName());
         return true;
     }
     
-    LOG_MAIN_INFO_AT("{}: Starting...", getName());
+    LOG_MAIN_INFO_AT("{}: Starting...", GetName());
     
     try {
         // 启动 HTTP 服务器
@@ -63,23 +68,30 @@ bool HttpServerService::start() {
             server_->Start();
         }
         
+        // 启动 io_context 运行线程
+        io_thread_ = std::make_unique<std::thread>([this]() {
+            LOG_MAIN_INFO_AT("{}: io_context running...", GetName());
+            io_context_->run();
+            LOG_MAIN_INFO_AT("{}: io_context stopped", GetName());
+        });
+        
         running_ = true;
-        LOG_MAIN_INFO_AT("{}: Started successfully", getName());
+        LOG_MAIN_INFO_AT("{}: Started successfully", GetName());
         return true;
         
     } catch (const std::exception& e) {
-        LOG_MAIN_ERROR_AT("{}: Start failed: {}", getName(), e.what());
+        LOG_MAIN_ERROR_AT("{}: Start failed: {}", GetName(), e.what());
         return false;
     }
 }
 
-void HttpServerService::stop() {
+void HttpServerService::Stop() {
     if (!running_) {
-        LOG_MAIN_WARN_AT("{}: Not running", getName());
+        LOG_MAIN_WARN_AT("{}: Not running", GetName());
         return;
     }
     
-    LOG_MAIN_INFO_AT("{}: Stopping...", getName());
+    LOG_MAIN_INFO_AT("{}: Stopping...", GetName());
     
     try {
         // 停止 HTTP 服务器
@@ -87,15 +99,22 @@ void HttpServerService::stop() {
             server_->Stop();
         }
         
-        // 停止主 io_context
+        // 停止 io_context
         if (io_context_) {
             io_context_->stop();
         }
         
+        // 等待 io_context 线程结束
+        if (io_thread_ && io_thread_->joinable()) {
+            LOG_MAIN_INFO_AT("{}: Waiting for io_context thread to finish...", GetName());
+            io_thread_->join();
+            LOG_MAIN_INFO_AT("{}: io_context thread joined", GetName());
+        }
+        
         running_ = false;
-        LOG_MAIN_INFO_AT("{}: Stopped", getName());
+        LOG_MAIN_INFO_AT("{}: Stopped", GetName());
         
     } catch (const std::exception& e) {
-        LOG_MAIN_ERROR_AT("{}: Stop failed: {}", getName(), e.what());
+        LOG_MAIN_ERROR_AT("{}: Stop failed: {}", GetName(), e.what());
     }
 }

@@ -13,12 +13,12 @@ public:
     explicit HttpClientPoolService(boost::asio::io_context& ctx, const HttpClientPoolConfig& config);
     ~HttpClientPoolService() override;
     
-    bool initialize() override;
-    bool start() override;
-    void stop() override;
-    const char* getName() const override { return "HttpClientPoolService"; }
-    bool isRunning() const override { return running_; }
-    bool isInitialized() const override { return initialized_; }
+    bool Initialize() override;
+    bool Start() override;
+    void Stop() override;
+    const char* GetName() const override { return "HttpClientPoolService"; }
+    bool IsRunning() const override { return running_; }
+    bool IsInitialized() const override { return initialized_; }
     
     /// @brief 获取 HttpClientPool 实例
     Net::HttpClientPool* getHttpClientPool() { return pool_.get(); }

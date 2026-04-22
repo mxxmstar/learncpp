@@ -3,12 +3,12 @@
 #include <fstream>
 #include <sstream>
 
-ConfigManager& ConfigManager::getInstance() {
+ConfigManager& ConfigManager::GetInstance() {
     static ConfigManager instance;
     return instance;
 }
 
-bool ConfigManager::load(const std::string& config_path) {
+bool ConfigManager::Load(const std::string& config_path) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     try {
@@ -20,8 +20,23 @@ bool ConfigManager::load(const std::string& config_path) {
             return true;
         }
 
+        LOG_MAIN_INFO_AT("[Config] Loading config from: {}", config_path);
         YAML::Node node = YAML::LoadFile(config_path);
+        
+        // 调试：检查 logs 节点是否存在
+        if (node["logs"]) {            
+            int log_count = 0;
+            for (const auto& kv : node["logs"]) {
+                log_count++;
+                LOG_MAIN_INFO_AT("[Config]   - Log entry: {}", kv.first.as<std::string>());
+            }            
+        } else {
+            LOG_MAIN_WARN_AT("[Config] No 'logs' node found in YAML!");
+        }
+        
         parseConfig(node);
+        
+        LOG_MAIN_INFO_AT("[Config] After parseConfig, logs count: {}", config_.logs.size());
         
         last_write_time_ = std::filesystem::last_write_time(config_path);
         
@@ -33,14 +48,14 @@ bool ConfigManager::load(const std::string& config_path) {
     }
 }
 
-bool ConfigManager::reload() {
+bool ConfigManager::Reload() {
     if (config_path_.empty()) {
         return false;
     }
-    return load(config_path_);
+    return Load(config_path_);
 }
 
-bool ConfigManager::save(const std::string& config_path) {
+bool ConfigManager::Save(const std::string& config_path) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     std::string path = config_path.empty() ? config_path_ : config_path;
@@ -58,19 +73,19 @@ bool ConfigManager::save(const std::string& config_path) {
     }
 }
 
-const AppConfig& ConfigManager::getConfig() const {
+const AppConfig& ConfigManager::GetConfig() const {
     return config_;
 }
 
-AppConfig& ConfigManager::getConfig() {
+AppConfig& ConfigManager::GetConfig() {
     return config_;
 }
 
-bool ConfigManager::validate() const {
-    return getValidationErrors().empty();
+bool ConfigManager::Validate() const {
+    return GetValidationErrors().empty();
 }
 
-std::vector<std::string> ConfigManager::getValidationErrors() const {
+std::vector<std::string> ConfigManager::GetValidationErrors() const {
     std::vector<std::string> errors;
 
     // 验证 HTTP 服务器配置
@@ -120,12 +135,12 @@ std::vector<std::string> ConfigManager::getValidationErrors() const {
     return errors;
 }
 
-void ConfigManager::setChangeCallback(ConfigChangeCallback callback) {
+void ConfigManager::SetChangeCallback(ConfigChangeCallback callback) {
     std::lock_guard<std::mutex> lock(mutex_);
     change_callback_ = std::move(callback);
 }
 
-void ConfigManager::checkAndReload() {
+void ConfigManager::CheckAndReload() {
     if (config_path_.empty()) {
         return;
     }
@@ -134,7 +149,7 @@ void ConfigManager::checkAndReload() {
         auto current_write_time = std::filesystem::last_write_time(config_path_);
         if (current_write_time != last_write_time_) {
             AppConfig old_config = config_;
-            if (reload()) {
+            if (Reload()) {
                 last_write_time_ = current_write_time;
                 if (change_callback_) {
                     change_callback_(config_);
@@ -274,7 +289,7 @@ YAML::Node ConfigManager::toYaml() const {
     return node;
 }
 
-void ConfigManager::dump() const {
+void ConfigManager::Dump() const {
     LOG_MAIN_INFO_AT("");
     LOG_MAIN_INFO_AT("========== AppConfig Dump ==========");
     
@@ -297,7 +312,12 @@ void ConfigManager::dump() const {
     
     // Logs
     LOG_MAIN_INFO_AT("");
-    LOG_MAIN_INFO_AT("[Logs]");
+    LOG_MAIN_INFO_AT("[Logs] (count: {})", config_.logs.size());
+    if (config_.logs.empty()) {
+        LOG_MAIN_WARN_AT("  [WARNING] No log configurations found!");
+        LOG_MAIN_WARN_AT("  Config file: {}", config_path_);
+        LOG_MAIN_WARN_AT("  This may indicate the config file was not loaded correctly.");
+    }
     for (const auto& [name, log_cfg] : config_.logs) {
         LOG_MAIN_INFO_AT("  [{}]", name);
         LOG_MAIN_INFO_AT("    level: {}", log_cfg.level);
@@ -344,7 +364,7 @@ void ConfigManager::dump() const {
 
 // ==================== 动态配置更新功能实现 ====================
 
-bool ConfigManager::updateConfig(const AppConfig& new_config) {
+bool ConfigManager::UpdateConfig(const AppConfig& new_config) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     try {
@@ -352,7 +372,7 @@ bool ConfigManager::updateConfig(const AppConfig& new_config) {
         AppConfig temp_config = config_;  // 保存旧配置
         config_ = new_config;
         
-        auto errors = getValidationErrors();
+        auto errors = GetValidationErrors();
         if (!errors.empty()) {
             config_ = temp_config;  // 恢复旧配置
             LOG_MAIN_ERROR_AT("[Config] Validation failed:");
@@ -388,11 +408,11 @@ bool ConfigManager::updateConfig(const AppConfig& new_config) {
     }
 }
 
-uint64_t ConfigManager::getConfigVersion() const {
+uint64_t ConfigManager::GetConfigVersion() const {
     return config_version_.load();
 }
 
-bool ConfigManager::rollbackToVersion(uint64_t version) {
+bool ConfigManager::RollbackToVersion(uint64_t version) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     // 计算需要回滚的索引
@@ -431,12 +451,12 @@ bool ConfigManager::rollbackToVersion(uint64_t version) {
     }
 }
 
-void ConfigManager::onFieldChange(const std::string& field_path, FieldChangeCallback callback) {
+void ConfigManager::OnFieldChange(const std::string& field_path, FieldChangeCallback callback) {
     std::lock_guard<std::mutex> lock(mutex_);
     field_callbacks_[field_path].push_back(std::move(callback));
 }
 
-void ConfigManager::removeFieldChangeCallback(const std::string& field_path) {
+void ConfigManager::RemoveFieldChangeCallback(const std::string& field_path) {
     std::lock_guard<std::mutex> lock(mutex_);
     field_callbacks_.erase(field_path);
 }

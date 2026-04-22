@@ -111,7 +111,7 @@ bool ZLMService::initialize() {
     
     // 之后：直接使用传入的指针
     if (!http_pool_) {
-        LOG_MAIN_ERROR_AT("{}: HttpClientPool is null", getName());
+        LOG_MAIN_ERROR_AT("{}: HttpClientPool is null", GetName());
         return false;
     }
     zlm_manager_ = std::unique_ptr<ZLMManager>(
@@ -286,7 +286,7 @@ container.registerService<HttpClientPoolService>(...);
 
 ```cpp
 if (!http_pool_) {
-    LOG_MAIN_ERROR_AT("{}: HttpClientPool is null", getName());
+    LOG_MAIN_ERROR_AT("{}: HttpClientPool is null", GetName());
     return false;
 }
 ```

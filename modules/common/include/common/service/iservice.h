@@ -10,21 +10,21 @@ public:
     
     /// @brief 服务初始化（只进行一次）
     /// @return 成功返回 true
-    virtual bool initialize() = 0;
+    virtual bool Initialize() = 0;
     
     /// @brief 服务启动
     /// @return 成功返回 true
-    virtual bool start() = 0;
+    virtual bool Start() = 0;
     
     /// @brief 服务停止
-    virtual void stop() = 0;
+    virtual void Stop() = 0;
     
     /// @brief 获取服务名称
-    virtual const char* getName() const = 0;
+    virtual const char* GetName() const = 0;
     
     /// @brief 服务是否正在运行
-    virtual bool isRunning() const = 0;
+    virtual bool IsRunning() const = 0;
     
     /// @brief 服务是否已初始化
-    virtual bool isInitialized() const = 0;
+    virtual bool IsInitialized() const = 0;
 };

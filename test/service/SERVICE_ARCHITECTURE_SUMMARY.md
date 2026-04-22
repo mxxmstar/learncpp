@@ -60,7 +60,7 @@ learncpp/
 virtual bool initialize() = 0;      // 初始化
 virtual bool start() = 0;           // 启动
 virtual void stop() = 0;            // 停止
-virtual const char* getName() const = 0;  // 名称
+virtual const char* GetName() const = 0;  // 名称
 virtual bool isRunning() const = 0;       // 运行状态
 virtual bool isInitialized() const = 0;   // 初始化状态
 ```
@@ -173,7 +173,7 @@ public:
     bool initialize() override;
     bool start() override;
     void stop() override;
-    const char* getName() const override { return "MyService"; }
+    const char* GetName() const override { return "MyService"; }
     bool isRunning() const override { return running_; }
     bool isInitialized() const override { return initialized_; }
     
@@ -195,7 +195,7 @@ MyService::MyService(/* 参数 */) {
 
 bool MyService::initialize() {
     if (initialized_) return true;
-    LOG_MAIN_INFO_AT("{}: Initializing...", getName());
+    LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     // 初始化逻辑
     initialized_ = true;
     return true;
@@ -204,7 +204,7 @@ bool MyService::initialize() {
 bool MyService::start() {
     if (!initialized_) return false;
     if (running_) return true;
-    LOG_MAIN_INFO_AT("{}: Starting...", getName());
+    LOG_MAIN_INFO_AT("{}: Starting...", GetName());
     // 启动逻辑
     running_ = true;
     return true;
@@ -212,7 +212,7 @@ bool MyService::start() {
 
 void MyService::stop() {
     if (!running_) return;
-    LOG_MAIN_INFO_AT("{}: Stopping...", getName());
+    LOG_MAIN_INFO_AT("{}: Stopping...", GetName());
     // 停止逻辑
     running_ = false;
 }

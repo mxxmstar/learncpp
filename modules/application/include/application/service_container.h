@@ -32,7 +32,7 @@ public:
                 return false;
             }
             
-            std::string name = service->getName();
+            std::string name = service->GetName();
             
             // 检查是否已存在
             if (services_.find(name) != services_.end()) {
@@ -55,7 +55,7 @@ public:
     /// @brief 获取服务
     template<typename T>
     T* getService() {
-        // 创建一个临时对象来获取类型名称（假设 T 有 getName() 方法）
+        // 创建一个临时对象来获取类型名称（假设 T 有 GetName() 方法）
         // 这里我们使用一个技巧：通过 typeid 获取名称
         // 但更好的方式是让服务类提供一个静态的 getServiceName() 方法
         // 为了简单，我们遍历查找
@@ -83,9 +83,9 @@ public:
         
         for (const auto& name : service_order_) {
             auto service = services_[name];
-            if (!service->isInitialized()) {
+            if (!service->IsInitialized()) {
                 LOG_MAIN_INFO_AT("ServiceContainer: Initializing service '{}'", name);
-                if (!service->initialize()) {
+                if (!service->Initialize()) {
                     LOG_MAIN_ERROR_AT("ServiceContainer: Failed to initialize service '{}'", name);
                     return false;
                 }
@@ -103,9 +103,9 @@ public:
         
         for (const auto& name : service_order_) {
             auto service = services_[name];
-            if (!service->isRunning()) {
+            if (!service->IsRunning()) {
                 LOG_MAIN_INFO_AT("ServiceContainer: Starting service '{}'", name);
-                if (!service->start()) {
+                if (!service->Start()) {
                     LOG_MAIN_ERROR_AT("ServiceContainer: Failed to start service '{}'", name);
                     // 启动失败，停止已启动的服务
                     stopAll();
@@ -128,9 +128,9 @@ public:
             const auto& name = *it;
             auto service = services_[name];
             
-            if (service->isRunning()) {
+            if (service->IsRunning()) {
                 LOG_MAIN_INFO_AT("ServiceContainer: Stopping service '{}'", name);
-                service->stop();
+                service->Stop();
                 LOG_MAIN_INFO_AT("ServiceContainer: Service '{}' stopped", name);
             }
         }

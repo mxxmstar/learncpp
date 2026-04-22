@@ -6,6 +6,7 @@
 #include "config/common_config.h"
 #include <boost/asio.hpp>
 #include <memory>
+#include <thread>
 
 /// @brief HTTP 服务器服务
 /// 封装 AsioHttpServer，提供 HTTP 服务
@@ -14,12 +15,12 @@ public:
     explicit HttpServerService(const HttpServerConfig& config);
     ~HttpServerService() override;
     
-    bool initialize() override;
-    bool start() override;
-    void stop() override;
-    const char* getName() const override { return "HttpServerService"; }
-    bool isRunning() const override { return running_; }
-    bool isInitialized() const override { return initialized_; }
+    bool Initialize() override;
+    bool Start() override;
+    void Stop() override;
+    const char* GetName() const override { return "HttpServerService"; }
+    bool IsRunning() const override { return running_; }
+    bool IsInitialized() const override { return initialized_; }
     
     /// @brief 获取 io_context
     boost::asio::io_context* getIoContext() { return io_context_.get(); }
@@ -30,6 +31,7 @@ public:
 private:
     HttpServerConfig config_;
     std::unique_ptr<boost::asio::io_context> io_context_;
+    std::unique_ptr<std::thread> io_thread_;  // io_context 运行线程
     std::unique_ptr<Net::AsioHttpServer> server_;
     bool initialized_ = false;
     bool running_ = false;

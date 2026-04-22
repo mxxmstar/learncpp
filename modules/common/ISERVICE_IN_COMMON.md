@@ -88,7 +88,7 @@ public:
     virtual bool initialize() = 0;
     virtual bool start() = 0;
     virtual void stop() = 0;
-    virtual const char* getName() const = 0;
+    virtual const char* GetName() const = 0;
     virtual bool isRunning() const = 0;
     virtual bool isInitialized() const = 0;
 };
@@ -121,7 +121,7 @@ class ServiceContainer {
     bool registerService(Args&&... args) {
         auto service = std::make_shared<T>(...);
         // T 必须是 IService 的子类
-        services_[service->getName()] = service;
+        services_[service->GetName()] = service;
     }
     
     template<typename T>
@@ -311,7 +311,7 @@ public:
                      "T must inherit from IService");
         
         auto service = std::make_shared<T>(std::forward<Args>(args)...);
-        services_[service->getName()] = service;
+        services_[service->GetName()] = service;
     }
     
     // 获取时使用 dynamic_cast

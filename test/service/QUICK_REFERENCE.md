@@ -7,7 +7,7 @@
 initialize()    // 初始化（一次）
 start()         // 启动
 stop()          // 停止
-getName()       // 获取名称
+GetName()       // 获取名称
 isRunning()     // 运行状态？
 isInitialized() // 初始化状态？
 ```
@@ -40,7 +40,7 @@ class XxxService : public IService {
     bool initialize() override;
     bool start() override;
     void stop() override;
-    const char* getName() const override { return "XxxService"; }
+    const char* GetName() const override { return "XxxService"; }
     bool isRunning() const override { return running_; }
     bool isInitialized() const override { return initialized_; }
 };

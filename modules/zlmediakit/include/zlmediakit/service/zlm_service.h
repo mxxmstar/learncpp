@@ -26,12 +26,12 @@ public:
                        const ZlmConfig& config);
     ~ZLMService() override;
     
-    bool initialize() override;
-    bool start() override;
-    void stop() override;
-    const char* getName() const override { return "ZLMService"; }
-    bool isRunning() const override { return running_; }
-    bool isInitialized() const override { return initialized_; }
+    bool Initialize() override;
+    bool Start() override;
+    void Stop() override;
+    const char* GetName() const override { return "ZLMService"; }
+    bool IsRunning() const override { return running_; }
+    bool IsInitialized() const override { return initialized_; }
     
     /// @brief 获取 ZLMManager 指针
     ZLMManager* getZLMManager() { return zlm_manager_.get(); }

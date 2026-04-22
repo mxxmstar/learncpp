@@ -40,7 +40,7 @@ void SystemApiHandler::handleGetStatus(const json::object& req, json::object& rs
     try {
         // 获取 ZLMService 状态
         auto zlm_svc = ServiceContainer::getInstance().getService<zlmediakit::ZLMService>();
-        bool zlm_running = zlm_svc && zlm_svc->isRunning();
+        bool zlm_running = zlm_svc && zlm_svc->IsRunning();
 
         // 构建响应
         rsp["code"] = 200;

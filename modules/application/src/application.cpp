@@ -24,47 +24,24 @@ Application::~Application() {
     }
 }
 
-Application& Application::getInstance() {
+Application& Application::GetInstance() {
     static Application instance;
     return instance;
 }
 
-bool Application::loadConfig(const std::string& config_path) {
-    LOG_MAIN_INFO_AT("[Application] Loading config from: {}", config_path);
-    
-    // 检查文件是否存在
-    std::ifstream file(config_path);
-    if (!file.is_open()) {
-        LOG_MAIN_WARN_AT("[Application] Config file not found: {}", config_path);
-        LOG_MAIN_WARN_AT("[Application] Using default configuration");
-        return false;
-    }
-    
-    // TODO: 使用 yaml-cpp 或 boost::json 解析配置文件
-    // 这里先设置一些默认配置
-    
-    setConfig("app.name", "VideoPipelineApp");
-    setConfig("app.version", "1.0.0");
-    setConfig("log.dir", "logs");
-    setConfig("log.level", "info");
-    
-    LOG_MAIN_INFO_AT("[Application] Config loaded successfully");
-    return true;
-}
-
-void Application::onInit(InitCallback callback) {
+void Application::OnInit(InitCallback callback) {
     init_callbacks_.push_back(callback);
 }
 
-void Application::onStart(StartCallback callback) {
+void Application::OnStart(StartCallback callback) {
     start_callbacks_.push_back(callback);
 }
 
-void Application::onStop(StopCallback callback) {
+void Application::OnStop(StopCallback callback) {
     stop_callbacks_.push_back(callback);
 }
 
-std::shared_ptr<IService> Application::getService(const std::string& name) const {
+std::shared_ptr<IService> Application::GetService(const std::string& name) const {
     auto it = services_.find(name);
     if (it != services_.end()) {
         return it->second;
@@ -72,7 +49,7 @@ std::shared_ptr<IService> Application::getService(const std::string& name) const
     return nullptr;
 }
 
-int Application::run() {
+int Application::Run() {
     LOG_MAIN_INFO_AT("========================================");
     LOG_MAIN_INFO_AT("Application Starting");
     LOG_MAIN_INFO_AT("========================================");
@@ -86,12 +63,12 @@ int Application::run() {
     // 注册信号回调
     signal_handler_.registerCallback(SignalHandler::SIGINT_VAL, [this](int signum) {
         LOG_MAIN_INFO_AT("\n[Application] Received {}", SignalHandler::getSignalName(signum));
-        requestStop();
+        RequestStop();
     });
     
     signal_handler_.registerCallback(SignalHandler::SIGTERM_VAL, [this](int signum) {
         LOG_MAIN_INFO_AT("\n[Application] Received {}", SignalHandler::getSignalName(signum));
-        requestStop();
+        RequestStop();
     });
     
     // 2. 执行初始化阶段
@@ -125,7 +102,7 @@ int Application::run() {
     return 0;
 }
 
-void Application::requestStop() {
+void Application::RequestStop() {
     LOG_MAIN_INFO_AT("[Application] Stop requested");
     running_.store(false);
     signal_handler_.requestStop();
@@ -136,9 +113,9 @@ bool Application::initialize() {
     LOG_MAIN_INFO_AT("[Application] Initializing services...");
     for (const auto& name : service_order_) {
         auto service = services_[name];
-        if (!service->isInitialized()) {
+        if (!service->IsInitialized()) {
             LOG_MAIN_INFO_AT("[Application] Initializing service '{}'", name);
-            if (!service->initialize()) {
+            if (!service->Initialize()) {
                 LOG_MAIN_ERROR_AT("[Application] Failed to initialize service '{}'", name);
                 return false;
             }
@@ -170,9 +147,9 @@ bool Application::start() {
     LOG_MAIN_INFO_AT("[Application] Starting services...");
     for (const auto& name : service_order_) {
         auto service = services_[name];
-        if (!service->isRunning()) {
+        if (!service->IsRunning()) {
             LOG_MAIN_INFO_AT("[Application] Starting service '{}'", name);
-            if (!service->start()) {
+            if (!service->Start()) {
                 LOG_MAIN_ERROR_AT("[Application] Failed to start service '{}'", name);
                 // 启动失败，停止已启动的服务
                 stop();
@@ -211,9 +188,9 @@ void Application::stop() {
         const auto& name = *it;
         auto service = services_[name];
         
-        if (service->isRunning()) {            
+        if (service->IsRunning()) {            
             LOG_MAIN_INFO_AT("[Application] Stopping service '{}'", name);
-            service->stop();
+            service->Stop();
         }
     }
     

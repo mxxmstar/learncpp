@@ -43,13 +43,18 @@ void HttpRouter::DispatchRequest(const http::request<http::string_body>& req, bo
             const auto& module_handler = it->second;
 
             try {
-                boost::json::value jv = boost::json::parse(req.body());
-                if (!jv.is_object()) {
-                    rsp["code"] = 400;
-                    rsp["msg"] = "invalid request body.";
-                    return;
+                boost::json::object req_obj;
+                
+                // 如果有请求体，则解析；否则使用空对象
+                if (!req.body().empty()) {
+                    boost::json::value jv = boost::json::parse(req.body());
+                    if (!jv.is_object()) {
+                        rsp["code"] = 400;
+                        rsp["msg"] = "invalid request body.";
+                        return;
+                    }
+                    req_obj = jv.as_object();
                 }
-                const auto& req_obj = jv.as_object();
 
                 try {
                     module_handler(module_path, req_obj, rsp);
@@ -73,13 +78,18 @@ void HttpRouter::DispatchRequest(const http::request<http::string_body>& req, bo
         const auto& route_handler = it_router->second;
 
         try {
-            boost::json::value jv = boost::json::parse(req.body());
-            if (!jv.is_object()) {
-                rsp["code"] = 400;
-                rsp["msg"] = "invalid request body";
-                return;
+            boost::json::object req_obj;
+            
+            // 如果有请求体，则解析；否则使用空对象
+            if (!req.body().empty()) {
+                boost::json::value jv = boost::json::parse(req.body());
+                if (!jv.is_object()) {
+                    rsp["code"] = 400;
+                    rsp["msg"] = "invalid request body";
+                    return;
+                }
+                req_obj = jv.as_object();
             }
-            const auto& req_obj = jv.as_object();
 
             try {
                 route_handler(req_obj, rsp);
