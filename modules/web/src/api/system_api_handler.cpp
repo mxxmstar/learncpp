@@ -1,5 +1,5 @@
 #include "web/api/system_api_handler.h"
-#include "application/service_container.h"
+#include "application/application.h"
 #include "zlmediakit/service/zlm_service.h"
 #include "log/logmanager.h"
 #include <boost/json.hpp>
@@ -39,7 +39,8 @@ void SystemApiHandler::handleGetStatus(const json::object& req, json::object& rs
 
     try {
         // 获取 ZLMService 状态
-        auto zlm_svc = ServiceContainer::getInstance().getService<zlmediakit::ZLMService>();
+        auto& app = Application::GetInstance();
+        auto zlm_svc = app.GetService<ZLMService>();
         bool zlm_running = zlm_svc && zlm_svc->IsRunning();
 
         // 构建响应

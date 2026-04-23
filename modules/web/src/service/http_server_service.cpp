@@ -5,6 +5,13 @@ using namespace Net;
 // 前向声明，确保 AsioHttpServer 的定义可见
 class AsioHttpServer;
 
+std::shared_ptr<HttpServerService> HttpServerService::CreateFromAppConfig(const AppConfig& app_config) {
+    HttpServerConfig http_config;
+    http_config.host = app_config.server.host;
+    http_config.port = app_config.server.port;
+    
+    return std::make_shared<HttpServerService>(http_config);
+}
 
 HttpServerService::HttpServerService(const HttpServerConfig& config)
     : config_(config) {

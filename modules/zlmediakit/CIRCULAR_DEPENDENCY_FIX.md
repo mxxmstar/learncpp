@@ -106,7 +106,7 @@ bool ZLMService::initialize() {
         return false;
     }
     zlm_manager_ = std::unique_ptr<ZLMManager>(
-        new ZLMManager(ctx_, http_pool_svc->getHttpClientPool(), config_)
+        new ZLMManager(ctx_, http_pool_svc->GetHttpClientPool(), config_)
     );
     
     // 之后：直接使用传入的指针
@@ -130,16 +130,16 @@ bool ZLMService::initialize() {
 
 ```cpp
 // 之前
-container.registerService<zlmediakit::ZLMService>(shared_ctx, config.zlm);
+container.registerService<ZLMService>(shared_ctx, config.zlm);
 
 // 之后
 // 先获取 HttpClientPoolService
 auto http_pool_svc = container.getService<HttpClientPoolService>();
 if (http_pool_svc) {
     // 然后传入 HttpClientPool 指针
-    container.registerService<zlmediakit::ZLMService>(
+    container.registerService<ZLMService>(
         shared_ctx, 
-        http_pool_svc->getHttpClientPool(),  // ← 传入指针
+        http_pool_svc->GetHttpClientPool(),  // ← 传入指针
         config.zlm
     );
 }
@@ -260,7 +260,7 @@ ZLMService service2(ctx, pool2, config);
 // ✅ 正确顺序
 container.registerService<HttpClientPoolService>(...);
 auto http_pool_svc = container.getService<HttpClientPoolService>();
-container.registerService<ZLMService>(..., http_pool_svc->getHttpClientPool(), ...);
+container.registerService<ZLMService>(..., http_pool_svc->GetHttpClientPool(), ...);
 
 // ❌ 错误顺序
 container.registerService<ZLMService>(...);  // http_pool 为 nullptr!

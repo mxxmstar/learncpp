@@ -37,6 +37,10 @@ target_link_libraries(web_lib
         application_lib   # web 模块依赖 application 模块（IService, ServiceContainer）
         log_lib           # web 模块依赖 log 模块
         net_lib           # web 模块依赖 net 模块
+        http_client_lib   # HTTP 客户端模块
+        http_server_lib   # HTTP 服务器模块
+        websocket_lib     # WebSocket 模块
+        io_context_pool_lib  # IO Context Pool
         zlmediakit_lib    # web 模块依赖 zlmediakit 模块
         config_lib        # web 模块依赖 config 模块
         camera_lib        # web 模块依赖 camera 模块（Camera API）

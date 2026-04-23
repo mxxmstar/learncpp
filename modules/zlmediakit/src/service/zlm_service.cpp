@@ -1,18 +1,23 @@
 #include "zlmediakit/service/zlm_service.h"
 #include "log/logmanager.h"
-#include "net/httpclientpool.h"  // 直接依赖 net 模块，而不是 web 模块
+#include "net/http_client/http_client_pool.h"
 
-namespace zlmediakit {
+std::shared_ptr<ZLMService> ZLMService::CreateFromAppConfig(const AppConfig& app_config) {
+    return std::make_shared<ZLMService>(app_config.zlm);
+}
 
-ZLMService::ZLMService(boost::asio::io_context& ctx, 
-                      Net::HttpClientPool* http_pool,
-                      const ZlmConfig& config)
-    : ctx_(ctx), http_pool_(http_pool), config_(config) {
+ZLMService::ZLMService(const ZlmConfig& config)
+    : config_(config) {
 }
 
 ZLMService::~ZLMService() {
     if (running_) {
         Stop();
+    }
+    
+    // 确保线程被清理
+    if (io_thread_ && io_thread_->joinable()) {
+        io_thread_->join();
     }
 }
 
@@ -25,16 +30,19 @@ bool ZLMService::Initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     
     try {
-        // 检查 HTTP 客户端池是否有效
+        // 创建 io_context
+        io_context_ = std::make_unique<boost::asio::io_context>();
+        
+        // 检查 HttpClientPool 是否已设置
         if (!http_pool_) {
-            LOG_MAIN_ERROR_AT("{}: HttpClientPool is null", GetName());
+            LOG_MAIN_ERROR_AT("{}: HttpClientPool not set. Call SetHttpClientPool() before Initialize()", GetName());
             return false;
         }
         
         LOG_MAIN_INFO_AT("{}: HttpClientPool is ready", GetName());
         
         // 使用 new 创建 ZLMManager，并传入必要的参数
-        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(ctx_, http_pool_, config_));
+        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(*io_context_, http_pool_, config_));
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, secret: {})", 
@@ -67,6 +75,13 @@ bool ZLMService::Start() {
             return false;
         }
         
+        // 启动 io_context 运行线程
+        io_thread_ = std::make_unique<std::thread>([this]() {
+            LOG_MAIN_INFO_AT("{}: io_context running...", GetName());
+            io_context_->run();
+            LOG_MAIN_INFO_AT("{}: io_context stopped", GetName());
+        });
+        
         running_ = true;
         LOG_MAIN_INFO_AT("{}: Started successfully", GetName());
         return true;
@@ -91,6 +106,18 @@ void ZLMService::Stop() {
             zlm_manager_->Stop();
         }
         
+        // 停止 io_context
+        if (io_context_) {
+            io_context_->stop();
+        }
+        
+        // 等待 io_context 线程结束
+        if (io_thread_ && io_thread_->joinable()) {
+            LOG_MAIN_INFO_AT("{}: Waiting for io_context thread to finish...", GetName());
+            io_thread_->join();
+            LOG_MAIN_INFO_AT("{}: io_context thread joined", GetName());
+        }
+        
         running_ = false;
         LOG_MAIN_INFO_AT("{}: Stopped", GetName());
         
@@ -99,4 +126,3 @@ void ZLMService::Stop() {
     }
 }
 
-} // namespace zlmediakit

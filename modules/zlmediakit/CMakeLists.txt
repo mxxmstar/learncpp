@@ -36,6 +36,8 @@ target_link_libraries(zlmediakit_lib
         application_lib   # zlmediakit 模块依赖 application 模块（IService）
         log_lib           # zlmediakit 模块依赖 log 模块
         net_lib           # zlmediakit 模块依赖 net 模块
+        http_client_lib   # HTTP 客户端模块
+        io_context_pool_lib  # IO Context Pool
         config_lib        # zlmediakit 模块依赖 config 模块
         common_lib        # 通用service接口
 )

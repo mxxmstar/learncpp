@@ -7,9 +7,8 @@
 #include <vector>
 #include <any>
 #include "application/signal_handler.h"
-
-// 前向声明
-class IService;
+#include "common/service/iservice.h"  // 需要完整定义
+#include "log/logmanager.h"  // 需要日志宏
 
 /// @brief 应用程序框架
 /// 提供依赖注入、配置管理、生命周期管理等功能
@@ -102,6 +101,29 @@ public:
         } catch (...) {
             return false;
         }
+    }
+    
+    /// @brief 注册已创建的 IService 服务实例
+    /// @param service 服务实例
+    /// @return 成功返回 true
+    bool RegisterServiceInstance(std::shared_ptr<IService> service) {
+        if (!service) {
+            return false;
+        }
+        
+        std::string name = service->GetName();
+        
+        // 检查是否已存在
+        if (services_.find(name) != services_.end()) {
+            LOG_MAIN_WARN_AT("Application: Service '{}' already registered, skipping", name);
+            return false;
+        }
+        
+        services_[name] = service;
+        service_order_.push_back(name);
+        
+        LOG_MAIN_INFO_AT("Application: Registered service instance '{}'", name);
+        return true;
     }
     
     /// @brief 获取 IService 服务

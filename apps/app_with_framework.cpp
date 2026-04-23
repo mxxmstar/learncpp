@@ -39,24 +39,29 @@ int main() {
         config_mgr.Dump();        
         
         LOG_MAIN_INFO_AT("Application exiting...");
+        auto config = config_mgr.GetConfig();
         // 批量重新加载所有日志配置
-        log_mgr.ReloadFromConfigs(config_mgr.GetConfig().logs);
+        log_mgr.ReloadFromConfigs(config.logs);
 
         // === 4. 获取 Application 实例 ===
         auto& app = Application::GetInstance();
         
-        // === 5. 注册 IService 服务 ===
-        // 从配置中获取 HTTP 服务器配置
-        const auto& config = config_mgr.GetConfig();
-        HttpServerConfig http_config;
-        http_config.host = config.server.host;
-        http_config.port = config.server.port;
+        // 注册 IService 服务
+        auto http_service = HttpServerService::CreateFromAppConfig(config);
+        app.RegisterServiceInstance(http_service);
+                
+        auto http_client_pool_service = HttpClientPoolService::CreateFromAppConfig(config);
+        app.RegisterServiceInstance(http_client_pool_service);
+                
+        // 创建 ZLMService 并手动注入依赖
+        auto zlm_service = ZLMService::CreateFromAppConfig(config);
+        zlm_service->SetHttpClientPool(http_client_pool_service->GetHttpClientPool());  // ← 手动注入
+        app.RegisterServiceInstance(zlm_service);
         
-        app.RegisterService<HttpServerService>(http_config);
-        /*app.RegisterService<ZLMService>();
-        app.RegisterService<HttpClientPoolService>();*/
-        
-        // 初始化
+        // 注册路由
+        ApiRouterRegistrar::RegisterAllRoutes();
+
+        // 初始化验证服务是否存在
         app.OnInit([&app]() {
             LOG_MAIN_INFO_AT("Initializing services...");
             auto http = app.GetService<HttpServerService>();
@@ -64,13 +69,17 @@ int main() {
                 LOG_MAIN_ERROR_AT("Failed to get HttpServer service");
                 return false;
             }
+
+            auto http_pool = app.GetService<HttpClientPoolService>();
+            if (!http_pool) {
+                LOG_MAIN_ERROR_AT("Failed to get HttpClientPool service");
+                return false;
+            }
             
             return true;
-        });
+        });        
 
-        ApiRouterRegistrar::RegisterAllRoutes();
-
-        // 启动
+        // 启动服务验证
         app.OnStart([&app]() {
             LOG_MAIN_INFO_AT("Starting services...");
 
@@ -78,6 +87,14 @@ int main() {
             if (http && !http->IsRunning()) {
                 if (!http->Start()) {
                     LOG_MAIN_ERROR_AT("Failed to start HttpServer service");
+                    return false;
+                }
+            }
+
+            auto http_client_pool_service = app.GetService<HttpClientPoolService>();
+            if (http_client_pool_service && !http_client_pool_service->IsRunning()) {
+                if (!http_client_pool_service->Start()) {
+                    LOG_MAIN_ERROR_AT("Failed to start HttpClientPool service");
                     return false;
                 }
             }
@@ -93,6 +110,12 @@ int main() {
             if (http && http->IsRunning()) {
                 http->Stop();
             }
+
+            auto http_pool = app.GetService<HttpClientPoolService>();
+            if (http_pool && http_pool->IsRunning()) {
+                http_pool->Stop();
+            }
+
         });
 
         // === 7. 运行应用 ===

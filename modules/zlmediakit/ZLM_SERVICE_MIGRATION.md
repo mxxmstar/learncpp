@@ -103,7 +103,7 @@ container.registerService<ZLMService>(...);
 
 // 之后
 #include "zlmediakit/service/zlm_service.h"
-container.registerService<zlmediakit::ZLMService>(...);
+container.registerService<ZLMService>(...);
 ```
 
 ---
@@ -118,7 +118,7 @@ auto zlm_svc = ServiceContainer::getInstance().getService<ZLMService>();
 
 // 之后
 #include "zlmediakit/service/zlm_service.h"
-auto zlm_svc = ServiceContainer::getInstance().getService<zlmediakit::ZLMService>();
+auto zlm_svc = ServiceContainer::getInstance().getService<ZLMService>();
 ```
 
 ---
@@ -133,7 +133,7 @@ auto zlm_svc = ServiceContainer::getInstance().getService<ZLMService>();
 
 // 之后
 #include "zlmediakit/service/zlm_service.h"
-auto zlm_svc = ServiceContainer::getInstance().getService<zlmediakit::ZLMService>();
+auto zlm_svc = ServiceContainer::getInstance().getService<ZLMService>();
 ```
 
 ---
@@ -196,7 +196,7 @@ modules/web/include/web/service/
 #include "zlmediakit/service/zlm_service.h"
 
 class MyApplication {
-    zlmediakit::ZLMService zlm_svc_;
+    ZLMService zlm_svc_;
 };
 ```
 
@@ -208,7 +208,7 @@ class MyApplication {
 web_lib → zlmediakit_lib (通过 ZLMService)
 
 现在:
-web_lib → zlmediakit_lib (通过 zlmediakit::ZLMService)
+web_lib → zlmediakit_lib (通过 ZLMService)
 zlmediakit_lib → common_lib (通过 IService)
 ```
 
@@ -250,10 +250,10 @@ ZLMService 现在在 `zlmediakit` 命名空间中：
 
 ```cpp
 // 使用时需要指定命名空间
-zlmediakit::ZLMService service(ctx, config);
+ZLMService service(ctx, config);
 
 // 或者使用 using
-using zlmediakit::ZLMService;
+using ZLMService;
 ZLMService service(ctx, config);
 ```
 
@@ -270,7 +270,7 @@ ZLMService service(ctx, config);
 #include "zlmediakit/service/zlm_service.h"
 
 // 可选：提供别名
-using ZLMService = zlmediakit::ZLMService;
+using ZLMService = ZLMService;
 ```
 
 但**不推荐**这样做，应该直接使用新的路径。
@@ -336,7 +336,7 @@ cmake --build .
 ### 成果
 
 1. ✅ **成功迁移** ZLMService 到 zlmediakit 模块
-2. ✅ **添加命名空间** - `zlmediakit::ZLMService`
+2. ✅ **添加命名空间** - `ZLMService`
 3. ✅ **更新所有引用** - 4个文件
 4. ✅ **更新 CMake** - 添加源文件和依赖
 5. ✅ **改善架构** - 清晰的模块边界

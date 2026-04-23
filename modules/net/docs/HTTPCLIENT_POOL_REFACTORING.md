@@ -175,7 +175,7 @@ HttpClientPoolService::initialize()
   → pool_->Init(ctx_, config)
   
 ZLMService::initialize()
-  → http_pool_svc->getHttpClientPool()  ← 从 Service 获取
+  → http_pool_svc->GetHttpClientPool()  ← 从 Service 获取
   → new ZLMManager(ctx, pool, config)   ← 传递 pool
   → new ZLMApiClient(ctx, pool, config) ← 传递 pool
   → ZLMRequestHelper::DoRequest(ctx, pool, ...) ← 传递 pool

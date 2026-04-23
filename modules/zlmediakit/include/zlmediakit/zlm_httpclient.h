@@ -4,7 +4,7 @@
 #include <memory>
 #include <boost/json.hpp>
 #include <boost/asio.hpp>
-#include "net/httpclientpool.h"
+#include "net/http_client/http_client_pool.h"
 
 // 前向声明 6 个功能管理类
 //class ZLMStreamManager;

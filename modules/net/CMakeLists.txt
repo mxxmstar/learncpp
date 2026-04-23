@@ -12,8 +12,26 @@ option(BUILD_NET_TESTS "Build net module tests" OFF)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
-# 收集源文件
-file(GLOB NET_SOURCES "src/*.cpp")
+# 添加子模块
+add_subdirectory(http_client)
+add_subdirectory(http_server)
+add_subdirectory(tcp_server)
+add_subdirectory(websocket)
+add_subdirectory(io_context_pool)
+
+# 收集源文件（排除已迁移的文件）
+file(GLOB NET_SOURCES 
+    "src/*.cpp"
+    "!src/httpclient.cpp"
+    "!src/httpclientpool.cpp"
+    "!src/httpserver.cpp"
+    "!src/httprouter.cpp"
+    "!src/httpsession.cpp"
+    "!src/tcpserver.cpp"
+    "!src/tcpsession.cpp"
+    "!src/websocket*.cpp"
+    "!src/asio_io_context_pool.cpp"
+)
 
 # 创建静态库
 add_library(net_lib STATIC ${NET_SOURCES})
@@ -34,6 +52,11 @@ target_link_libraries(net_lib
         spdlog::spdlog
         log_lib  # net 模块依赖 log 模块
         common_lib        # 通用service接口
+        http_client_lib   # HTTP 客户端模块
+        http_server_lib   # HTTP 服务器模块
+        tcp_server_lib    # TCP 服务器模块
+        websocket_lib     # WebSocket 模块
+        io_context_pool_lib  # IO Context Pool 模块
 )
 
 # Windows 特定配置

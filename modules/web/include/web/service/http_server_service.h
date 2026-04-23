@@ -1,8 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include "common/service/iservice.h"
-#include "net/httpserver.h"
-#include "net/asio_io_context_pool.h"
+#include "net/http_server/http_server.h"
+#include "net/io_context_pool/asio_io_context_pool.h"
 #include "config/common_config.h"
 #include <boost/asio.hpp>
 #include <memory>
@@ -12,7 +12,14 @@
 /// 封装 AsioHttpServer，提供 HTTP 服务
 class HttpServerService : public IService {
 public:
+    /// @brief 从 HttpServerConfig 创建
     explicit HttpServerService(const HttpServerConfig& config);
+    
+    /// @brief 从 AppConfig 创建（便捷方法）
+    /// @param app_config 应用配置
+    /// @return HttpServerService 实例
+    static std::shared_ptr<HttpServerService> CreateFromAppConfig(const AppConfig& app_config);
+    
     ~HttpServerService() override;
     
     bool Initialize() override;

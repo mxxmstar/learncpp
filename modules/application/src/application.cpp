@@ -84,7 +84,7 @@ int Application::Run() {
         return 1;
     }
     
-    LOG_MAIN_INFO_AT("\n[Application] Running... (Press Ctrl+C to stop)");
+    LOG_MAIN_INFO_AT("[Application] Running... (Press Ctrl+C to stop)");
     
     // 4. 主循环：等待停止信号
     while (running_.load() && !signal_handler_.shouldStop()) {
@@ -95,7 +95,7 @@ int Application::Run() {
     // 5. 优雅关闭
     gracefulShutdown();
     
-    LOG_MAIN_INFO_AT("\n========================================");
+    LOG_MAIN_INFO_AT("========================================");
     LOG_MAIN_INFO_AT("  Application Stopped");
     LOG_MAIN_INFO_AT("========================================");
     

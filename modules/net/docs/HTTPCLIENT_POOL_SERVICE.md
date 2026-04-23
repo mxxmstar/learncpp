@@ -28,7 +28,7 @@ public:
     void stop() override;        // 停止服务
     
     // 获取底层的 HttpClientPool
-    Net::HttpClientPool* getHttpClientPool();
+    Net::HttpClientPool* GetHttpClientPool();
 };
 ```
 

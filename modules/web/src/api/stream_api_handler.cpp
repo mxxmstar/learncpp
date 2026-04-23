@@ -1,5 +1,5 @@
 #include "web/api/stream_api_handler.h"
-#include "application/service_container.h"
+#include "application/application.h"
 #include "zlmediakit/service/zlm_service.h"
 #include "log/logmanager.h"
 #include <boost/json.hpp>
@@ -53,7 +53,8 @@ void StreamApiHandler::handleAddStreamProxy(const json::object& req, json::objec
 
     try {
         // 2. 获取 ZLMService
-        auto zlm_svc = ServiceContainer::getInstance().getService<zlmediakit::ZLMService>();
+        auto& app = Application::GetInstance();
+        auto zlm_svc = app.GetService<ZLMService>();
         if (!zlm_svc || !zlm_svc->IsInitialized()) {
             rsp["code"] = 503;
             rsp["msg"] = "ZLMService is not initialized";
@@ -73,7 +74,7 @@ void StreamApiHandler::handleAddStreamProxy(const json::object& req, json::objec
         }
 
         // 4. 调用 ZLMManager 添加拉流代理
-        auto* zlm_manager = zlm_svc->getZLMManager();
+        auto* zlm_manager = zlm_svc->GetZLMManager();
         if (!zlm_manager) {
             rsp["code"] = 500;
             rsp["msg"] = "ZLMManager is null";
