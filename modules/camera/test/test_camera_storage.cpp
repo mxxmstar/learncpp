@@ -1,9 +1,9 @@
-#include "camera/camera_storage.h"
+﻿#include "camera/camera_storage.h"
 #include "camera/camera.h"
 #include "camera/time_utils.h"
 #include <iostream>
 #include <cassert>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 void TestCameraStorage() {
     std::cout << "=== Testing CameraStorage ===" << std::endl;
     

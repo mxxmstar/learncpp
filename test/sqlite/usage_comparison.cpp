@@ -1,7 +1,7 @@
-// SQLite 新用法示例 - 推荐使用直接构造方式
+﻿// SQLite 新用法示例 - 推荐使用直接构造方式
 #include "sqlite/sqlite.h"
 #include <iostream>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 // ============================================================
 // 推荐用法：直接构造（RAII 自动管理）
 // ============================================================

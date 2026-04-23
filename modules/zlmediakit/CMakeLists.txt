@@ -12,10 +12,8 @@ option(BUILD_ZLM_TESTS "Build zlmediakit module tests" ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
-# 收集源文件
+# 收集源文件（排除已迁移的 service）
 file(GLOB ZLM_SOURCES "src/*.cpp")
-file(GLOB ZLM_SERVICE_SOURCES "src/service/*.cpp")
-list(APPEND ZLM_SOURCES ${ZLM_SERVICE_SOURCES})
 
 # 创建静态库
 add_library(zlmediakit_lib STATIC ${ZLM_SOURCES})
@@ -27,19 +25,16 @@ target_include_directories(zlmediakit_lib
         $<INSTALL_INTERFACE:include>
 )
 
-# 链接依赖（使用父作用域中已查找的包）
+# 链接依赖（zlmediakit 只包含封装层，Service 已迁移）
 target_link_libraries(zlmediakit_lib
     PUBLIC
         nlohmann_json::nlohmann_json
         Boost::filesystem
         Boost::process
-        application_lib   # zlmediakit 模块依赖 application 模块（IService）
-        log_lib           # zlmediakit 模块依赖 log 模块
-        net_lib           # zlmediakit 模块依赖 net 模块
-        http_client_lib   # HTTP 客户端模块
-        io_context_pool_lib  # IO Context Pool
-        config_lib        # zlmediakit 模块依赖 config 模块
-        common_lib        # 通用service接口
+        application_lib   # zlmediakit 模块依赖 application 模块
+        common_lib        # IService, log, config
+        net_lib           # http_client_lib, io_context_pool_lib
+        config_lib        # ZlmConfig
 )
 
 # Windows 特定配置

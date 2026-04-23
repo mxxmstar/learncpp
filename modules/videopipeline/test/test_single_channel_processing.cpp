@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <thread>
 #include <chrono>
 #include <csignal>
@@ -6,7 +6,7 @@
 #include "alg/i_algorithm.h"  // i_algorithm 在 alg 模块
 #include "postprocess/result_output.h"  // result_output 在 postprocess 模块
 #include "postprocess/osd/osd_renderer.h"  // OSD 渲染器在 postprocess 模块
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // 全局标志
 std::atomic<bool> g_running{true};

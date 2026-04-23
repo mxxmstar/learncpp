@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <memory>
 #include <atomic>
 #include <thread>
@@ -8,7 +8,7 @@
 #include <boost/asio.hpp>
 #include <boost/process.hpp>
 #include <optional>
-#include "config/common_config.h"
+#include "common/config/common_config.h"
 #include "zlmediakit/zlm_httpclient.h"
 #include "zlmediakit/zlm_hookserver.h"
 

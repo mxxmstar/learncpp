@@ -1,9 +1,9 @@
-#include <iostream>
+﻿#include <iostream>
 #include <cassert>
 #include <thread>
 #include <chrono>
-#include "config/common_config.h"
-#include "log/logmanager.h"
+#include "common/config/common_config.h"
+#include "common/log/logmanager.h"
 void test_load_config() {
     std::cout << "[TEST] Loading config file..." << std::endl;
     

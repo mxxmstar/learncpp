@@ -1,9 +1,9 @@
-#include "sqlite/sqlite.h"
+﻿#include "sqlite/sqlite.h"
 #include <iostream>
 #include <cassert>
 #include <string>
 #include <vector>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 class SQLiteTest {
 public:
     void RunAllTests() {

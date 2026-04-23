@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_ffmpeg_opt.cpp
  * @brief FFmpeg 推流工具测试
  */
@@ -7,7 +7,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 void testRTSPToRTMP() {
     std::cout << "\n=== Test 1: RTSP to RTMP ===" << std::endl;
     

@@ -1,7 +1,7 @@
-#include <iostream>
+﻿#include <iostream>
 #include <opencv2/opencv.hpp>
 #include "video_pipeline/format_converter/opencv_format_converter.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 extern "C" {
 #include <libavutil/imgutils.h>

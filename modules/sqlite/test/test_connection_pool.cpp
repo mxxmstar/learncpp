@@ -1,9 +1,9 @@
-#include "sqlite/connection_pool.h"
+﻿#include "sqlite/connection_pool.h"
 #include <iostream>
 #include <thread>
 #include <vector>
 #include <chrono>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 void testBasicUsage() {
     std::cout << "\n=== Test 1: Basic Usage ===" << std::endl;
     

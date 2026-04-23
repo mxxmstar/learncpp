@@ -4,7 +4,7 @@
 #include <csignal>
 #include "puller/zlm_puller.h"
 #include "frame_queue.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // 鍏ㄥ眬鏍囧織
 std::atomic<bool> g_running{true};

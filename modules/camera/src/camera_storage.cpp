@@ -1,7 +1,7 @@
-#include "camera/camera_storage.h"
+﻿#include "camera/camera_storage.h"
 #include "camera/time_utils.h"
 #include "sqlite/sqlite.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 #include <sstream>
 #include <iomanip>
 #include <ctime>

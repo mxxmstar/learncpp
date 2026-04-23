@@ -1,4 +1,4 @@
-/**
+﻿/**
  * VideoPipeline gRPC 集成测试
  * 
  * 测试目标：
@@ -15,7 +15,7 @@
 #include <chrono>
 #include <atomic>
 #include <csignal>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // ==================== Graceful Shutdown ====================
 std::atomic<bool> g_running{true};

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <vector>
 #include "decoder/ffmpeg_decoder.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 /// @brief 浠?H.264 鏂囦欢鍔犺浇娴嬭瘯鏁版嵁
 std::vector<uint8_t> loadH264File(const std::string& filename) {

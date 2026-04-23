@@ -1,5 +1,5 @@
-#include "sqlite/sqlite.h"
-#include "log/logmanager.h"
+﻿#include "sqlite/sqlite.h"
+#include "common/log/logmanager.h"
 #include <sqlite3.h>
 #include <sstream>
 #include <iostream>

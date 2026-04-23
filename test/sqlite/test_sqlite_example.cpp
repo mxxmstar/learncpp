@@ -1,8 +1,8 @@
-// SQLite 类和 SQLBuilder 类使用示例
+﻿// SQLite 类和 SQLBuilder 类使用示例
 #include "sqlite/sqlite.h"
 #include <iostream>
 #include <string>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 void test_basic_usage() {
     // 直接构造数据库实例
     SQLite db("test.db", 5);  // 5 个连接池

@@ -2,7 +2,7 @@
 #include "preprocess/format_converter/opencv_format_converter.h"  // 可选组件
 #include "preprocess/format_converter/yuv_to_bgr_converter.h"     // YUV 到 BGR 转换
 #include "alg/grpc/grpc_video_sender.h"  // gRPC 视频发送器
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 extern "C" {
 #include <libswscale/swscale.h>
 }

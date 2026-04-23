@@ -2,7 +2,7 @@
 #include "sqlite/sqlite.h"
 #include <iostream>
 #include <cassert>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 
 

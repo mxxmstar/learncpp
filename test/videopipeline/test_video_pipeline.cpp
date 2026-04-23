@@ -3,7 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include "video_pipeline.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // 鍏ㄥ眬鏍囧織
 std::atomic<bool> g_running{true};

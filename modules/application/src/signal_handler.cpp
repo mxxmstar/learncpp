@@ -1,5 +1,5 @@
-#include "application/signal_handler.h"
-#include "log/logmanager.h"
+﻿#include "application/signal_handler.h"
+#include "common/log/logmanager.h"
 #include <csignal>
 
 #ifdef _WIN32

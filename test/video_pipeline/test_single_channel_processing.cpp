@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <thread>
 #include <chrono>
 #include <csignal>
@@ -6,7 +6,7 @@
 #include "video_pipeline/algorithm/i_algorithm.h"
 #include "video_pipeline/output/result_output.h"
 #include "video_pipeline/processor/osd_renderer.h"  // 【新增】OSD 渲染器
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // 全局标志
 std::atomic<bool> g_running{true};

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 视频处理 gRPC 客户端测试
  * 测试与 Python gRPC 服务端的通信
  */
@@ -10,7 +10,7 @@
 #include <chrono>
 #include <atomic>
 #include <csignal>
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 using namespace grpc_module;
 
 // ==================== Graceful Shutdown ====================

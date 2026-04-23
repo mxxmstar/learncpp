@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <memory>
 #include <string>
@@ -7,8 +7,8 @@
 #include <vector>
 #include <any>
 #include "application/signal_handler.h"
-#include "common/service/iservice.h"  // 需要完整定义
-#include "log/logmanager.h"  // 需要日志宏
+#include "service/iservice.h"  // 需要完整定义
+#include "common/log/logmanager.h"  // 需要日志宏
 
 /// @brief 应用程序框架
 /// 提供依赖注入、配置管理、生命周期管理等功能

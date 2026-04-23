@@ -4,7 +4,7 @@
 #include <csignal>
 #include "puller/i_puller.h"
 #include "puller/zlm/zlm_httpflv_puller.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // 全局标志
 std::atomic<bool> g_running{true};

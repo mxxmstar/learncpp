@@ -98,9 +98,10 @@ add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
 add_subdirectory(modules/sqlite)
 add_subdirectory(modules/zlmediakit)
 add_subdirectory(modules/config)
-add_subdirectory(modules/common)  # common 模块（IService 接口）
+add_subdirectory(modules/common)  # common 模块（IService 接口，log, config）
 add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
-add_subdirectory(modules/web)  # web 模块（合并了 api 和 service）
+add_subdirectory(modules/service)  # service 模块（所有 Service 实现）
+add_subdirectory(modules/api)  # api 模块（Web API 层，原 web 模块）
 add_subdirectory(modules/ffmpeg_opt)  # ffmpeg_opt 模块（FFmpeg 推流工具）
 
 # 主程序只包含 main.cpp，其他功能通过模块链接
@@ -129,7 +130,7 @@ if(WIN32)
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             config_lib  # 添加配置模块
-            web_lib  # 添加 Web 模块（包含 API 和 Service）
+            api_lib  # 添加 API 模块（Web API 层）
             application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
             spdlog::spdlog
             Boost::asio
@@ -258,7 +259,7 @@ if(BUILD_TESTS)
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             config_lib  # 添加配置模块
-            web_lib  # 添加 Web 模块（包含 API 和 Service）
+            api_lib  # 添加 API 模块（Web API 层）
             application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
             spdlog::spdlog
             Boost::asio

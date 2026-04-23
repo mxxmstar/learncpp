@@ -1,4 +1,4 @@
-//#define WIN32_LEAN_AND_MEAN
+﻿//#define WIN32_LEAN_AND_MEAN
 //#define NOMINMAX
 //#include <winsock2.h>
 
@@ -16,7 +16,7 @@
 #include <iostream>
 #include <filesystem>
 #include "zlmediakit/zlm_manager.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 namespace bp = boost::process;
 
 std::string GetZlmPath() {

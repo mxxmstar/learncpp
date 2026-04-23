@@ -1,7 +1,7 @@
-#include <iostream>
+﻿#include <iostream>
 #include "alg/grpc/i_algorithm_processor.h"
 #include "alg/grpc/grpc_to_alg.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 int main() {
     std::cout << "========================================" << std::endl;

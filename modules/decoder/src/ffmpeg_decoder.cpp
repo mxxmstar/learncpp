@@ -1,5 +1,5 @@
 ﻿#include "decoder/ffmpeg_decoder.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>

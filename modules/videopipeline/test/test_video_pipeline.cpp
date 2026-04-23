@@ -1,9 +1,9 @@
-#include <iostream>
+﻿#include <iostream>
 #include <thread>
 #include <chrono>
 #include <csignal>
 #include "videopipeline/video_pipeline.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // 全局标志
 std::atomic<bool> g_running{true};

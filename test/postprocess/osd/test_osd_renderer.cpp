@@ -1,7 +1,7 @@
 ﻿#include <iostream>
 #include <opencv2/opencv.hpp>
 #include "postprocess/osd/osd_renderer.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 int main() {
     std::cout << "========================================" << std::endl;

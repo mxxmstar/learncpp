@@ -1,5 +1,5 @@
-#include "ffmpeg_opt/ffmpeg_opt.h"
-#include "log/logmanager.h"
+﻿#include "ffmpeg_opt/ffmpeg_opt.h"
+#include "common/log/logmanager.h"
 #include <sstream>
 #include <filesystem>
 #include <vector>

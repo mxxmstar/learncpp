@@ -1,7 +1,7 @@
 ﻿#include <iostream>
 #include "preprocess/format_converter/i_format_converter.h"
 #include "preprocess/format_converter/yuv_to_bgr_converter.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 int main() {
     std::cout << "========================================" << std::endl;

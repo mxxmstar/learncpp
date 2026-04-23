@@ -1,5 +1,5 @@
 ﻿#include "videopipeline/video_pipeline_manager.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 VideoPipelineManager& VideoPipelineManager::getInstance() {
     static VideoPipelineManager instance;

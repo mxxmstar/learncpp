@@ -6,7 +6,7 @@
 #include "algorithm/i_algorithm.h"
 #include "output/result_output.h"
 #include "processor/osd_renderer.h"  // 銆愭柊澧炪€慜SD 娓叉煋鍣?
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 // 鍏ㄥ眬鏍囧織
 std::atomic<bool> g_running{true};

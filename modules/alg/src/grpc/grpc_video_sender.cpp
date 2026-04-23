@@ -1,5 +1,5 @@
 ﻿#include "alg/grpc/grpc_video_sender.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 #include <iostream>
 
 GrpcVideoSender::GrpcVideoSender(const std::string& server_address, int target_fps)

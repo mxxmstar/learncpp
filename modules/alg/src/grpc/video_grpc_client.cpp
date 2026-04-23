@@ -1,6 +1,6 @@
-#include "alg/grpc/video_grpc_client.h"
+﻿#include "alg/grpc/video_grpc_client.h"
 #include "video_processing.grpc.pb.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 #include <opencv2/opencv.hpp>
 #include <chrono>
 #include <sstream>

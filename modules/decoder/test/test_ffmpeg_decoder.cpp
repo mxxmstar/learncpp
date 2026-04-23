@@ -2,7 +2,7 @@
 #include <fstream>
 #include <vector>
 #include "decoder/ffmpeg_decoder.h"
-#include "log/logmanager.h"
+#include "common/log/logmanager.h"
 
 /// @brief 从 H.264 文件加载测试数据
 std::vector<uint8_t> loadH264File(const std::string& filename) {

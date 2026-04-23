@@ -4,8 +4,12 @@ project(common_lib LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 收集源文件
-file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
+# 收集源文件（包括 log 和 config）
+file(GLOB_RECURSE LIB_SOURCES 
+    "src/*.cpp"
+    "include/common/log/*.h"
+    "include/common/config/*.h"
+)
 
 # 创建库
 add_library(${PROJECT_NAME} ${LIB_SOURCES})
@@ -17,11 +21,20 @@ target_include_directories(${PROJECT_NAME}
 )
 
 # 链接依赖
-# 目前 common_lib 只有头文件接口，不需要链接其他库
-# 未来添加通用工具函数实现时，可以在此添加依赖
+find_package(spdlog CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS json system filesystem process)
+
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        # 预留：未来可以添加依赖
+        spdlog::spdlog
+        fmt::fmt
+        yaml-cpp::yaml-cpp
+        Boost::json
+        Boost::system
+        Boost::filesystem
+        Boost::process
 )
 
 # Windows 特定配置
