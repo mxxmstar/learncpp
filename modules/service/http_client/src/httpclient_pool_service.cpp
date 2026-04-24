@@ -20,18 +20,14 @@ std::shared_ptr<HttpClientPoolService> HttpClientPoolService::CreateFromAppConfi
 }
 
 HttpClientPoolService::HttpClientPoolService(const HttpClientPoolConfig& config)
-    : config_(config) {
+    : config_(config), io_context_pool_(Net::AsioIOContextPool::GetInstance()) {
 }
 
 HttpClientPoolService::~HttpClientPoolService() {
     if (running_) {
         Stop();
     }
-    
-    // 确保线程被清理
-    if (io_thread_ && io_thread_->joinable()) {
-        io_thread_->join();
-    }
+    // 线程池由全局单例管理，无需手动清理
 }
 
 bool HttpClientPoolService::Initialize() {
@@ -43,11 +39,8 @@ bool HttpClientPoolService::Initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     
     try {
-        // 创建 io_context
-        io_context_ = std::make_unique<boost::asio::io_context>();
-        
-        // 创建并初始化 HttpClientPool（不再使用单例）
-        pool_ = std::make_unique<Net::HttpClientPool>();
+        // 创建并初始化 HttpClientPool（使用固定的 io_context）
+        http_pool_ = std::make_unique<Net::HttpClientPool>();
         
         // 手动转换配置
         Net::HttpClientPool::Config pool_config;
@@ -59,8 +52,9 @@ bool HttpClientPoolService::Initialize() {
         pool_config.idle_timeout_sec = config_.idle_timeout_sec;
         pool_config.max_requests_per_client = config_.max_requests_per_client;
         
-        // 初始化连接池
-        pool_->Init(*io_context_, pool_config);
+        // 初始化连接池（使用固定的 io_context）
+        auto& io_ctx = io_context_pool_.GetOrCreateIOContext("http_client_pool");
+        http_pool_->Init(io_ctx, pool_config);
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, init_size: {}, max_size: {})", 
@@ -87,20 +81,10 @@ bool HttpClientPoolService::Start() {
     LOG_MAIN_INFO_AT("{}: Starting...", GetName());
     
     try {
-        // 创建工作守卫，防止 io_context 在没有任务时自动停止
-        work_guard_ = std::make_unique<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
-            io_context_->get_executor()
-        );
-        
-        // 启动 io_context 运行线程
-        io_thread_ = std::make_unique<std::thread>([this]() {
-            LOG_MAIN_INFO_AT("{}: io_context running...", GetName());
-            io_context_->run();
-            LOG_MAIN_INFO_AT("{}: io_context stopped", GetName());
-        });
+        // 线程池已经在 GetInstance() 时启动，无需额外操作
         
         running_ = true;
-        LOG_MAIN_INFO_AT("{}: Started successfully", GetName());
+        LOG_MAIN_INFO_AT("{}: Started successfully (using thread pool)", GetName());
         return true;
         
     } catch (const std::exception& e) {
@@ -119,27 +103,11 @@ void HttpClientPoolService::Stop() {
     
     try {
         // 停止连接池
-        if (pool_) {
-            pool_->Stop();
+        if (http_pool_) {
+            http_pool_->Stop();
         }
         
-        // 重置工作守卫，允许 io_context 停止
-        if (work_guard_) {
-            work_guard_.reset();
-            LOG_MAIN_INFO_AT("{}: Work guard reset", GetName());
-        }
-        
-        // 停止 io_context
-        if (io_context_) {
-            io_context_->stop();
-        }
-        
-        // 等待 io_context 线程结束
-        if (io_thread_ && io_thread_->joinable()) {
-            LOG_MAIN_INFO_AT("{}: Waiting for io_context thread to finish...", GetName());
-            io_thread_->join();
-            LOG_MAIN_INFO_AT("{}: io_context thread joined", GetName());
-        }
+        // 线程池由全局单例管理，无需手动停止
         
         running_ = false;
         LOG_MAIN_INFO_AT("{}: Stopped", GetName());

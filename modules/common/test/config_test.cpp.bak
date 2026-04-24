@@ -2,7 +2,7 @@
 #include <cassert>
 #include <thread>
 #include <chrono>
-#include "config/common_config.h"
+#include "common/config/common_config.h"
 
 void test_load_config() {
     std::cout << "[TEST] Loading config file..." << std::endl;

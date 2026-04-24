@@ -1,4 +1,4 @@
-# ZLM Service 模块
+﻿# ZLM Service 模块
 project(zlm_service_lib)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -24,7 +24,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     net_lib           # http_client_lib, io_context_pool_lib
     application_lib   # Application
     zlmediakit_lib    # ZLMManager, ZLMProxyManager
-    config_lib        # ZlmConfig
+    common_lib        # ZlmConfig
 )
 
 if(MSVC)

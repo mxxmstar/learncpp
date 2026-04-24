@@ -1,4 +1,4 @@
-# modules/preprocess/CMakeLists.txt
+﻿# modules/preprocess/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(preprocess_module LANGUAGES CXX)
 
@@ -30,7 +30,7 @@ target_link_libraries(preprocess_lib
     PUBLIC
         ${OpenCV_LIBS}
         decoder_lib  # preprocess 依赖 decoder 的 VideoFrame
-        log_lib
+        common_lib
         common_lib        # 通用service接口
 )
 

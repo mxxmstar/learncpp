@@ -1,4 +1,4 @@
-# modules/videopipeline/test/CMakeLists.txt
+﻿# modules/videopipeline/test/CMakeLists.txt
 # VideoPipeline 模块测试配置
 
 # 设置测试可执行文件输出目录
@@ -14,7 +14,7 @@ target_link_libraries(test_single_channel_processing
         videopipeline_lib
         alg_lib        # i_algorithm 在 alg 模块
         postprocess_lib  # result_output 和 osd_renderer 在 postprocess 模块
-        log_lib
+        common_lib
 )
 
 target_include_directories(test_single_channel_processing
@@ -30,7 +30,7 @@ add_executable(test_video_pipeline
 target_link_libraries(test_video_pipeline
     PRIVATE
         videopipeline_lib
-        log_lib
+        common_lib
 )
 
 target_include_directories(test_video_pipeline
@@ -48,7 +48,7 @@ target_link_libraries(test_video_pipeline_grpc
         videopipeline_lib
         alg_lib      # gRPC 算法处理器在 alg 模块
         grpc_lib     # gRPC 基础设施
-        log_lib
+        common_lib
 )
 
 target_include_directories(test_video_pipeline_grpc

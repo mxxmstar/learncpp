@@ -75,15 +75,10 @@ int testHttpServerOnly() {
         auto http_svc = container.getService<HttpServerService>();
         if (http_svc) {
             std::cout << "[Service] HTTP Server service obtained" << std::endl;
-            std::cout << "[Service] IO Context: " << (http_svc->getIoContext() ? "valid" : "null") << std::endl;
+            std::cout << "[Service] HTTP Server is running (using thread pool)" << std::endl;
         }
         
-        // 8. 运行 io_context
-        if (http_svc && http_svc->getIoContext()) {
-            http_svc->getIoContext()->run();
-        }
-        
-        // 9. 等待退出信号
+        // 8. 等待退出信号（线程池已经在 GetInstance() 时启动）
         while (g_running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -209,13 +204,7 @@ int testWithZLM() {
             */
         }
         
-        // 11. 运行 HTTP 服务器的 io_context
-        if (http_svc && http_svc->getIoContext()) {
-            std::cout << "[Run] Running HTTP server io_context..." << std::endl;
-            http_svc->getIoContext()->run();
-        }
-        
-        //// 12. 等待退出信号
+        // 11. 等待退出信号（线程池已经在 GetInstance() 时启动）
         while (g_running) {
            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }

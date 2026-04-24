@@ -14,18 +14,14 @@ std::shared_ptr<HttpServerService> HttpServerService::CreateFromAppConfig(const 
 }
 
 HttpServerService::HttpServerService(const HttpServerConfig& config)
-    : config_(config) {
+    : config_(config), pool_(Net::AsioIOContextPool::GetInstance()) {
 }
 
 HttpServerService::~HttpServerService() {
     if (running_) {
         Stop();
     }
-    
-    // 确保线程被清理
-    if (io_thread_ && io_thread_->joinable()) {
-        io_thread_->join();
-    }
+    // 线程池由全局单例管理，无需手动清理
 }
 
 bool HttpServerService::Initialize() {
@@ -37,13 +33,12 @@ bool HttpServerService::Initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     
     try {
-        // 创建主 io_context
-        io_context_ = std::make_unique<boost::asio::io_context>();
+        // 创建 HTTP 服务器
+        // acceptor 使用固定的 io_context（低并发）
+        auto& accept_ioc = pool_.GetOrCreateIOContext("http_server_acceptor");
         
-        // 创建 HTTP 服务器        
-        // 假设 AsioHttpServer 的构造函数是 (io_context&, worker_pool, port)
-        auto& worker_pool = AsioIOContextPool::GetInstance();
-        server_ = std::make_unique<Net::AsioHttpServer>(*io_context_, worker_pool, config_.port);
+        // worker_pool 使用同一个线程池，但轮询分配（高并发）
+        server_ = std::make_unique<Net::AsioHttpServer>(accept_ioc, pool_, config_.port);
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {})", 
@@ -75,15 +70,10 @@ bool HttpServerService::Start() {
             server_->Start();
         }
         
-        // 启动 io_context 运行线程
-        io_thread_ = std::make_unique<std::thread>([this]() {
-            LOG_MAIN_INFO_AT("{}: io_context running...", GetName());
-            io_context_->run();
-            LOG_MAIN_INFO_AT("{}: io_context stopped", GetName());
-        });
+        // 线程池已经在 GetInstance() 时启动，无需额外操作
         
         running_ = true;
-        LOG_MAIN_INFO_AT("{}: Started successfully", GetName());
+        LOG_MAIN_INFO_AT("{}: Started successfully (using thread pool)", GetName());
         return true;
         
     } catch (const std::exception& e) {
@@ -106,17 +96,7 @@ void HttpServerService::Stop() {
             server_->Stop();
         }
         
-        // 停止 io_context
-        if (io_context_) {
-            io_context_->stop();
-        }
-        
-        // 等待 io_context 线程结束
-        if (io_thread_ && io_thread_->joinable()) {
-            LOG_MAIN_INFO_AT("{}: Waiting for io_context thread to finish...", GetName());
-            io_thread_->join();
-            LOG_MAIN_INFO_AT("{}: io_context thread joined", GetName());
-        }
+        // 线程池由全局单例管理，无需手动停止
         
         running_ = false;
         LOG_MAIN_INFO_AT("{}: Stopped", GetName());

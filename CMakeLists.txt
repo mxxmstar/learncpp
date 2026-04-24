@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+﻿cmake_minimum_required(VERSION 3.18)
 
 # ⚠️ 重要：vcpkg toolchain 必须在 project() 之前设置
 # 自动检测本地 vcpkg（如果存在）
@@ -85,7 +85,7 @@ if(MSVC)
 endif()
 
 # 添加模块化库（按依赖顺序）- 在 find_package 之后
-add_subdirectory(modules/log)
+# add_subdirectory(modules/log)  # 已迁移到 common
 add_subdirectory(modules/net)
 add_subdirectory(modules/puller)  # puller 模块依赖 net 和 log
 add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
@@ -97,7 +97,7 @@ add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
 #add_subdirectory(modules/videopipeline)  # videopipeline 模块依赖多个模块
 add_subdirectory(modules/sqlite)
 add_subdirectory(modules/zlmediakit)
-add_subdirectory(modules/config)
+# add_subdirectory(modules/config)  # 已迁移到 common
 add_subdirectory(modules/common)  # common 模块（IService 接口，log, config）
 add_subdirectory(modules/service)  # service 模块（所有 Service 实现）
 add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
@@ -117,7 +117,7 @@ if(WIN32)
     target_link_libraries(${PROJECT_NAME}
         PRIVATE
             common_lib        # 通用service接口
-            log_lib  # 添加日志模块
+            common_lib  # 添加日志模块
             net_lib  # 添加网络模块
             puller_lib  # 添加拉流器模块
             #camera_lib  # 添加相机模块
@@ -129,7 +129,7 @@ if(WIN32)
             #videopipeline_lib  # 添加视频管道模块
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
-            config_lib  # 添加配置模块
+            common_lib  # 添加配置模块
             api_lib  # 添加 API 模块（Web API 层）
             application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
             spdlog::spdlog
@@ -187,7 +187,7 @@ endif()
 # # 链接依赖库
 # target_link_libraries(myapp_lib
 #     PUBLIC
-#         log_lib
+#         common_lib
 #         spdlog::spdlog
 #         Boost::asio
 #         Boost::system
@@ -247,7 +247,7 @@ if(BUILD_TESTS)
             PRIVATE
             common_lib        # 通用service接口
             service_lib       # IService 接口
-            log_lib  # 添加日志模块
+            common_lib  # 添加日志模块
             net_lib  # 添加网络模块
             puller_lib  # 添加拉流器模块
             #camera_lib  # 添加相机模块
@@ -259,7 +259,7 @@ if(BUILD_TESTS)
             #videopipeline_lib  # 添加视频管道模块
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
-            config_lib  # 添加配置模块
+            common_lib  # 添加配置模块
             api_lib  # 添加 API 模块（Web API 层）
             http_server_service_lib   # HttpServerService
             http_client_pool_service_lib  # HttpClientPoolService

@@ -1,4 +1,4 @@
-# modules/decoder/CMakeLists.txt
+﻿# modules/decoder/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(decoder_module LANGUAGES CXX)
 
@@ -29,7 +29,7 @@ target_include_directories(decoder_lib
 target_link_libraries(decoder_lib
     PUBLIC
         ${FFMPEG_LIBRARIES}
-        log_lib
+        common_lib
         common_lib        # 通用service接口
 )
 

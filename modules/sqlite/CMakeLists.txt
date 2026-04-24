@@ -1,4 +1,4 @@
-# modules/sqlite/CMakeLists.txt
+﻿# modules/sqlite/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(sqlite_module LANGUAGES CXX)
 
@@ -30,14 +30,14 @@ if(WIN32)
     target_link_libraries(sqlite_lib
         PUBLIC
             unofficial::sqlite3::sqlite3
-            log_lib  # sqlite 模块依赖 log 模块
+            common_lib  # sqlite 模块依赖 log 模块
             common_lib        # 通用service接口
     )
 else()
     target_link_libraries(sqlite_lib
         PUBLIC
             SQLite::SQLite3
-            log_lib  # sqlite 模块依赖 log 模块
+            common_lib  # sqlite 模块依赖 log 模块
             common_lib        # 通用service接口
     )
 endif()

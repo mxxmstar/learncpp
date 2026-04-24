@@ -1,4 +1,4 @@
-# modules/camera/CMakeLists.txt
+﻿# modules/camera/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(camera_module LANGUAGES CXX)
 
@@ -29,7 +29,7 @@ target_include_directories(camera_lib
 target_link_libraries(camera_lib
     PUBLIC
         Boost::json
-        log_lib
+        common_lib
         net_lib
         sqlite_lib  # CameraStorage 需要 SQLite
         common_lib        # 通用service接口

@@ -1,4 +1,4 @@
-# modules/preprocess/test/CMakeLists.txt
+﻿# modules/preprocess/test/CMakeLists.txt
 
 # 设置测试可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
@@ -23,7 +23,7 @@ foreach(test_file ${PREPROCESS_TEST_SOURCES})
         PRIVATE
             preprocess_lib
             decoder_lib  # preprocess 依赖 decoder
-            log_lib
+            common_lib
     )
     
     # 添加测试

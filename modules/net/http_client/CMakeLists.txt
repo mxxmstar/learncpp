@@ -1,4 +1,4 @@
-# HTTP Client 模块
+﻿# HTTP Client 模块
 project(http_client_lib)
 
 # 收集源文件
@@ -22,7 +22,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::json
     Boost::system
     Boost::asio
-    log_lib  # 日志模块
+    common_lib  # 日志模块
 )
 
 # 编译选项

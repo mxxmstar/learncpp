@@ -2,10 +2,10 @@
 
 #include "service/iservice.h"
 #include "net/http_client/http_client_pool.h"
+#include "net/io_context_pool/asio_io_context_pool.h"
 #include "common/config/common_config.h"
 #include <boost/asio.hpp>
 #include <memory>
-#include <thread>
 
 /// @brief HTTP 客户端池服务
 /// 封装 HttpClientPool，提供连接池管理服务
@@ -29,14 +29,12 @@ public:
     bool IsInitialized() const override { return initialized_; }
     
     /// @brief 获取 HttpClientPool 实例
-    Net::HttpClientPool* GetHttpClientPool() { return pool_.get(); }
+    Net::HttpClientPool* GetHttpClientPool() { return http_pool_.get(); }
     
 private:
     HttpClientPoolConfig config_;
-    std::unique_ptr<boost::asio::io_context> io_context_;
-    std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_guard_;  // 工作守卫，防止 io_context 自动停止
-    std::unique_ptr<std::thread> io_thread_;  // io_context 运行线程
-    std::unique_ptr<Net::HttpClientPool> pool_ = nullptr;
+    Net::AsioIOContextPool& io_context_pool_;  // 引用全局线程池
+    std::unique_ptr<Net::HttpClientPool> http_pool_;  // HTTP 客户端池
     bool initialized_ = false;
     bool running_ = false;
 };

@@ -1,4 +1,4 @@
-# TCP Server 模块
+﻿# TCP Server 模块
 project(tcp_server_lib)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -16,7 +16,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::system
     Boost::asio
-    log_lib
+    common_lib
     io_context_pool_lib  # TCP Server 依赖 IO Context Pool
 )
 

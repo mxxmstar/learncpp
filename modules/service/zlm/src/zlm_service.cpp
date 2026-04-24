@@ -7,18 +7,14 @@ std::shared_ptr<ZLMService> ZLMService::CreateFromAppConfig(const AppConfig& app
 }
 
 ZLMService::ZLMService(const ZlmConfig& config)
-    : config_(config) {
+    : config_(config), pool_(Net::AsioIOContextPool::GetInstance()) {
 }
 
 ZLMService::~ZLMService() {
     if (running_) {
         Stop();
     }
-    
-    // 确保线程被清理
-    if (io_thread_ && io_thread_->joinable()) {
-        io_thread_->join();
-    }
+    // 线程池由全局单例管理，无需手动清理
 }
 
 bool ZLMService::Initialize() {
@@ -30,9 +26,6 @@ bool ZLMService::Initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     
     try {
-        // 创建 io_context
-        io_context_ = std::make_unique<boost::asio::io_context>();
-        
         // 检查 HttpClientPool 是否已设置
         if (!http_pool_) {
             LOG_MAIN_ERROR_AT("{}: HttpClientPool not set. Call SetHttpClientPool() before Initialize()", GetName());
@@ -41,8 +34,9 @@ bool ZLMService::Initialize() {
         
         LOG_MAIN_INFO_AT("{}: HttpClientPool is ready", GetName());
         
-        // 使用 new 创建 ZLMManager，并传入必要的参数
-        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(*io_context_, http_pool_, config_));
+        // 使用 new 创建 ZLMManager（使用固定的 io_context）
+        auto& io_ctx = pool_.GetOrCreateIOContext("zlm_manager");
+        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(io_ctx, http_pool_, config_));
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, secret: {})", 
@@ -75,15 +69,10 @@ bool ZLMService::Start() {
             return false;
         }
         
-        // 启动 io_context 运行线程
-        io_thread_ = std::make_unique<std::thread>([this]() {
-            LOG_MAIN_INFO_AT("{}: io_context running...", GetName());
-            io_context_->run();
-            LOG_MAIN_INFO_AT("{}: io_context stopped", GetName());
-        });
+        // 线程池已经在 GetInstance() 时启动，无需额外操作
         
         running_ = true;
-        LOG_MAIN_INFO_AT("{}: Started successfully", GetName());
+        LOG_MAIN_INFO_AT("{}: Started successfully (using thread pool)", GetName());
         return true;
         
     } catch (const std::exception& e) {
@@ -106,17 +95,7 @@ void ZLMService::Stop() {
             zlm_manager_->Stop();
         }
         
-        // 停止 io_context
-        if (io_context_) {
-            io_context_->stop();
-        }
-        
-        // 等待 io_context 线程结束
-        if (io_thread_ && io_thread_->joinable()) {
-            LOG_MAIN_INFO_AT("{}: Waiting for io_context thread to finish...", GetName());
-            io_thread_->join();
-            LOG_MAIN_INFO_AT("{}: io_context thread joined", GetName());
-        }
+        // 线程池由全局单例管理，无需手动停止
         
         running_ = false;
         LOG_MAIN_INFO_AT("{}: Stopped", GetName());

@@ -1,4 +1,4 @@
-# modules/grpc/CMakeLists.txt
+﻿# modules/grpc/CMakeLists.txt
 # GRPC 模块：通用 gRPC 基础设施（客户端/服务器基础类）
 # 注意：算法相关的 gRPC 实现（grpc_to_alg, grpc_video_sender）在 alg 模块中
 
@@ -46,7 +46,7 @@ target_link_libraries(grpc_lib
     PUBLIC
         gRPC::grpc++
         protobuf::libprotobuf
-        log_lib
+        common_lib
         common_lib        # 通用service接口
 )
 

@@ -2,10 +2,10 @@
 
 #include "service/iservice.h"
 #include "zlmediakit/zlm_manager.h"
+#include "net/io_context_pool/asio_io_context_pool.h"
 #include "common/config/common_config.h"
 #include <boost/asio.hpp>
 #include <memory>
-#include <thread>
 
 // 前向声明，避免依赖 web 模块
 namespace Net {
@@ -41,8 +41,7 @@ public:
     ZLMManager* GetZLMManager() { return zlm_manager_.get(); }
     
 private:
-    std::unique_ptr<boost::asio::io_context> io_context_;
-    std::unique_ptr<std::thread> io_thread_;  // io_context 运行线程
+    Net::AsioIOContextPool& pool_;  // 使用全局线程池
     Net::HttpClientPool* http_pool_ = nullptr;  // HTTP 客户端池（外部设置）
     ZlmConfig config_;
     std::unique_ptr<ZLMManager> zlm_manager_;

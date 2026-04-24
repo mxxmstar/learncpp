@@ -1,4 +1,4 @@
-# modules/videopipeline/CMakeLists.txt
+﻿# modules/videopipeline/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(videopipeline_module LANGUAGES CXX)
 
@@ -35,7 +35,7 @@ target_link_libraries(videopipeline_lib
         grpc_lib  # videopipeline 使用 gRPC 基础设施
         alg_lib  # alg_lib 包含 grpc 算法处理器
         puller_lib  # videopipeline 依赖 puller
-        log_lib
+        common_lib
         net_lib
         Boost::asio
         Boost::lockfree

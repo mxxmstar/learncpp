@@ -1,4 +1,4 @@
-# modules/zlmediakit/CMakeLists.txt
+﻿# modules/zlmediakit/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(zlmediakit_module LANGUAGES CXX)
 
@@ -34,7 +34,7 @@ target_link_libraries(zlmediakit_lib
         application_lib   # zlmediakit 模块依赖 application 模块
         common_lib        # IService, log, config
         net_lib           # http_client_lib, io_context_pool_lib
-        config_lib        # ZlmConfig
+        common_lib        # ZlmConfig
 )
 
 # Windows 特定配置

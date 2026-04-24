@@ -1,4 +1,4 @@
-# modules/postprocess/CMakeLists.txt
+﻿# modules/postprocess/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(postprocess_module LANGUAGES CXX)
 
@@ -30,7 +30,7 @@ target_link_libraries(postprocess_lib
     PUBLIC
         ${OpenCV_LIBS}
         decoder_lib  # 可能依赖 VideoFrame
-        log_lib
+        common_lib
         common_lib        # 通用service接口
 )
 

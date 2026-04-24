@@ -1,4 +1,4 @@
-# WebSocket 模块
+﻿# WebSocket 模块
 project(websocket_lib)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -17,7 +17,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::json
     Boost::system
     Boost::asio
-    log_lib
+    common_lib
     http_server_lib  # WebSocket 依赖 HTTP Server（用于握手）
 )
 

@@ -1,4 +1,4 @@
-# modules/puller/CMakeLists.txt
+﻿# modules/puller/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(puller_module LANGUAGES CXX)
 
@@ -30,7 +30,7 @@ target_link_libraries(puller_lib
     PUBLIC
         Boost::asio
         Boost::beast
-        log_lib  # puller 模块依赖 log 模块
+        common_lib  # puller 模块依赖 log 模块
         common_lib        # 通用service接口
 )
 

@@ -1,4 +1,4 @@
-# FFmpeg 推流工具模块
+﻿# FFmpeg 推流工具模块
 cmake_minimum_required(VERSION 3.15)
 
 # 查找 FFmpeg 可执行文件
@@ -36,7 +36,7 @@ target_include_directories(ffmpeg_opt_lib PUBLIC
 
 # 链接依赖库
 target_link_libraries(ffmpeg_opt_lib PUBLIC
-    log_lib
+    common_lib
     common_lib        # 通用service接口
 )
 

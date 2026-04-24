@@ -1,4 +1,4 @@
-# HTTP Server 模块
+﻿# HTTP Server 模块
 project(http_server_lib)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -17,7 +17,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::json
     Boost::system
     Boost::asio
-    log_lib
+    common_lib
     http_client_lib      # HTTP Server 依赖 HTTP Client（用于路由等）
     io_context_pool_lib  # HTTP Server 依赖 IO Context Pool
 )

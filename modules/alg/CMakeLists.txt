@@ -1,4 +1,4 @@
-# modules/alg/CMakeLists.txt
+﻿# modules/alg/CMakeLists.txt
 cmake_minimum_required(VERSION 3.18)
 project(alg_module LANGUAGES CXX)
 
@@ -37,7 +37,7 @@ target_include_directories(alg_lib
 target_link_libraries(alg_lib
     PUBLIC
         ${OpenCV_LIBS}
-        log_lib
+        common_lib
         grpc_lib  # alg 依赖 grpc 模块的通用基础设施
         common_lib        # 通用service接口
 )

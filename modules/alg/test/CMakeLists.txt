@@ -1,4 +1,4 @@
-# modules/alg/test/CMakeLists.txt
+﻿# modules/alg/test/CMakeLists.txt
 # ALG 模块测试配置（包含 gRPC 算法处理器测试）
 
 # 设置测试可执行文件输出目录
@@ -13,7 +13,7 @@ target_link_libraries(test_grpc_video_client
     PRIVATE
         grpc_lib
         alg_lib  # video_grpc_client 已移到 alg 模块
-        log_lib
+        common_lib
 )
 
 target_include_directories(test_grpc_video_client
@@ -30,7 +30,7 @@ target_link_libraries(test_grpc_algorithm_integration
     PRIVATE
         grpc_lib
         alg_lib
-        log_lib
+        common_lib
 )
 
 target_include_directories(test_grpc_algorithm_integration
@@ -48,7 +48,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_video_processor.cpp")
         PRIVATE
             grpc_lib
             alg_lib  # 需要 alg_lib 的 IAlgorithmProcessor
-            log_lib
+            common_lib
     )
 
     target_include_directories(test_grpc_video_processor

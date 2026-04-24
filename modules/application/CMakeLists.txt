@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+﻿cmake_minimum_required(VERSION 3.18)
 project(application_lib LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -20,7 +20,7 @@ target_include_directories(${PROJECT_NAME}
 # SignalHandler 使用日志宏输出信号处理信息
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        log_lib     # SignalHandler 需要日志
+        common_lib     # SignalHandler 需要日志
         service_lib # IService 接口（已从 common 迁移到 service）
 )
 

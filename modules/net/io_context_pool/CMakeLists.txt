@@ -1,4 +1,4 @@
-# IO Context Pool 模块
+﻿# IO Context Pool 模块
 project(io_context_pool_lib)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -16,9 +16,10 @@ find_package(Boost REQUIRED COMPONENTS system)
 target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::system
     Boost::asio
-    log_lib
+    common_lib
 )
 
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE _WIN32_WINNT=0x0601 WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()

@@ -1,4 +1,4 @@
-# modules/puller/test/CMakeLists.txt
+﻿# modules/puller/test/CMakeLists.txt
 
 # 设置测试可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
@@ -19,7 +19,7 @@ foreach(test_file ${PULLER_TEST_SOURCES})
     target_link_libraries(${test_target}
         PRIVATE
             puller_lib
-            log_lib
+            common_lib
     )
     
     # 添加测试
