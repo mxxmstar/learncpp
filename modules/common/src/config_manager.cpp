@@ -1,5 +1,5 @@
-#include "config/common_config.h"
-#include "log/logmanager.h"
+#include "common/config/common_config.h"
+#include "common/log/logmanager.h"
 #include <fstream>
 #include <sstream>
 

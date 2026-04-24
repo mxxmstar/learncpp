@@ -17,6 +17,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::system
     Boost::asio
     log_lib
+    io_context_pool_lib  # TCP Server 依赖 IO Context Pool
 )
 
 if(MSVC)

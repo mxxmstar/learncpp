@@ -1,5 +1,5 @@
-#include "log/logmanager.h"
-#include "config/common_config.h"  // 需要 LogConfig 的完整定义
+#include "common/log/logmanager.h"
+#include "common/config/common_config.h"  // 需要 LogConfig 的完整定义
 #include <spdlog/spdlog.h>
 #include <thread>
 #include <chrono>

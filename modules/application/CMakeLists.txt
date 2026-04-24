@@ -21,7 +21,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         log_lib     # SignalHandler 需要日志
-        common_lib  # IService 接口
+        service_lib # IService 接口（已从 common 迁移到 service）
 )
 
 # Windows 特定配置

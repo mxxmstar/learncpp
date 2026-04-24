@@ -99,8 +99,8 @@ add_subdirectory(modules/sqlite)
 add_subdirectory(modules/zlmediakit)
 add_subdirectory(modules/config)
 add_subdirectory(modules/common)  # common 模块（IService 接口，log, config）
-add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
 add_subdirectory(modules/service)  # service 模块（所有 Service 实现）
+add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
 add_subdirectory(modules/api)  # api 模块（Web API 层，原 web 模块）
 add_subdirectory(modules/ffmpeg_opt)  # ffmpeg_opt 模块（FFmpeg 推流工具）
 
@@ -246,6 +246,7 @@ if(BUILD_TESTS)
         target_link_libraries(app_with_framework
             PRIVATE
             common_lib        # 通用service接口
+            service_lib       # IService 接口
             log_lib  # 添加日志模块
             net_lib  # 添加网络模块
             puller_lib  # 添加拉流器模块
@@ -260,6 +261,9 @@ if(BUILD_TESTS)
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             config_lib  # 添加配置模块
             api_lib  # 添加 API 模块（Web API 层）
+            http_server_service_lib   # HttpServerService
+            http_client_pool_service_lib  # HttpClientPoolService
+            zlm_service_lib   # ZLMService
             application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
             spdlog::spdlog
             Boost::asio

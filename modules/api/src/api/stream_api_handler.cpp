@@ -63,7 +63,7 @@ void StreamApiHandler::handleAddStreamProxy(const json::object& req, json::objec
 
         // 3. 解析参数
         std::string vhost = json::value_to<std::string>(req.at("vhost"));
-        std::string app = json::value_to<std::string>(req.at("app"));
+        std::string app_name = json::value_to<std::string>(req.at("app"));
         std::string stream = json::value_to<std::string>(req.at("stream"));
         std::string url = json::value_to<std::string>(req.at("url"));
         
@@ -88,15 +88,15 @@ void StreamApiHandler::handleAddStreamProxy(const json::object& req, json::objec
         rsp["code"] = 200;
         rsp["msg"] = "Success";
         rsp["data"] = {
-            {"key", vhost + "/" + app + "/" + stream},
+            {"key", vhost + "/" + app_name + "/" + stream},
             {"vhost", vhost},
-            {"app", app},
+            {"app", app_name},
             {"stream", stream},
             {"url", url}
         };
 
         LOG_MAIN_INFO_AT("Stream proxy added: vhost={}, app={}, stream={}, url={}", 
-                        vhost, app, stream, url);
+                        vhost, app_name, stream, url);
     }
     catch (const std::exception& e) {
         LOG_MAIN_ERROR_AT("Failed to add stream proxy: {}", e.what());

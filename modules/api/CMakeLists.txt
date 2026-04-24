@@ -38,6 +38,7 @@ target_link_libraries(api_lib
         net_lib           # http_server_lib, websocket_lib
         http_server_service_lib   # HttpServerService
         http_client_pool_service_lib  # HttpClientPoolService
+        zlm_service_lib   # ZLMService
         zlmediakit_lib    # ZLMediaKit 封装
         camera_lib        # Camera API
         sqlite_lib        # SQLite（通过 camera_lib 间接依赖）

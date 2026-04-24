@@ -18,7 +18,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::system
     Boost::asio
     log_lib
-    http_client_lib  # HTTP Server 依赖 HTTP Client（用于路由等）
+    http_client_lib      # HTTP Server 依赖 HTTP Client（用于路由等）
+    io_context_pool_lib  # HTTP Server 依赖 IO Context Pool
 )
 
 if(MSVC)

@@ -4,9 +4,9 @@
 #include "common/config/common_config.h"
 #include "common/log/logmanager.h"
 #include "application/service_container.h"
-#include "service/http_server_service.h"
-#include "zlmediakit/service/zlm_service.h"
-#include "service/httpclient_pool_service.h"
+#include "service/http_server/http_server_service.h"
+#include "service/zlm/zlm_service.h"
+#include "service/http_client/http_client_pool_service.h"
 #include "api/api_router_registrar.h"
 
 // 全局信号标志
@@ -152,7 +152,7 @@ int testWithZLM() {
         container.registerService<HttpServerService>(config.server);
         
         // 6. 注册 HttpClientPool 服务（ZLM 依赖它）
-        container.registerService<HttpClientPoolService>(shared_ctx, config.zlm_client);
+        container.registerService<HttpClientPoolService>(config.zlm_client);
         
         // 7. 注册 ZLMediaKit 服务
         // 注意：此测试使用旧的 ServiceContainer 架构，ZLMService 需要修改以兼容
