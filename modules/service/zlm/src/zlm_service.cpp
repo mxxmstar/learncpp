@@ -34,7 +34,7 @@ bool ZLMService::Initialize() {
         
         LOG_MAIN_INFO_AT("{}: HttpClientPool is ready", GetName());
         
-        // 使用 new 创建 ZLMManager（使用固定的 io_context）
+        // 使用 new 创建 ZLMManager，这样只需要依赖ZLMManager的声明，不需要实现
         auto& io_ctx = pool_.GetOrCreateIOContext("zlm_manager");
         zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(io_ctx, http_pool_, config_));
         

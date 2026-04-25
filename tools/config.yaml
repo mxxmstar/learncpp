@@ -5,13 +5,13 @@ servers:
 
 clients:
   zlm:
-    host: 127.0.0.1
-    port: 8888
-    init_size: 5
-    max_size: 20
-    connect_timeout_ms: 30000
-    idle_timeout_sec: 300
-    max_requests_per_client: 100
+    - dst_host: "127.0.0.1"
+      dst_port: 8888
+      init_size: 5
+      max_size: 20
+      connect_timeout_ms: 30000
+      idle_timeout_sec: 300
+      max_requests_per_client: 100
 
 logs:
   mainlog:

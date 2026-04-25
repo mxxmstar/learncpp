@@ -6,18 +6,16 @@
 #include "common/config/common_config.h"
 #include <boost/asio.hpp>
 #include <memory>
+#include <vector>
+#include <map>
+#include <string>
 
-/// @brief HTTP 客户端池服务
-/// 封装 HttpClientPool，提供连接池管理服务
+/// @brief HTTP 客户端池服务（支持多目标）
+/// 封装多个 HttpClientPool，每个目标一个池
 class HttpClientPoolService : public IService {
 public:
-    /// @brief 从 HttpClientPoolConfig 创建
-    explicit HttpClientPoolService(const HttpClientPoolConfig& config);
-    
-    /// @brief 从 AppConfig 创建（便捷方法）
-    /// @param app_config 应用配置
-    /// @return HttpClientPoolService 实例
-    static std::shared_ptr<HttpClientPoolService> CreateFromAppConfig(const AppConfig& app_config);
+    /// @brief 从 AppConfig 创建
+    explicit HttpClientPoolService(const AppConfig& app_config);
     
     ~HttpClientPoolService() override;
     
@@ -28,13 +26,29 @@ public:
     bool IsRunning() const override { return running_; }
     bool IsInitialized() const override { return initialized_; }
     
-    /// @brief 获取 HttpClientPool 实例
-    Net::HttpClientPool* GetHttpClientPool() { return http_pool_.get(); }
+    /// @brief 获取指定目标的 HttpClientPool 实例
+    /// @param target_key 目标标识（host:port）
+    /// @return HttpClientPool 指针，如果不存在返回 nullptr
+    Net::HttpClientPool* GetClientPool(const std::string& target_key) const;
+    
+    /// @brief 获取 ZLM 客户端池（便捷方法）
+    /// @return ZLM HttpClientPool 指针
+    Net::HttpClientPool* GetZlmClientPool() const;
+    
+    /// @brief 获取所有 HttpClientPool 实例
+    /// @return 目标标识到 HttpClientPool 的映射
+    const std::map<std::string, std::unique_ptr<Net::HttpClientPool>>& GetAllPools() const { return http_pools_; }
     
 private:
-    HttpClientPoolConfig config_;
+    /// @brief 生成目标标识
+    static std::string makeTargetKey(const std::string& host, uint16_t port);
+    
+    /// @brief 从 AppConfig 提取 ZLM 客户端配置
+    std::vector<HttpClientPoolConfig> extractZlmConfigs(const AppConfig& app_config);
+    
+    AppConfig app_config_;
     Net::AsioIOContextPool& io_context_pool_;  // 引用全局线程池
-    std::unique_ptr<Net::HttpClientPool> http_pool_;  // HTTP 客户端池
+    std::map<std::string, std::unique_ptr<Net::HttpClientPool>> http_pools_;  // 多个 HTTP 客户端池
     bool initialized_ = false;
     bool running_ = false;
 };

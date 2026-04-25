@@ -34,10 +34,10 @@ bool HttpServerService::Initialize() {
     
     try {
         // 创建 HTTP 服务器
-        // acceptor 使用固定的 io_context（低并发）
+        // acceptor 使用固定的 io_context
         auto& accept_ioc = pool_.GetOrCreateIOContext("http_server_acceptor");
         
-        // worker_pool 使用同一个线程池，但轮询分配（高并发）
+        // worker_pool 使用轮询分配的线程池
         server_ = std::make_unique<Net::AsioHttpServer>(accept_ioc, pool_, config_.port);
         
         initialized_ = true;

@@ -93,15 +93,24 @@ std::vector<std::string> ConfigManager::GetValidationErrors() const {
         errors.push_back("server.port must be between 1 and 65535");
     }
 
-    // 验证 ZLM 客户端池配置
-    if (config_.zlm_client.dst_port <= 0 || config_.zlm_client.dst_port > 65535) {
-        errors.push_back("clients.zlm.dst_port must be between 1 and 65535");
-    }
-    if (config_.zlm_client.init_size == 0) {
-        errors.push_back("clients.zlm.init_size must be positive");
-    }
-    if (config_.zlm_client.max_size == 0 || config_.zlm_client.max_size < config_.zlm_client.init_size) {
-        errors.push_back("clients.zlm.max_size must be >= init_size");
+    // 验证客户端池配置
+    for (const auto& [client_type, configs] : config_.clients) {
+        if (configs.empty()) {
+            errors.push_back("clients." + client_type + " must have at least one configuration");
+        } else {
+            for (size_t i = 0; i < configs.size(); ++i) {
+                const auto& client = configs[i];
+                if (client.dst_port <= 0 || client.dst_port > 65535) {
+                    errors.push_back("clients." + client_type + "[" + std::to_string(i) + "].dst_port must be between 1 and 65535");
+                }
+                if (client.init_size == 0) {
+                    errors.push_back("clients." + client_type + "[" + std::to_string(i) + "].init_size must be positive");
+                }
+                if (client.max_size == 0 || client.max_size < client.init_size) {
+                    errors.push_back("clients." + client_type + "[" + std::to_string(i) + "].max_size must be >= init_size");
+                }
+            }
+        }
     }
 
     // 验证日志配置（支持多个日志实例）
@@ -172,17 +181,46 @@ void ConfigManager::parseConfig(const YAML::Node& node) {
         if (server["port"]) s.port = server["port"].as<int>();
     }
 
-    // 解析客户端池配置
-    if (node["clients"] && node["clients"]["zlm"]) {
-        auto& c = config_.zlm_client;
-        const auto& zlm_client = node["clients"]["zlm"];
-        if (zlm_client["dst_host"]) c.dst_host = zlm_client["dst_host"].as<std::string>();
-        if (zlm_client["dst_port"]) c.dst_port = zlm_client["dst_port"].as<uint16_t>();
-        if (zlm_client["init_size"]) c.init_size = zlm_client["init_size"].as<std::size_t>();
-        if (zlm_client["max_size"]) c.max_size = zlm_client["max_size"].as<std::size_t>();
-        if (zlm_client["connect_timeout_ms"]) c.connect_timeout_ms = zlm_client["connect_timeout_ms"].as<int>();
-        if (zlm_client["idle_timeout_sec"]) c.idle_timeout_sec = zlm_client["idle_timeout_sec"].as<int>();
-        if (zlm_client["max_requests_per_client"]) c.max_requests_per_client = zlm_client["max_requests_per_client"].as<std::size_t>();
+    // 解析客户端池配置（支持多类型、多目标）
+    if (node["clients"]) {
+        const auto& clients_node = node["clients"];
+        
+        // 遍历所有客户端类型（zlm, api_server, database, ...）
+        for (const auto& kv : clients_node) {
+            std::string client_type = kv.first.as<std::string>();
+            const auto& type_node = kv.second;
+            
+            std::vector<HttpClientPoolConfig> configs;
+            
+            // 检查是数组还是单个配置
+            if (type_node.IsSequence()) {
+                // 新格式：数组
+                for (const auto& client_node : type_node) {
+                    HttpClientPoolConfig config;
+                    if (client_node["dst_host"]) config.dst_host = client_node["dst_host"].as<std::string>();
+                    if (client_node["dst_port"]) config.dst_port = client_node["dst_port"].as<uint16_t>();
+                    if (client_node["init_size"]) config.init_size = client_node["init_size"].as<std::size_t>();
+                    if (client_node["max_size"]) config.max_size = client_node["max_size"].as<std::size_t>();
+                    if (client_node["connect_timeout_ms"]) config.connect_timeout_ms = client_node["connect_timeout_ms"].as<int>();
+                    if (client_node["idle_timeout_sec"]) config.idle_timeout_sec = client_node["idle_timeout_sec"].as<int>();
+                    if (client_node["max_requests_per_client"]) config.max_requests_per_client = client_node["max_requests_per_client"].as<std::size_t>();
+                    configs.push_back(config);
+                }
+            } else {
+                // 旧格式：单个配置（向后兼容）
+                HttpClientPoolConfig config;
+                if (type_node["dst_host"]) config.dst_host = type_node["dst_host"].as<std::string>();
+                if (type_node["dst_port"]) config.dst_port = type_node["dst_port"].as<uint16_t>();
+                if (type_node["init_size"]) config.init_size = type_node["init_size"].as<std::size_t>();
+                if (type_node["max_size"]) config.max_size = type_node["max_size"].as<std::size_t>();
+                if (type_node["connect_timeout_ms"]) config.connect_timeout_ms = type_node["connect_timeout_ms"].as<int>();
+                if (type_node["idle_timeout_sec"]) config.idle_timeout_sec = type_node["idle_timeout_sec"].as<int>();
+                if (type_node["max_requests_per_client"]) config.max_requests_per_client = type_node["max_requests_per_client"].as<std::size_t>();
+                configs.push_back(config);
+            }
+            
+            config_.clients[client_type] = configs;
+        }
     }
 
     // 解析多日志配置（支持动态多个日志实例）
@@ -250,14 +288,39 @@ YAML::Node ConfigManager::toYaml() const {
     node["server"]["host"] = config_.server.host;
     node["server"]["port"] = config_.server.port;
 
-    // 客户端池配置
-    node["clients"]["zlm"]["dst_host"] = config_.zlm_client.dst_host;
-    node["clients"]["zlm"]["dst_port"] = config_.zlm_client.dst_port;
-    node["clients"]["zlm"]["init_size"] = config_.zlm_client.init_size;
-    node["clients"]["zlm"]["max_size"] = config_.zlm_client.max_size;
-    node["clients"]["zlm"]["connect_timeout_ms"] = config_.zlm_client.connect_timeout_ms;
-    node["clients"]["zlm"]["idle_timeout_sec"] = config_.zlm_client.idle_timeout_sec;
-    node["clients"]["zlm"]["max_requests_per_client"] = config_.zlm_client.max_requests_per_client;
+    // 客户端池配置（支持多类型、多目标）
+    for (const auto& [client_type, configs] : config_.clients) {
+        if (configs.empty()) {
+            continue;
+        }
+        
+        if (configs.size() == 1) {
+            // 单个配置：保存为对象格式（向后兼容）
+            const auto& client = configs[0];
+            node["clients"][client_type]["dst_host"] = client.dst_host;
+            node["clients"][client_type]["dst_port"] = client.dst_port;
+            node["clients"][client_type]["init_size"] = client.init_size;
+            node["clients"][client_type]["max_size"] = client.max_size;
+            node["clients"][client_type]["connect_timeout_ms"] = client.connect_timeout_ms;
+            node["clients"][client_type]["idle_timeout_sec"] = client.idle_timeout_sec;
+            node["clients"][client_type]["max_requests_per_client"] = client.max_requests_per_client;
+        } else {
+            // 多个配置：保存为数组格式
+            YAML::Node clients_array(YAML::NodeType::Sequence);
+            for (const auto& client : configs) {
+                YAML::Node client_node;
+                client_node["dst_host"] = client.dst_host;
+                client_node["dst_port"] = client.dst_port;
+                client_node["init_size"] = client.init_size;
+                client_node["max_size"] = client.max_size;
+                client_node["connect_timeout_ms"] = client.connect_timeout_ms;
+                client_node["idle_timeout_sec"] = client.idle_timeout_sec;
+                client_node["max_requests_per_client"] = client.max_requests_per_client;
+                clients_array.push_back(client_node);
+            }
+            node["clients"][client_type] = clients_array;
+        }
+    }
 
     // 多日志配置（支持动态多个日志实例）
     for (const auto& [log_name, log_config] : config_.logs) {
@@ -299,16 +362,27 @@ void ConfigManager::Dump() const {
     LOG_MAIN_INFO_AT("  host: {}", config_.server.host);
     LOG_MAIN_INFO_AT("  port: {}", config_.server.port);
     
-    // ZLM Client Pool
+    // Client Pools
     LOG_MAIN_INFO_AT("");
-    LOG_MAIN_INFO_AT("[ZLM Client Pool]");
-    LOG_MAIN_INFO_AT("  dst_host: {}", config_.zlm_client.dst_host);
-    LOG_MAIN_INFO_AT("  dst_port: {}", config_.zlm_client.dst_port);
-    LOG_MAIN_INFO_AT("  init_size: {}", config_.zlm_client.init_size);
-    LOG_MAIN_INFO_AT("  max_size: {}", config_.zlm_client.max_size);
-    LOG_MAIN_INFO_AT("  connect_timeout_ms: {}", config_.zlm_client.connect_timeout_ms);
-    LOG_MAIN_INFO_AT("  idle_timeout_sec: {}", config_.zlm_client.idle_timeout_sec);
-    LOG_MAIN_INFO_AT("  max_requests_per_client: {}", config_.zlm_client.max_requests_per_client);
+    LOG_MAIN_INFO_AT("[Client Pools] (types: {})", config_.clients.size());
+    if (config_.clients.empty()) {
+        LOG_MAIN_WARN_AT("  [WARNING] No client configurations found!");
+    } else {
+        for (const auto& [client_type, configs] : config_.clients) {
+            LOG_MAIN_INFO_AT("  [Type: {}] (count: {})", client_type, configs.size());
+            for (size_t i = 0; i < configs.size(); ++i) {
+                const auto& client = configs[i];
+                LOG_MAIN_INFO_AT("    [Pool {}]", i);
+                LOG_MAIN_INFO_AT("      dst_host: {}", client.dst_host);
+                LOG_MAIN_INFO_AT("      dst_port: {}", client.dst_port);
+                LOG_MAIN_INFO_AT("      init_size: {}", client.init_size);
+                LOG_MAIN_INFO_AT("      max_size: {}", client.max_size);
+                LOG_MAIN_INFO_AT("      connect_timeout_ms: {}", client.connect_timeout_ms);
+                LOG_MAIN_INFO_AT("      idle_timeout_sec: {}", client.idle_timeout_sec);
+                LOG_MAIN_INFO_AT("      max_requests_per_client: {}", client.max_requests_per_client);
+            }
+        }
+    }
     
     // Logs
     LOG_MAIN_INFO_AT("");
@@ -467,10 +541,20 @@ std::any ConfigManager::getFieldAnyValue(const AppConfig& config, const std::str
         return std::any(config.server.host);
     } else if (field_path == "server.port") {
         return std::any(config.server.port);
-    } else if (field_path == "zlm_client.dst_host") {
-        return std::any(config.zlm_client.dst_host);
-    } else if (field_path == "zlm_client.dst_port") {
-        return std::any(config.zlm_client.dst_port);
+    } else if (field_path == "clients.zlm.dst_host") {
+        // 获取第一个 ZLM 客户端的 dst_host
+        auto it = config.clients.find("zlm");
+        if (it != config.clients.end() && !it->second.empty()) {
+            return std::any(it->second[0].dst_host);
+        }
+        return std::any(std::string{});
+    } else if (field_path == "clients.zlm.dst_port") {
+        // 获取第一个 ZLM 客户端的 dst_port
+        auto it = config.clients.find("zlm");
+        if (it != config.clients.end() && !it->second.empty()) {
+            return std::any(it->second[0].dst_port);
+        }
+        return std::any(uint16_t{0});
     } else if (field_path == "zlm.zlm_host") {
         return std::any(config.zlm.zlm_host);
     } else if (field_path == "zlm.zlm_port") {

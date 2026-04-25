@@ -147,7 +147,7 @@ int testWithZLM() {
         container.registerService<HttpServerService>(config.server);
         
         // 6. 注册 HttpClientPool 服务（ZLM 依赖它）
-        container.registerService<HttpClientPoolService>(config.zlm_client);
+        container.registerService<HttpClientPoolService>(config);
         
         // 7. 注册 ZLMediaKit 服务
         // 注意：此测试使用旧的 ServiceContainer 架构，ZLMService 需要修改以兼容

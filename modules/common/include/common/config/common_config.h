@@ -96,7 +96,7 @@ struct UserDbConfig {
 /// @brief 应用程序配置
 struct AppConfig {
     HttpServerConfig server;
-    HttpClientPoolConfig zlm_client;  ///< ZLM 客户端池配置
+    std::map<std::string, std::vector<HttpClientPoolConfig>> clients;  ///< 多类型客户端池配置（支持多目标）    
     std::map<std::string, LogConfig> logs;
     ZlmConfig zlm;
     WebSocketConfig websocket;

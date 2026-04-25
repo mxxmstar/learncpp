@@ -1,26 +1,18 @@
 ﻿#include "service/http_client/http_client_pool_service.h"
 #include "common/log/logmanager.h"
+#include <sstream>
 
 namespace Net {
     // 前向声明 HttpClientPool
     class HttpClientPool;
 }
 
-std::shared_ptr<HttpClientPoolService> HttpClientPoolService::CreateFromAppConfig(const AppConfig& app_config) {
-    HttpClientPoolConfig pool_config;
-    pool_config.dst_host = app_config.zlm_client.dst_host;
-    pool_config.dst_port = app_config.zlm_client.dst_port;
-    pool_config.init_size = app_config.zlm_client.init_size;
-    pool_config.max_size = app_config.zlm_client.max_size;
-    pool_config.connect_timeout_ms = app_config.zlm_client.connect_timeout_ms;
-    pool_config.idle_timeout_sec = app_config.zlm_client.idle_timeout_sec;
-    pool_config.max_requests_per_client = app_config.zlm_client.max_requests_per_client;
-    
-    return std::make_shared<HttpClientPoolService>(pool_config);
+std::string HttpClientPoolService::makeTargetKey(const std::string& host, uint16_t port) {
+    return host + ":" + std::to_string(port);
 }
 
-HttpClientPoolService::HttpClientPoolService(const HttpClientPoolConfig& config)
-    : config_(config), io_context_pool_(Net::AsioIOContextPool::GetInstance()) {
+HttpClientPoolService::HttpClientPoolService(const AppConfig& app_config)
+    : app_config_(app_config), io_context_pool_(Net::AsioIOContextPool::GetInstance()) {
 }
 
 HttpClientPoolService::~HttpClientPoolService() {
@@ -30,35 +22,77 @@ HttpClientPoolService::~HttpClientPoolService() {
     // 线程池由全局单例管理，无需手动清理
 }
 
+std::vector<HttpClientPoolConfig> HttpClientPoolService::extractZlmConfigs(const AppConfig& app_config) {
+    auto it = app_config.clients.find("zlm");
+    if (it != app_config.clients.end() && !it->second.empty()) {
+        return it->second;
+    }
+    
+    // 如果没有配置，返回默认配置
+    LOG_MAIN_WARN_AT("HttpClientPoolService: No ZLM client configs found, using default");
+    HttpClientPoolConfig default_config;
+    default_config.dst_host = "127.0.0.1";
+    default_config.dst_port = 8080;
+    default_config.init_size = 5;
+    default_config.max_size = 20;
+    default_config.connect_timeout_ms = 5000;
+    default_config.idle_timeout_sec = 300;
+    default_config.max_requests_per_client = 1000;
+    
+    return {default_config};
+}
+
 bool HttpClientPoolService::Initialize() {
     if (initialized_) {
         LOG_MAIN_INFO_AT("{}: Already initialized", GetName());
         return true;
     }
     
-    LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
+    // 提取 ZLM 配置
+    auto configs = extractZlmConfigs(app_config_);
+    
+    LOG_MAIN_INFO_AT("{}: Initializing {} pools...", GetName(), configs.size());
     
     try {
-        // 创建并初始化 HttpClientPool（使用固定的 io_context）
-        http_pool_ = std::make_unique<Net::HttpClientPool>();
-        
-        // 手动转换配置
-        Net::HttpClientPool::Config pool_config;
-        pool_config.host = config_.dst_host;
-        pool_config.port = config_.dst_port;
-        pool_config.init_size = config_.init_size;
-        pool_config.max_size = config_.max_size;
-        pool_config.connect_timeout_ms = config_.connect_timeout_ms;
-        pool_config.idle_timeout_sec = config_.idle_timeout_sec;
-        pool_config.max_requests_per_client = config_.max_requests_per_client;
-        
-        // 初始化连接池（使用固定的 io_context）
-        auto& io_ctx = io_context_pool_.GetOrCreateIOContext("http_client_pool");
-        http_pool_->Init(io_ctx, pool_config);
+        // 为每个配置创建 HttpClientPool
+        for (size_t i = 0; i < configs.size(); ++i) {
+            const auto& config = configs[i];
+            std::string target_key = makeTargetKey(config.dst_host, config.dst_port);
+            
+            // 检查是否已存在
+            if (http_pools_.find(target_key) != http_pools_.end()) {
+                LOG_MAIN_WARN_AT("{}: Pool for {} already exists, skipping", GetName(), target_key);
+                continue;
+            }
+            
+            // 创建池
+            auto pool = std::make_unique<Net::HttpClientPool>();
+            
+            // 转换配置
+            Net::HttpClientPool::Config pool_config;
+            pool_config.host = config.dst_host;
+            pool_config.port = config.dst_port;
+            pool_config.init_size = config.init_size;
+            pool_config.max_size = config.max_size;
+            pool_config.connect_timeout_ms = config.connect_timeout_ms;
+            pool_config.idle_timeout_sec = config.idle_timeout_sec;
+            pool_config.max_requests_per_client = config.max_requests_per_client;
+            
+            // 初始化连接池（使用固定的 io_context，按组共享）
+            // std::string group_name = "http_client_" + target_key;
+            // auto& io_ctx = io_context_pool_.GetOrCreateIOContext(group_name);
+            auto& io_ctx = io_context_pool_.GetOrCreateIOContext("http_client");
+            pool->Init(io_ctx, pool_config);
+            
+            http_pools_[target_key] = std::move(pool);
+            
+            LOG_MAIN_INFO_AT("{}: Pool [{}] initialized (host: {}, port: {}, init_size: {}, max_size: {})", 
+                            GetName(), target_key, config.dst_host, config.dst_port, 
+                            config.init_size, config.max_size);
+        }
         
         initialized_ = true;
-        LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, init_size: {}, max_size: {})", 
-                        GetName(), config_.dst_host, config_.dst_port, config_.init_size, config_.max_size);
+        LOG_MAIN_INFO_AT("{}: Initialized successfully with {} pools", GetName(), http_pools_.size());
         return true;
         
     } catch (const std::exception& e) {
@@ -99,12 +133,15 @@ void HttpClientPoolService::Stop() {
         return;
     }
     
-    LOG_MAIN_INFO_AT("{}: Stopping...", GetName());
+    LOG_MAIN_INFO_AT("{}: Stopping {} pools...", GetName(), http_pools_.size());
     
     try {
-        // 停止连接池
-        if (http_pool_) {
-            http_pool_->Stop();
+        // 停止所有连接池
+        for (auto& [key, pool] : http_pools_) {
+            if (pool) {
+                pool->Stop();
+                LOG_MAIN_INFO_AT("{}: Pool [{}] stopped", GetName(), key);
+            }
         }
         
         // 线程池由全局单例管理，无需手动停止
@@ -115,4 +152,23 @@ void HttpClientPoolService::Stop() {
     } catch (const std::exception& e) {
         LOG_MAIN_ERROR_AT("{}: Stop failed: {}", GetName(), e.what());
     }
+}
+
+Net::HttpClientPool* HttpClientPoolService::GetClientPool(const std::string& target_key) const {
+    auto it = http_pools_.find(target_key);
+    if (it != http_pools_.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
+Net::HttpClientPool* HttpClientPoolService::GetZlmClientPool() const {
+    // 获取第一个 ZLM 配置的池
+    auto it = app_config_.clients.find("zlm");
+    if (it != app_config_.clients.end() && !it->second.empty()) {
+        const auto& config = it->second[0];
+        std::string target_key = makeTargetKey(config.dst_host, config.dst_port);
+        return GetClientPool(target_key);
+    }
+    return nullptr;
 }
