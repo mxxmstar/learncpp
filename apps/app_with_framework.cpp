@@ -50,14 +50,13 @@ int main() {
          auto http_service = HttpServerService::CreateFromAppConfig(config);
          app.RegisterServiceInstance(http_service);
                 
-         // 创建 HttpClientPoolService（新方式：直接构造）
-         //auto http_client_pool_service = std::make_shared<HttpClientPoolService>(config);
-         //app.RegisterServiceInstance(http_client_pool_service);
-         //       
-         //// 创建 ZLMService 并手动注入依赖
-         //auto zlm_service = ZLMService::CreateFromAppConfig(config);
-         //zlm_service->SetHttpClientPool(http_client_pool_service->GetZlmClientPool());  // ← 手动注入
-         //app.RegisterServiceInstance(zlm_service);
+          //创建 HttpClientPoolService
+         auto http_client_pool_service = std::make_shared<HttpClientPoolService>(config);
+         app.RegisterServiceInstance(http_client_pool_service);
+         
+         // 创建 ZLMService
+         auto zlm_service = ZLMService::CreateFromAppConfig(config);
+         app.RegisterServiceInstance(zlm_service);
         
          // 注册路由
          ApiRouterRegistrar::RegisterAllRoutes();
@@ -65,17 +64,52 @@ int main() {
          // 初始化验证服务是否存在
          app.OnInit([&app]() {
              LOG_MAIN_INFO_AT("Initializing services...");
+             
+             // 1. 先初始化 HttpClientPoolService
+             auto http_pool = app.GetService<HttpClientPoolService>();
+             if (!http_pool) {
+                 LOG_MAIN_ERROR_AT("Failed to get HttpClientPool service");
+                 return false;
+             }
+             
+             if (!http_pool->Initialize()) {
+                 LOG_MAIN_ERROR_AT("Failed to initialize HttpClientPool service");
+                 return false;
+             }
+             
+             // 2. 获取 ZLM Client Pool 并注入到 ZLMService
+             auto* zlm_client_pool = http_pool->GetZlmClientPool();
+             if (!zlm_client_pool) {
+                 LOG_MAIN_ERROR_AT("Failed to get ZLM client pool from HttpClientPoolService");
+                 return false;
+             }
+             
+             auto zlm_service = app.GetService<ZLMService>();
+             if (!zlm_service) {
+                 LOG_MAIN_ERROR_AT("Failed to get ZLMService");
+                 return false;
+             }
+             
+             zlm_service->SetHttpClientPool(zlm_client_pool);
+             LOG_MAIN_INFO_AT("Injected ZLM client pool into ZLMService");
+             
+             // 3. 初始化 ZLMService
+             if (!zlm_service->Initialize()) {
+                 LOG_MAIN_ERROR_AT("Failed to initialize ZLMService");
+                 return false;
+             }
+             
+             // 4. 初始化 HttpServerService
              auto http = app.GetService<HttpServerService>();
              if (!http) {
                  LOG_MAIN_ERROR_AT("Failed to get HttpServer service");
                  return false;
              }
-
-             //auto http_pool = app.GetService<HttpClientPoolService>();
-             //if (!http_pool) {
-             //    LOG_MAIN_ERROR_AT("Failed to get HttpClientPool service");
-             //    return false;
-             //}
+             
+             if (!http->Initialize()) {
+                 LOG_MAIN_ERROR_AT("Failed to initialize HttpServer service");
+                 return false;
+             }
             
              return true;
          });        
@@ -84,6 +118,25 @@ int main() {
          app.OnStart([&app]() {
              LOG_MAIN_INFO_AT("Starting services...");
 
+             // 1. 启动 HttpClientPoolService
+             auto http_client_pool_service = app.GetService<HttpClientPoolService>();
+             if (http_client_pool_service && !http_client_pool_service->IsRunning()) {
+                 if (!http_client_pool_service->Start()) {
+                     LOG_MAIN_ERROR_AT("Failed to start HttpClientPool service");
+                     return false;
+                 }
+             }
+             
+             // 2. 启动 ZLMService
+             auto zlm_service = app.GetService<ZLMService>();
+             if (zlm_service && !zlm_service->IsRunning()) {
+                 if (!zlm_service->Start()) {
+                     LOG_MAIN_ERROR_AT("Failed to start ZLMService");
+                     return false;
+                 }
+             }
+
+             // 3. 启动 HttpServerService
              auto http = app.GetService<HttpServerService>();
              if (http && !http->IsRunning()) {
                  if (!http->Start()) {
@@ -92,14 +145,6 @@ int main() {
                  }
              }
 
-             //auto http_client_pool_service = app.GetService<HttpClientPoolService>();
-             //if (http_client_pool_service && !http_client_pool_service->IsRunning()) {
-             //    if (!http_client_pool_service->Start()) {
-             //        LOG_MAIN_ERROR_AT("Failed to start HttpClientPool service");
-             //        return false;
-             //    }
-             //}
-
              return true;
          });
 
@@ -107,15 +152,23 @@ int main() {
          app.OnStop([&app]() {
              LOG_MAIN_INFO_AT("Stopping services...");
 
+             // 1. 停止 HttpServerService
              auto http = app.GetService<HttpServerService>();
              if (http && http->IsRunning()) {
                  http->Stop();
              }
+             
+             // 2. 停止 ZLMService
+             auto zlm_service = app.GetService<ZLMService>();
+             if (zlm_service && zlm_service->IsRunning()) {
+                 zlm_service->Stop();
+             }
 
-             //auto http_pool = app.GetService<HttpClientPoolService>();
-             //if (http_pool && http_pool->IsRunning()) {
-             //    http_pool->Stop();
-             //}
+             // 3. 停止 HttpClientPoolService
+             auto http_client_pool_service = app.GetService<HttpClientPoolService>();
+             if (http_client_pool_service && http_client_pool_service->IsRunning()) {
+                 http_client_pool_service->Stop();
+             }
 
          });
         

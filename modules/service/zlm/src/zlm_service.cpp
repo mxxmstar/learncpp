@@ -26,17 +26,16 @@ bool ZLMService::Initialize() {
     LOG_MAIN_INFO_AT("{}: Initializing...", GetName());
     
     try {
-        // 检查 HttpClientPool 是否已设置
-        if (!http_pool_) {
-            LOG_MAIN_ERROR_AT("{}: HttpClientPool not set. Call SetHttpClientPool() before Initialize()", GetName());
-            return false;
+        // 注意：HttpClientPool 可以在 Initialize 之后、Start 之前设置
+        // 这里不强制检查，允许延迟注入依赖
+        if (http_pool_) {
+            LOG_MAIN_INFO_AT("{}: HttpClientPool is ready", GetName());
+        } else {
+            LOG_MAIN_WARN_AT("{}: HttpClientPool not set yet, will check before Start()", GetName());
         }
         
-        LOG_MAIN_INFO_AT("{}: HttpClientPool is ready", GetName());
-        
-        // 使用 new 创建 ZLMManager，这样只需要依赖ZLMManager的声明，不需要实现
-        auto& io_ctx = pool_.GetOrCreateIOContext("zlm_manager");
-        zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(io_ctx, http_pool_, config_));
+        // 不在这里创建 ZLMManager，延迟到 Start() 时创建
+        // 这样可以确保 http_pool_ 已经被注入
         
         initialized_ = true;
         LOG_MAIN_INFO_AT("{}: Initialized successfully (host: {}, port: {}, secret: {})", 
@@ -63,6 +62,19 @@ bool ZLMService::Start() {
     LOG_MAIN_INFO_AT("{}: Starting...", GetName());
     
     try {
+        // 在 Start 之前必须设置 HttpClientPool
+        if (!http_pool_) {
+            LOG_MAIN_ERROR_AT("{}: HttpClientPool not set. Call SetHttpClientPool() before Start()", GetName());
+            return false;
+        }
+        
+        // 延迟创建 ZLMManager，确保 http_pool_ 已经注入
+        if (!zlm_manager_) {
+            auto& io_ctx = pool_.GetOrCreateIOContext("zlm_manager");
+            zlm_manager_ = std::unique_ptr<ZLMManager>(new ZLMManager(io_ctx, http_pool_, config_));
+            LOG_MAIN_INFO_AT("{}: ZLMManager created with HttpClientPool", GetName());
+        }
+        
         // 启动 ZLMManager
         if (zlm_manager_ && !zlm_manager_->Start()) {
             LOG_MAIN_ERROR_AT("{}: Failed to start ZLMManager", GetName());

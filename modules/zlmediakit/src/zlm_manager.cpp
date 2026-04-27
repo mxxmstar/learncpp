@@ -28,10 +28,12 @@ static ZLMProcessManager::Config createProcessConfig(const ZlmConfig& zlm_config
     
 #ifdef _WIN32    
     auto work_dir_path = project_root / "tools" / "win32" / "zlmediakit";
+    work_dir_path.make_preferred();  // 规范化路径分隔符
     cfg.work_dir = work_dir_path.string();
     LOG_MAIN_INFO_AT("ZLMProcessManager: Setting work_dir to: {}", cfg.work_dir);
 #else
     auto work_dir_path = project_root / "tools" / "linux" / "zlmediakit";
+    work_dir_path.make_preferred();  // 规范化路径分隔符
     cfg.work_dir = work_dir_path.string();
     LOG_MAIN_INFO_AT("ZLMProcessManager: Setting work_dir to: {}", cfg.work_dir);
 #endif
@@ -79,6 +81,9 @@ std::string ZLMProcessManager::GetZlmediakitPath() {
 #else
     exec_path = project_root / "tools" / "linux" / "zlmediakit" / "MediaServer";
 #endif    
+    
+    // 规范化路径分隔符（Windows 下统一为反斜杠）
+    exec_path.make_preferred();
     
     LOG_MAIN_INFO_AT("ZLMProcessManager: Looking for ZLMediaKit at: {}", exec_path.string());
     LOG_MAIN_INFO_AT("ZLMProcessManager: Project root: {}", project_root.string());

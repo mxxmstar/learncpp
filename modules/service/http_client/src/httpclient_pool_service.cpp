@@ -157,16 +157,20 @@ void HttpClientPoolService::Stop() {
 Net::HttpClientPool* HttpClientPoolService::GetClientPool(const std::string& target_key) const {
     auto it = http_pools_.find(target_key);
     if (it != http_pools_.end()) {
+        LOG_MAIN_INFO_AT("{}: Found pool [{}]", GetName(), target_key);
         return it->second.get();
     }
+    LOG_MAIN_ERROR_AT("{}: Pool [{}] not found", GetName(), target_key);
     return nullptr;
 }
 
 Net::HttpClientPool* HttpClientPoolService::GetZlmClientPool() const {
     // 获取第一个 ZLM 配置的池
     auto it = app_config_.clients.find("zlm");
-    if (it != app_config_.clients.end() && !it->second.empty()) {
+    if (it != app_config_.clients.end() && !it->second.empty()) {        
         const auto& config = it->second[0];
+        LOG_MAIN_INFO_AT("{}: Found ZLM client Pool config (host: {}, port: {})", 
+                        GetName(), config.dst_host, config.dst_port);
         std::string target_key = makeTargetKey(config.dst_host, config.dst_port);
         return GetClientPool(target_key);
     }
