@@ -9,26 +9,26 @@ ZLMProxyManager::ZLMProxyManager(boost::asio::io_context& io_ctx,
 {
 }
 
-void ZLMProxyManager::AddStreamProxy(const ZLMStreamPullerProxyInfo& info) {
+void ZLMProxyManager::AddStreamProxy(const ZLMStreamPullerProxyInfo& info, ZLMRequestHelper::ResponseCallback callback) {
     boost::json::object params;    
-    params["vhost"] = info.vhost;
-    params["app"] = info.app;
-    params["stream"] = info.stream;
-    params["url"] = info.url;
-    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "addStreamProxy", params);
+    params["vhost"] = info.vhost_;
+    params["app"] = info.app_;
+    params["stream"] = info.stream_;
+    params["url"] = info.url_;
+    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "addStreamProxy", params, callback);
 }
-void ZLMProxyManager::DelStreamProxy(const ZLMStreamPullerProxyInfo& info) {
+void ZLMProxyManager::DelStreamProxy(const ZLMStreamPullerProxyInfo& info, ZLMRequestHelper::ResponseCallback callback) {
     boost::json::object params;
-    params["key"] = info.key;
-    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "delStreamProxy", params);
+    params["key"] = info.key_;
+    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "delStreamProxy", params, callback);
 }
-void ZLMProxyManager::GetProxyInfo(const ZLMStreamPullerProxyInfo& info) {
+void ZLMProxyManager::GetProxyInfo(const ZLMStreamPullerProxyInfo& info, ZLMRequestHelper::ResponseCallback callback) {
     boost::json::object params;
-    params["key"] = info.key;
-    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "getProxyInfo", params);
+    params["key"] = info.key_;
+    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "getProxyInfo", params, callback);
 }
 
-void ZLMProxyManager::AddStreamPusherProxy(const ZLMStreamPusherProxyInfo& info) {
+void ZLMProxyManager::AddStreamPusherProxy(const ZLMStreamPusherProxyInfo& info, ZLMRequestHelper::ResponseCallback callback) {
     boost::json::object params;
     params["vhost"] = info.vhost;
     params["app"] = info.app;
@@ -36,16 +36,16 @@ void ZLMProxyManager::AddStreamPusherProxy(const ZLMStreamPusherProxyInfo& info)
     params["dst_url"] = info.url;
     params["schema"] = info.schema;
     params["rtp_type"] = info.rtp_type;
-    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "addStreamPusherProxy", params);
+    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "addStreamPusherProxy", params, callback);
 }
-void ZLMProxyManager::DelStreamPusherProxy(const ZLMStreamPusherProxyInfo& info) {
+void ZLMProxyManager::DelStreamPusherProxy(const ZLMStreamPusherProxyInfo& info, ZLMRequestHelper::ResponseCallback callback) {
     boost::json::object params;
     params["key"] = info.key;
-    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "delStreamPusherProxy", params);
+    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "delStreamPusherProxy", params, callback);
 }
 
-void ZLMProxyManager::GetMediaList(const boost::json::object& json_obj) {
+void ZLMProxyManager::GetMediaList(const boost::json::object& json_obj, ZLMRequestHelper::ResponseCallback callback) {
     boost::json::object params = json_obj;
-    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "getMediaList", params);
+    ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "getMediaList", params, callback);
 }
 

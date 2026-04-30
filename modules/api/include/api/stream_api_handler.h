@@ -3,6 +3,8 @@
 #include <boost/json.hpp>
 #include <string>
 
+class Application;
+
 /// @brief 流管理 API Handler
 /// 处理所有 /stream/* 路径的请求
 class StreamApiHandler {
@@ -44,4 +46,5 @@ private:
     static bool checkRequiredParams(const boost::json::object& req, 
                                    const std::vector<std::string>& params,
                                    boost::json::object& rsp);
+                                 
 };

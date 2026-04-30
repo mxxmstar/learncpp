@@ -6,18 +6,25 @@
 using namespace Net;
 
 void ZLMRequestHelper::DoRequest(boost::asio::io_context& io_ctx, Net::HttpClientPool* pool,
-    const ZLMAddressConfig& config, const std::string& api, const boost::json::object& params)
+    const ZLMAddressConfig& config, const std::string& api, const boost::json::object& params,
+    ResponseCallback callback)
 {
     // 使用传入的连接池（不再使用单例）
     if (!pool) {
         LOG_MAIN_ERROR_AT("ZLMApiClient: HttpClientPool is null");
+        if (callback) {
+            callback(false, {});
+        }
         return;
     }
 
     // 使用 RAII 守卫获取客户端（自动管理生命周期）
     auto client_guard = pool->AcquireGuard();
     if (!client_guard) {
-        LOG_MAIN_ERROR_AT("ZLMApiClient: failed to acquire HTTP client");        
+        LOG_MAIN_ERROR_AT("ZLMApiClient: failed to acquire HTTP client");
+        if (callback) {
+            callback(false, {});
+        }
         return;
     }
 
@@ -30,11 +37,26 @@ void ZLMRequestHelper::DoRequest(boost::asio::io_context& io_ctx, Net::HttpClien
 
     // 步骤 5: 构建完整 URL
     std::string url = "/index/api/" + api + "?" + query;
-    // 发送 HTTP GET 请求，直接传递空 handler
-    client_guard->GetJsonWithHandler(url, [](bool success, const boost::json::object& rsp_obj) {
-        /*for (auto& [key, value] : rsp_obj) {
-			LOG_MAIN_DEBUG_AT("key: {}, value: {}", key, value);
-        }*/
+    
+    // 发送 HTTP GET 请求，传递回调函数
+    client_guard->GetJsonWithHandler(url, [callback, api](bool success, const boost::json::object& rsp_obj) {
+        if (callback) {
+            callback(success, rsp_obj);
+        }
+        
+        // 记录响应（调试用）
+        if (!success) {
+            LOG_MAIN_ERROR_AT("ZLM API request failed: {}", api);
+        } else {
+            // 检查 ZLMediaKit 返回的 code
+            auto it = rsp_obj.find("code");
+            if (it != rsp_obj.end() && it->value().is_int64()) {
+                int code = static_cast<int>(it->value().as_int64());
+                if (code != 0) {
+                    LOG_MAIN_WARN_AT("ZLM API returned error code {}: {}", code, api);
+                }
+            }
+        }
     });
 }
 

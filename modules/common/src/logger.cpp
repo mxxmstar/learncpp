@@ -21,6 +21,10 @@ Logger::Logger(const LoggerConfig& config) : config_(config) {
     );
     
     // 设置格式
+    // %t 线程ID
+    // %n 模块名
+    // %l 日志级别
+    // %v 日志消息
     if (config_.is_json) {
         spd_logger_->set_pattern(R"({"time":"%Y-%m-%dT%T.%eZ","module":"%n","level":"%l","msg":"%v"})");
     } else {

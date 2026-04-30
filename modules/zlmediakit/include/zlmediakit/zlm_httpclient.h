@@ -73,11 +73,15 @@ private:
 
 class ZLMRequestHelper {
 public:
+    /// @brief HTTP 响应回调类型
+    using ResponseCallback = std::function<void(bool success, const boost::json::object& response)>;
 
     static void DoRequest(boost::asio::io_context& io_ctx,
         Net::HttpClientPool* pool,
         const ZLMAddressConfig& config,
         const std::string& api,
-        const boost::json::object& params);
+        const boost::json::object& params,
+        ResponseCallback callback = nullptr);  // ✅ 添加回调参数
+        
     static std::string BuildQuery(const boost::json::object& params);
 };
