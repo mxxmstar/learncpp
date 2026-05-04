@@ -1,5 +1,6 @@
 #include "alg/inference/inference_engine_factory.h"
 #include "alg/inference/i_inference_engine.h"
+#include "alg/inference/tensor_data.h"
 #include <iostream>
 #include <vector>
 #include <cassert>
@@ -10,7 +11,7 @@ void TestOpenVinoCpuEngine() {
     // 1. 创建引擎
     InferenceConfig config;
     config.type = InferenceEngineType::OPENVINO_CPU;
-    config.model_path = "test_model.xml";  // 测试模型路径
+    config.model_path = "yolov5s.xml";  // 测试模型路径（需要放在程序运行目录）
     config.device = "CPU";
     config.async_mode = false;
     config.num_requests = 1;

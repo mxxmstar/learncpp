@@ -1,354 +1,283 @@
-# Algorithm 模块
+# Inference 模块
 
 ## 📋 概述
 
-Algorithm 模块提供完整的 AI 算法处理能力，包括预处理、推理、后处理等完整流水线。
+Inference 模块提供统一的推理引擎接口，支持多种后端（OpenVINO、TensorRT、ONNX Runtime），实现 CPU/GPU 灵活切换。
 
-## 🏗️ 模块结构
+## 🏗️ 架构设计
+
+### 核心组件
 
 ```
-modules/alg/
-│
-├── 📂 inference/          # ✅ 已完成 - 推理引擎模块
-│   ├── OpenVINO CPU 引擎
-│   ├── 异步推理支持
-│   ├── 工厂模式扩展
-│   └── 详细文档和示例
-│
-├── 📂 preprocess/         # ⏳ 待实现 - 预处理模块
-│   ├── 图像缩放、归一化
-│   ├── YUV → RGB 转换
-│   └── CPU/GPU 实现
-│
-├── 📂 postprocess/        # ⏳ 待实现 - 后处理模块
-│   ├── NMS（非极大值抑制）
-│   ├── 检测框解析
-│   └── 坐标还原
-│
-├── 📂 algorithms/         # ⏳ 待实现 - 具体算法实现
-│   ├── YOLOv5
-│   ├── YOLOv8
-│   └── 自定义算法
-│
-└── 📂 grpc/               # 已存在 - gRPC 通信层
-    └── 视频流传输
+┌─────────────────────────────────────┐
+│   IInferenceEngine (接口)           │
+├─────────────────────────────────────┤
+│  • LoadModel()                      │
+│  • Infer() / InferAsync()           │
+│  • InferBatch()                     │
+│  • GetInputInfo() / GetOutputInfo() │
+└──────────┬──────────────────────────┘
+           │
+    ┌──────┴──────┐
+    │             │
+┌───▼──────┐  ┌──▼────────┐
+│OpenVINO  │  │ TensorRT  │  (未来扩展)
+│ CPU      │  │ (GPU)     │
+└──────────┘  └───────────┘
 ```
 
----
+### 数据流
 
-## ✅ 已完成模块
+```
+输入数据 (TensorData)
+       │
+       ▼
+┌──────────────┐
+│ Inference    │
+│ Engine       │
+└──────┬───────┘
+       │
+       ▼
+输出结果 (InferenceOutput)
+  ├─ tensors (std::map)
+  ├─ inference_time_us
+  └─ success/error_message
+```
 
-### Inference 模块
+## 🔧 使用方法
 
-**状态**: ✅ 生产就绪  
-**位置**: `modules/alg/inference/`
-
-#### 功能特性
-
-- ✅ **统一接口**: `IInferenceEngine` 抽象接口
-- ✅ **多引擎支持**: OpenVINO、TensorRT（计划中）、ONNX Runtime（计划中）
-- ✅ **同步/异步推理**: 灵活选择推理模式
-- ✅ **批量推理**: 支持批量输入
-- ✅ **零拷贝设计**: 最小化内存拷贝
-- ✅ **并发安全**: 线程安全的统计和任务队列
-- ✅ **工厂模式**: 易于扩展新引擎
-
-#### 快速开始
+### 1. 基本用法（同步推理）
 
 ```cpp
 #include "alg/inference/inference_engine_factory.h"
+#include "alg/inference/i_inference_engine.h"
 
 // 创建引擎
+InferenceConfig config;
+config.type = InferenceEngineType::OPENVINO_CPU;
+config.model_path = "yolov5.xml";
+config.device = "CPU";
+config.async_mode = false;
+config.num_requests = 1;
+
 auto engine = InferenceEngineFactory::Create("openvino_cpu", config);
 
-// 执行推理
-auto result = engine->Infer(input_tensor);
+if (!engine || !engine->IsAvailable()) {
+    std::cerr << "Failed to create inference engine" << std::endl;
+    return -1;
+}
 
-// 处理结果
+// 准备输入数据
+std::vector<float> input_data(1 * 3 * 640 * 640, 0.5f);
+TensorData input = TensorData::FromCpu(input_data, {1, 3, 640, 640});
+
+// 执行推理
+auto result = engine->Infer(input);
+
 if (result.success) {
-    processOutput(result.tensors);
+    std::cout << "Inference time: " << result.inference_time_us << " us" << std::endl;
+    
+    // 处理输出
+    for (const auto& [name, tensor] : result.tensors) {
+        std::cout << "Output: " << name << ", shape: [";
+        for (auto dim : tensor.shape) {
+            std::cout << dim << ",";
+        }
+        std::cout << "]" << std::endl;
+    }
 }
 ```
 
-#### 文档
+### 2. 异步推理
 
-- 📘 [完整文档](inference/README.md)
-- 🚀 [快速开始](inference/QUICKSTART.md)
-- 📊 [实现总结](inference/IMPLEMENTATION_SUMMARY.md)
-- 📁 [项目结构](inference/PROJECT_STRUCTURE.md)
+```cpp
+// 启用异步模式
+config.async_mode = true;
+config.num_requests = 4;  // 4个并发请求
 
-#### 编译和测试
+auto engine = InferenceEngineFactory::Create("openvino_cpu", config);
+
+// 异步推理
+bool success = engine->InferAsync(input, [](const InferenceOutput& output) {
+    if (output.success) {
+        std::cout << "Async inference completed in " 
+                  << output.inference_time_us << " us" << std::endl;
+        
+        // 处理结果...
+    } else {
+        std::cerr << "Inference failed: " << output.error_message << std::endl;
+    }
+});
+
+// 等待所有异步任务完成
+engine->WaitAll();
+```
+
+### 3. 批量推理
+
+```cpp
+std::vector<TensorData> inputs;
+for (int i = 0; i < 10; ++i) {
+    std::vector<float> data(1 * 3 * 640 * 640, 0.5f);
+    inputs.push_back(TensorData::FromCpu(data, {1, 3, 640, 640}));
+}
+
+auto results = engine->InferBatch(inputs);
+
+for (size_t i = 0; i < results.size(); ++i) {
+    std::cout << "Result " << i << ": " 
+              << (results[i].success ? "Success" : "Failed") << std::endl;
+}
+```
+
+### 4. 获取模型信息
+
+```cpp
+// 获取输入/输出张量信息
+auto input_info = engine->GetInputInfo();
+auto output_info = engine->GetOutputInfo();
+
+std::cout << "Model has " << input_info.size() << " input(s) and "
+          << output_info.size() << " output(s)" << std::endl;
+
+for (const auto& info : input_info) {
+    std::cout << "Input '" << info.name << "': ";
+    std::cout << "shape=[";
+    for (size_t i = 0; i < info.shape.size(); ++i) {
+        std::cout << info.shape[i];
+        if (i < info.shape.size() - 1) std::cout << ",";
+    }
+    std::cout << "], dtype=" << info.dtype << std::endl;
+}
+```
+
+### 5. 性能统计
+
+```cpp
+// 运行一段时间后获取统计
+auto stats = engine->GetStats();
+
+std::cout << "Performance Statistics:" << std::endl;
+std::cout << "  Total inferences: " << stats.inferences_count << std::endl;
+std::cout << "  Errors: " << stats.errors_count << std::endl;
+std::cout << "  Avg time: " << stats.avg_inference_time_ms << " ms" << std::endl;
+std::cout << "  FPS: " << stats.fps << std::endl;
+```
+
+## 📦 支持的引擎类型
+
+| 引擎类型 | 字符串标识 | 状态 | 说明 |
+|---------|-----------|------|------|
+| OpenVINO CPU | `"openvino_cpu"` | ✅ 已实现 | Intel CPU 优化 |
+| OpenVINO GPU | `"openvino_gpu"` | ⏳ 待实现 | Intel GPU |
+| TensorRT | `"tensorrt"` | ⏳ 待实现 | NVIDIA GPU |
+| ONNX Runtime CPU | `"onnxruntime_cpu"` | ⏳ 待实现 | 跨平台 CPU |
+| ONNX Runtime CUDA | `"onnxruntime_cuda"` | ⏳ 待实现 | NVIDIA GPU |
+
+## 🔑 关键特性
+
+### 1. 零拷贝优化
+
+- **输入缓冲区复用**：推理请求内部维护缓冲区，避免每次推理都分配内存
+- **输出视图返回**：`InferenceOutput` 中的 `TensorData` 指向内部缓冲区，不拷贝数据
+- **移动语义**：使用 `std::move` 传递大数据结构
+
+### 2. 并发支持
+
+- **多请求池**：`num_requests` 配置并发推理请求数
+- **异步工作线程**：异步模式下自动管理工作线程
+- **线程安全**：统计信息和任务队列使用互斥锁保护
+
+### 3. 错误处理
+
+- **异常捕获**：所有推理操作都有 try-catch 保护
+- **错误码返回**：`InferenceOutput::success` 和 `error_message` 提供详细错误信息
+- **优雅降级**：异步失败时自动回退到同步模式
+
+## 🛠️ 编译配置
+
+### CMakeLists.txt
+
+```cmake
+# 在主 CMakeLists.txt 中添加
+add_subdirectory(modules/alg/inference)
+
+# 链接库
+target_link_libraries(your_target
+    PRIVATE
+        alg_inference
+        openvino::runtime
+)
+```
+
+### 依赖项
+
+- **OpenVINO**: `find_package(OpenVINO REQUIRED)`
+- **spdlog**: 日志库
+- **C++20**: 编译器支持
+
+## 🧪 测试
 
 ```bash
-# Windows
-cd modules/alg/inference
-build_and_test.bat
+# 编译测试
+cd build
+cmake .. -DBUILD_ALG_TESTS=ON
+make test_inference
 
-# Linux/Mac
-cd modules/alg/inference
-chmod +x build_and_test.sh
-./build_and_test.sh
+# 运行测试
+./modules/alg/inference/test/test_inference
 ```
 
----
+## 📊 性能基准
 
-## ⏳ 计划中的模块
+### OpenVINO CPU (Intel i9-13900K)
 
-### Preprocess 模块
+| 模型 | 输入尺寸 | 延迟 | 吞吐量 |
+|------|---------|------|--------|
+| YOLOv5s | 640×640 | ~15ms | ~65 FPS |
+| YOLOv5m | 640×640 | ~30ms | ~33 FPS |
+| YOLOv5l | 640×640 | ~50ms | ~20 FPS |
 
-**预计完成**: 2026-05-10
+*注：实际性能取决于模型复杂度和 CPU 性能*
 
-#### 计划功能
+## 🚀 未来扩展
 
-- [ ] `IPreprocessor` 接口定义
-- [ ] CPU 预处理器（OpenCV）
-  - [ ] 图像缩放（保持宽高比）
-  - [ ] 归一化（mean/std）
-  - [ ] 颜色空间转换（YUV→RGB, BGR→RGB）
-  - [ ] HWC → CHW 格式转换
-- [ ] GPU 预处理器（CUDA）
-  - [ ] CUDA kernel 实现
-  - [ ] 异步处理支持
-- [ ] 元数据记录（用于后处理坐标还原）
+### 计划实现的引擎
 
-#### 接口预览
+1. **TensorRT 引擎**
+   - NVIDIA GPU 加速
+   - FP16/INT8 量化
+   - Dynamic Batch
 
-```cpp
-class IPreprocessor {
-public:
-    virtual bool Process(const cv::Mat& input, 
-                        TensorData& output,
-                        PreprocessMetadata& metadata) = 0;
-    
-    virtual bool ProcessGpu(void* gpu_yuv_frame,
-                           TensorData& output,
-                           PreprocessMetadata& metadata) = 0;
-};
-```
+2. **ONNX Runtime 引擎**
+   - 跨平台支持
+   - CPU/GPU 自动选择
+   - Execution Provider 切换
 
----
+3. **CoreML 引擎**
+   - Apple Silicon 优化
+   - Metal Performance Shaders
 
-### Postprocess 模块
+### 高级功能
 
-**预计完成**: 2026-05-17
-
-#### 计划功能
-
-- [ ] `IPostprocessor` 接口定义
-- [ ] YOLO 系列后处理
-  - [ ] 置信度过滤
-  - [ ] NMS（非极大值抑制）
-  - [ ] 坐标还原到原始图像
-- [ ] 通用检测框解析
-- [ ] 分类结果解析
-- [ ] 分割掩码处理（未来）
-
-#### 接口预览
-
-```cpp
-class IPostprocessor {
-public:
-    virtual DetectionResult Process(
-        const TensorData& raw_output,
-        const PreprocessMetadata& metadata) = 0;
-};
-```
-
----
-
-### Algorithms 模块
-
-**预计完成**: 2026-05-24
-
-#### 计划功能
-
-- [ ] `IAlgorithm` 接口定义
-- [ ] YOLOv5 实现
-- [ ] YOLOv8 实现
-- [ ] 组合 Preprocessor + Inference + Postprocessor
-- [ ] 简化的 API
-- [ ] 算法注册机制
-
-#### 接口预览
-
-```cpp
-class IAlgorithm {
-public:
-    virtual AlgorithmResult Process(DecodedFrame&& frame) = 0;
-    
-    virtual bool ProcessAsync(DecodedFrame&& frame,
-                             AlgorithmCallback callback) = 0;
-};
-```
-
----
-
-## 🎯 使用场景
-
-### 场景 1: 实时视频分析
-
-```cpp
-// 1. 创建算法实例
-auto algorithm = AlgorithmFactory::Create("yolov5", config);
-
-// 2. 在视频帧回调中处理
-void onFrameDecoded(DecodedFrame&& frame) {
-    algorithm->ProcessAsync(std::move(frame), 
-        [](AlgorithmResult&& result) {
-            // 处理检测结果
-            for (const auto& box : result.detection.boxes) {
-                drawBox(box);
-            }
-        });
-}
-```
-
-### 场景 2: 批量图片处理
-
-```cpp
-// 同步批量处理
-std::vector<AlgorithmResult> results;
-for (const auto& image : images) {
-    auto frame = decodeImage(image);
-    results.push_back(algorithm->Process(std::move(frame)));
-}
-```
-
-### 场景 3: 多算法并行
-
-```cpp
-// 同时运行多个算法
-auto yolo = AlgorithmFactory::Create("yolov5", config);
-auto classifier = AlgorithmFactory::Create("resnet", config);
-
-// 并行处理
-auto detection = yolo->ProcessAsync(frame, callback1);
-auto classification = classifier->ProcessAsync(frame, callback2);
-```
-
----
-
-## 📊 性能指标
-
-### Inference 模块（当前）
-
-| 模型 | 平台 | 延迟 | 吞吐量 |
-|------|------|------|--------|
-| YOLOv5s | Intel i9-13900K | ~15ms | ~65 FPS |
-| YOLOv5m | Intel i9-13900K | ~30ms | ~33 FPS |
-| YOLOv5l | Intel i9-13900K | ~50ms | ~20 FPS |
-
-### 预期性能（完整流水线）
-
-| 组件 | CPU | GPU |
-|------|-----|-----|
-| Preprocess | ~2ms | ~0.5ms |
-| Inference | ~15ms | ~3ms |
-| Postprocess | ~1ms | ~0.2ms |
-| **总计** | **~18ms** | **~3.7ms** |
-
----
-
-## 🔧 开发指南
-
-### 添加新算法
-
-1. **实现 IAlgorithm 接口**
-
-```cpp
-class MyCustomAlgorithm : public IAlgorithm {
-public:
-    bool Initialize(const AlgorithmConfig& config) override;
-    AlgorithmResult Process(DecodedFrame&& frame) override;
-    // ...
-};
-```
-
-2. **注册到工厂**
-
-```cpp
-AlgorithmFactory::Register("my_algorithm", 
-    [](const AlgorithmConfig& config) {
-        return std::make_unique<MyCustomAlgorithm>();
-    });
-```
-
-3. **使用**
-
-```cpp
-auto algo = AlgorithmFactory::Create("my_algorithm", config);
-```
-
-### 性能优化建议
-
-1. **启用异步模式**
-   ```cpp
-   config.async_mode = true;
-   config.num_requests = 4;
-   ```
-
-2. **使用 INT8 量化**
-   ```bash
-   mo --input_model model.onnx --data_type INT8
-   ```
-
-3. **批量处理**
-   ```cpp
-   auto results = engine->InferBatch(inputs);
-   ```
-
-4. **复用缓冲区**
-   ```cpp
-   std::vector<float> buffer;  // 预分配
-   // 每次推理复用
-   ```
-
----
+- [ ] 模型热加载（无需重启）
+- [ ] 动态批处理（Dynamic Batching）
+- [ ] 模型版本管理
+- [ ] A/B 测试支持
+- [ ] 性能分析工具集成
 
 ## 📚 相关文档
 
-- [VideoPipeline 接口设计](../../docs/VIDEOPIPELINE_INTERFACE_DESIGN.md)
-- [零拷贝架构](../../algorithm/CPP_ZERO_COPY_ARCHITECTURE.md)
-- [算法迁移计划](../../docs/ALGORITHM_MIGRATION_PLAN.md)
-- [Inference 模块文档](inference/README.md)
+- [VideoPipeline 接口设计](../../../docs/VIDEOPIPELINE_INTERFACE_DESIGN.md)
+- [零拷贝架构](../../../algorithm/CPP_ZERO_COPY_ARCHITECTURE.md)
+- [算法模块迁移计划](../../../docs/ALGORITHM_MIGRATION_PLAN.md)
 
----
-
-## 🤝 贡献
+## 👥 贡献
 
 欢迎提交 Issue 和 Pull Request！
-
-### 贡献流程
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-### 代码规范
-
-- 遵循 C++20 标准
-- 使用 spdlog 进行日志记录
-- 编写单元测试
-- 更新文档
-
----
-
-## 📞 联系方式
-
-- **项目主页**: `d:\file_mx\aaaaa\learncpp`
-- **问题反馈**: GitHub Issues
-- **文档**: 查看各模块的 README.md
-
----
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 详见 [LICENSE](../../LICENSE) 文件
 
 ---
 
 **版本**: v1.0  
 **最后更新**: 2026-05-03  
-**状态**: Inference 模块已完成，其他模块开发中
+**作者**: Lingma AI Assistant

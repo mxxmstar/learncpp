@@ -13,14 +13,15 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
-
+#include <filesystem>
+#include "common/log/logmanager.h"
 /// @brief 示例 1: 基本同步推理
 void Example_SyncInference() {
     std::cout << "\n=== Example 1: Synchronous Inference ===" << std::endl;
     
     // 1. 配置引擎
     InferenceConfig config;
-    config.model_path = "models/yolov5s.xml";  // 替换为实际模型路径
+    config.model_path = "yolov5s.xml";  // 替换为实际模型路径
     config.device = "CPU";
     config.async_mode = false;
     config.num_requests = 1;
@@ -123,7 +124,7 @@ void Example_AsyncInference() {
     
     // 1. 配置引擎（启用异步模式）
     InferenceConfig config;
-    config.model_path = "models/yolov5s.xml";
+    config.model_path = "yolov5s.xml";  // 测试模型路径（需要放在程序运行目录）
     config.device = "CPU";
     config.async_mode = true;
     config.num_requests = 4;  // 4个并发请求
@@ -201,7 +202,7 @@ void Example_BatchInference() {
     
     // 1. 创建引擎
     InferenceConfig config;
-    config.model_path = "models/yolov5s.xml";
+    config.model_path = "yolov5s.xml";  // 测试模型路径（需要放在程序运行目录）
     config.device = "CPU";
     config.async_mode = false;
     
@@ -261,6 +262,16 @@ void Example_BatchInference() {
 
 /// @brief 主函数
 int main() {
+    LogManager& log_mgr = LogManager::getInstance();
+    log_mgr.Init("./logs", 1);
+    
+    // 打印当前工作目录和模型文件状态
+    std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
+    std::cout << "Looking for model: yolov5s.xml" << std::endl;
+    std::cout << "XML exists: " << std::filesystem::exists("yolov5s.xml") << std::endl;
+    std::cout << "BIN exists: " << std::filesystem::exists("yolov5s.bin") << std::endl;
+    std::cout << std::endl;
+    
     std::cout << "========================================" << std::endl;
     std::cout << "Inference Module Examples" << std::endl;
     std::cout << "========================================" << std::endl;
@@ -268,14 +279,18 @@ int main() {
     try {
         // 运行示例
         Example_SyncInference();
+        log_mgr.FlushAll();  // 确保退出日志输出（内部已包含延迟）
         Example_AsyncInference();
+        log_mgr.FlushAll();  // 确保退出日志输出（内部已包含延迟）
         Example_BatchInference();
+        log_mgr.FlushAll();  // 确保退出日志输出（内部已包含延迟）
         
         std::cout << "\n========================================" << std::endl;
         std::cout << "All examples completed!" << std::endl;
         std::cout << "========================================" << std::endl;
         
     } catch (const std::exception& e) {
+        log_mgr.FlushAll();  // 确保退出日志输出（内部已包含延迟）
         std::cerr << "\nError: " << e.what() << std::endl;
         return 1;
     }
