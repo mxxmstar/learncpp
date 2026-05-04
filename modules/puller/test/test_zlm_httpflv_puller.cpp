@@ -36,7 +36,7 @@ int main() {
         // 设置重连参数
         puller->SetReconnectParams(3, -1);  // 3绉掑欢杩燂紝鏃犻檺閲嶈瘯
         
-        std::string stream_url = "http://127.0.0.1/live/proxy_cam1.live.flv";
+        std::string stream_url = "http://127.0.0.1:8888/live/proxy_cam1.live.flv";
         
         std::cout << "Stream URL: " << stream_url << std::endl;
         std::cout << "Press Ctrl+C to stop...\n" << std::endl;

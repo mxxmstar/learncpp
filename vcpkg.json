@@ -18,6 +18,7 @@
     "zlmediakit",
     "ffmpeg",
     "opencv",
+    "openvino",
     "openssl",
     "grpc",
     "protobuf",

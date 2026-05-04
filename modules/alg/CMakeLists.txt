@@ -39,7 +39,6 @@ target_link_libraries(alg_lib
         ${OpenCV_LIBS}
         common_lib
         grpc_lib  # alg 依赖 grpc 模块的通用基础设施
-        common_lib        # 通用service接口
 )
 
 # Windows 特定配置
@@ -52,3 +51,6 @@ if(BUILD_ALG_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
     enable_testing()
     add_subdirectory(test)
 endif()
+
+# Inference 子模块
+add_subdirectory(inference)

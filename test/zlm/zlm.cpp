@@ -108,15 +108,15 @@ void testZlmApiClient() {
     // 测试 3：添加拉流代理
     std::cout << "\n--- Test 3: Add Stream Proxy ---" << std::endl;
     ZLMStreamPullerProxyInfo proxy_info;
-    proxy_info.vhost = "__defaultVhost__";
-    proxy_info.app = "live";
-    proxy_info.stream = "proxy_cam1";
-    proxy_info.url = "rtsp://192.168.66.166/live/mainstream";
+    proxy_info.vhost_ = "__defaultVhost__";
+    proxy_info.app_ = "live";
+    proxy_info.stream_ = "proxy_cam1";
+    proxy_info.url_ = "rtsp://192.168.66.166/live/mainstream";
     client.Proxy().AddStreamProxy(proxy_info);
     
     // 测试 4：查询拉流代理信息
     std::cout << "\n--- Test 4: Get Proxy Info ---" << std::endl;
-	proxy_info.key = proxy_info.vhost + "/" + proxy_info.app + "/" + proxy_info.stream;  // 构造key
+	proxy_info.key_ = proxy_info.vhost_ + "/" + proxy_info.app_ + "/" + proxy_info.stream_;  // 构造key
     client.Proxy().GetProxyInfo(proxy_info);
     
     // 测试 5：删除拉流代理

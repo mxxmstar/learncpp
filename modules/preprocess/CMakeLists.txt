@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 测试开关
-option(BUILD_PREPROCESS_TESTS "Build preprocess module tests" OFF)
+option(BUILD_PREPROCESS_TESTS "Build preprocess module tests" ON)
 
 # 设置库文件输出目录
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)

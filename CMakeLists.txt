@@ -69,6 +69,8 @@ endif()
 # 7. 查找 gRPC 和 Protobuf
 find_package(gRPC CONFIG REQUIRED)
 find_package(Protobuf CONFIG REQUIRED)
+# 8. 查找 OpenVINO（用于 alg/inference 模块）
+find_package(OpenVINO REQUIRED)
 
 # 定义预处理器宏来解决 WinSock 冲突
 if(WIN32)
@@ -89,15 +91,14 @@ endif()
 add_subdirectory(modules/net)
 add_subdirectory(modules/puller)  # puller 模块依赖 net 和 log
 add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
-#add_subdirectory(modules/decoder)  # decoder 模块依赖 FFmpeg 和 log
-#add_subdirectory(modules/preprocess)  # preprocess 模块依赖 OpenCV, decoder 和 log
-#add_subdirectory(modules/postprocess)  # postprocess 模块依赖 OpenCV, decoder 和 log
-#add_subdirectory(modules/grpc)  # grpc 模块（通用 gRPC 基础设施）
-#add_subdirectory(modules/alg)  # alg 模块依赖 grpc, OpenCV 和 log
-#add_subdirectory(modules/videopipeline)  # videopipeline 模块依赖多个模块
+add_subdirectory(modules/decoder)  # decoder 模块依赖 FFmpeg 和 log
+add_subdirectory(modules/preprocess)  # preprocess 模块依赖 OpenCV, decoder 和 log
+add_subdirectory(modules/postprocess)  # postprocess 模块依赖 OpenCV, decoder 和 log
+add_subdirectory(modules/grpc)  # grpc 模块（通用 gRPC 基础设施）
+add_subdirectory(modules/alg)  # alg 模块依赖 grpc, OpenCV 和 log
+add_subdirectory(modules/videopipeline)  # videopipeline 模块依赖多个模块
 add_subdirectory(modules/sqlite)
 add_subdirectory(modules/zlmediakit)
-# add_subdirectory(modules/config)  # 已迁移到 common
 add_subdirectory(modules/common)  # common 模块（IService 接口，log, config）
 add_subdirectory(modules/service)  # service 模块（所有 Service 实现）
 add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
@@ -120,13 +121,13 @@ if(WIN32)
             common_lib  # 添加日志模块
             net_lib  # 添加网络模块
             puller_lib  # 添加拉流器模块
-            #camera_lib  # 添加相机模块
-            #decoder_lib  # 添加解码器模块
-            #preprocess_lib  # 添加预处理模块
-            #postprocess_lib  # 添加后处理模块
-            #grpc_lib  # 添加 gRPC 基础设施模块
-            #alg_lib  # 添加算法模块（依赖 grpc_lib）
-            #videopipeline_lib  # 添加视频管道模块
+            camera_lib  # 添加相机模块
+            decoder_lib  # 添加解码器模块
+            preprocess_lib  # 添加预处理模块
+            postprocess_lib  # 添加后处理模块
+            grpc_lib  # 添加 gRPC 基础设施模块
+            alg_lib  # 添加算法模块（依赖 grpc_lib）
+            videopipeline_lib  # 添加视频管道模块
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             common_lib  # 添加配置模块
@@ -250,13 +251,13 @@ if(BUILD_TESTS)
             common_lib  # 添加日志模块
             net_lib  # 添加网络模块
             puller_lib  # 添加拉流器模块
-            #camera_lib  # 添加相机模块
-            #decoder_lib  # 添加解码器模块
-            #preprocess_lib  # 添加预处理模块
-            #postprocess_lib  # 添加后处理模块
-            #grpc_lib  # 添加 gRPC 基础设施模块
-            #alg_lib  # 添加算法模块（依赖 grpc_lib）
-            #videopipeline_lib  # 添加视频管道模块
+            camera_lib  # 添加相机模块
+            decoder_lib  # 添加解码器模块
+            preprocess_lib  # 添加预处理模块
+            postprocess_lib  # 添加后处理模块
+            grpc_lib  # 添加 gRPC 基础设施模块
+            alg_lib  # 添加算法模块（依赖 grpc_lib）
+            videopipeline_lib  # 添加视频管道模块
             sqlite_lib  # 添加 SQLite 模块
             zlmediakit_lib  # 添加 ZLMediaKit 模块
             common_lib  # 添加配置模块

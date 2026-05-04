@@ -27,7 +27,7 @@ struct ZLMStreamPusherProxyInfo {
     std::string url;    // 推流地址
     std::string schema; // 推流协议（rtmp、rtsp、rtmps, rtsps）
     std::string key;     // 代理键（删除时必填）
-     int rtp_type; // rtp类型（tcp、udp、组播）
+    //  int rtp_type; // rtp类型（tcp、udp、组播）
 };
 
 

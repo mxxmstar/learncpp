@@ -11,164 +11,165 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 namespace net = boost::asio;
 
-/// @brief ZLMediaKit HTTP-FLV 鎷夋祦鍣?
-/// 浠?ZLMediaKit 鏈嶅姟鍣ㄦ媺鍙?HTTP-FLV 娴侊紝鎻愬彇 H.264/H.265 鏁版嵁鍖?
+/// @brief ZLMediaKit HTTP-FLV 拉流器
+/// 从 ZLMediaKit 服务器拉取 HTTP-FLV 流，提取 H.264/H.265 数据包
 class ZlmHttpFlvPuller : public IPuller {
 public:
-    /// @brief 鏋勯€犲嚱鏁?
-    /// @param io_ctx io_context锛堢敤浜庣綉缁滄搷浣滐級
+    /// @brief 构造函数
+    /// @param io_ctx io_context（用于网络操作）
     explicit ZlmHttpFlvPuller(boost::asio::io_context& io_ctx);
     
-    /// @brief 鏋愭瀯鍑芥暟
+    /// @brief 析构函数
     ~ZlmHttpFlvPuller() override;
     
-    /// @brief 鍚姩鎷夋祦
-    /// @param url 娴佸湴鍧€锛堟牸寮忥細http://host/app/stream.flv锛?
-    /// @param seq_cb 搴忓垪澶村洖璋冨嚱鏁?
-    /// @param frame_cb 鏁版嵁鍥炶皟鍑芥暟
-    /// @return true 鎴愬姛锛宖alse 澶辫触
+    /// @brief 启动拉流
+    /// @param url 流地址（格式：http://host/app/stream.flv）
+    /// @param seq_cb 序列头回调函数
+    /// @param frame_cb 数据回调函数
+    /// @return true 成功，false 失败
     bool Start(const std::string& url, 
               SequenceHeaderCallback seq_cb,
               FrameCallback frame_cb) override;
     
-    /// @brief 鍋滄鎷夋祦
+    /// @brief 停止拉流
     void Stop() override;
     
-    /// @brief 鏄惁姝ｅ湪杩愯
+    /// @brief 是否正在拉流
     bool IsRunning() const override { return running_; }
     
-    /// @brief 璁剧疆閲嶈繛鍙傛暟
-    /// @param delay 閲嶈繛寤惰繜锛堢锛?
-    /// @param max_attempts 鏈€澶ч噸杩炴鏁帮紙-1=鏃犻檺閲嶈瘯锛?
+    /// @brief 设置重连参数
+    /// @param delay 重连延迟时间（单位：秒）
+    /// @param max_attempts 最大重连次数（-1表示无限重连）
     void SetReconnectParams(int delay, int max_attempts) {
         reconnect_delay_ = delay;
         max_reconnect_attempts_ = max_attempts;
     }
     
 private:
-    /// @brief 瑙ｆ瀽 URL
-    /// @param url 瀹屾暣 URL
-    /// @return true 瑙ｆ瀽鎴愬姛
+    /// @brief 解析 URL
+    /// @param url URL
+    /// @return true 解析成功
     bool parseUrl(const std::string& url);
     
-    /// @brief 杩炴帴鏈嶅姟鍣?
+    /// @brief 连接服务器
     void connect();
     
-    /// @brief 鍙戦€?HTTP GET 璇锋眰
+    /// @brief 发送 HTTP GET 请求
     void sendHttpRequest();
     
-    /// @brief 璇诲彇 HTTP 鍝嶅簲澶?
+    /// @brief 读取 HTTP 响应
     void readHttpResponse();
     
-    /// @brief 璇诲彇 FLV 娴?
+    /// @brief 读取 FLV 头
     void readFlvStream();
     
-    /// @brief 璇诲彇 FLV 澶?
+    /// @brief 读取 FLV 标签
     void readFlvHeader();
     
-    /// @brief 璇诲彇 PreviousTagSize0
+    /// @brief 读取 PreviousTagSize0
     void readPreviousTagSize0();
     
-    /// @brief 寮傛璇诲彇 FLV 鏍囩
+    /// @brief 异步读取 FLV 标签
     void async_read_tag();
     
-    /// @brief 澶勭悊 FLV 鏍囩
-    /// @param tag_data FLV 鏍囩鏁版嵁
-    /// @param tag_size 鏍囩澶у皬
+    /// @brief 处理 FLV 标签
+    /// @param data FLV 标签数据
+    /// @param size 标签数据长度
     void handleFlvTag(const uint8_t* data, size_t size);
     
-    /// @brief 瑙ｆ瀽 FLV 鏍囩澶?
-    /// @param data 鏍囩澶存暟鎹?
-    /// @param size 鏁版嵁澶у皬
-    /// @return 鏍囩绫诲瀷锛?=鏃犳晥锛?
+    /// @brief 解析 FLV 标签头
+    /// @param data 标签数据
+    /// @param size 数据长度
+    /// @return 标签类型
     int parseFlvTagHeader(const uint8_t* data, size_t size);
     
-    /// @brief 浠庤棰戞爣绛句腑鎻愬彇 NALU
-    /// @param data 瑙嗛鏍囩鏁版嵁
-    /// @param size 鏁版嵁澶у皬
-    /// @param pts 鏃堕棿鎴?
+    /// @brief 提取 NALU
+    /// @param data 数据
+    /// @param size 数据长度
+    /// @param pts 时间戳
     void extractNalu(const uint8_t* data, size_t size, int64_t pts);
     
-    /// @brief 閲嶈繛閫昏緫
+    /// @brief 处理重连
     void doReconnect();
     
-    /// @brief 閲嶇疆鐘舵€?
+    /// @brief 重置拉流器状态
     void reset();
     
-    /// @brief 缂撳瓨鍏抽敭甯ф暟鎹紙鐢ㄤ簬缃戠粶娉㈠姩鎴栬В鐮佸櫒閲嶇疆鏃跺揩閫熸仮澶嶏級
+    /// @brief 缓存关键帧数据（用于网络波动或解码器重置时快速恢复）
     void cacheKeyframe(int codec_id, const uint8_t* data, size_t size);
     
-    /// @brief 鑾峰彇鏈€鍚庣殑 SPS/PPS 鏁版嵁锛堢敤浜庡揩閫熸仮澶嶏級
+    /// @brief 获取最后的 SPS/PPS 数据（用于快速恢复）
     const std::vector<uint8_t>& getLastSpsPpsH264() const { return last_sps_pps_h264_; }
     const std::vector<uint8_t>& getLastSpsPpsH265() const { return last_sps_pps_h265_; }
     
-    // ==================== 鎴愬憳鍙橀噺 ====================
-    /// @brief io_context
+    // ==================== 成员变量 ====================
     boost::asio::io_context& io_ctx_;
     
     /// @brief TCP socket
     std::unique_ptr<boost::asio::ip::tcp::socket> socket_;
     
-    /// @brief FLV 澶寸紦鍐插尯
+    /// @brief FLV 头缓冲区
     std::vector<uint8_t> flv_header_buffer_;
     
-    /// @brief HTTP 鍝嶅簲缂撳啿鍖猴紙鐢ㄤ簬璇诲彇 HTTP 鍝嶅簲澶达級
+    /// @brief HTTP 响应缓冲区（用于读取 HTTP 响应头）
     beast::flat_buffer http_response_buffer_;
     
-    /// @brief PreviousTagSize 缂撳啿鍖?
+    /// @brief PreviousTagSize 缓冲区
     std::vector<uint8_t> prev_tag_size_buffer_;
     
-    /// @brief 鏍囩澶寸紦鍐插尯
+    /// @brief 标签头缓冲区
     std::vector<uint8_t> tag_header_buffer_;
     
-    /// @brief 褰撳墠鏍囩鏁版嵁
+    /// @brief 当前标签数据
     std::vector<uint8_t> current_tag_data_;
     
-    /// @brief 鏈€鍚庣殑 SPS/PPS 鏁版嵁锛圚.264锛?
+    /// @brief 最后的 SPS/PPS 数据（H.264）
     std::vector<uint8_t> last_sps_pps_h264_;
     
-    /// @brief 鏈€鍚庣殑 SPS/PPS 鏁版嵁锛圚.265锛?
+    /// @brief 最后的 SPS/PPS 数据（H.265）
     std::vector<uint8_t> last_sps_pps_h265_;
     
-    /// @brief 搴忓垪澶村洖璋冨嚱鏁?
+    /// @brief 序列头回调函数
     SequenceHeaderCallback seq_callback_;
     
-    /// @brief 鏁版嵁鍥炶皟鍑芥暟
+    /// @brief 数据回调函数
     FrameCallback callback_;
     
-    /// @brief 鏄惁宸茶鍙?FLV 澶?
+    /// @brief 是否包含 FLV 头
     bool has_flv_header_{false};
     
-    /// @brief 鏈熸湜鐨勬爣绛惧ぇ灏?
+    /// @brief 预期的标签大小
     uint32_t expected_tag_size_{0};
     
-    /// @brief 涓绘満鍚?
+    /// @brief 主机名
     std::string host_;
     
-    /// @brief 绔彛
+    /// @brief 端口号
     std::string port_;
     
-    /// @brief 璺緞
+    /// @brief 路径
     std::string path_;
     
-    /// @brief 閲嶈繛寤惰繜锛堢锛?
+    /// @brief 重连延迟时间（单位：秒）
     int reconnect_delay_{3};
     
-    /// @brief 鏈€澶ч噸杩炴鏁帮紙-1=鏃犻檺锛?
+    /// @brief 最大重连次数（-1表示无限重连）
     int max_reconnect_attempts_{-1};
     
-    /// @brief 褰撳墠閲嶈繛娆℃暟
+    /// @brief 重连次数
     int reconnect_count_{0};
     
-    /// @brief 鏄惁宸插仠姝?
+    /// @brief 是否已停止
     std::atomic<bool> stopped_{false};
     
-    /// @brief 鏄惁姝ｅ湪杩愯
+    /// @brief 是否正在运行
     std::atomic<bool> running_{false};
     
-    /// @brief 缁熻淇℃伅
+    /// @brief 接收到的字节数
     std::atomic<uint64_t> bytes_received_{0};
+    /// @brief 处理的标签数
     std::atomic<uint64_t> tags_processed_{0};
+    /// @brief 交付的帧数
     std::atomic<uint64_t> frames_delivered_{0};
 };
 

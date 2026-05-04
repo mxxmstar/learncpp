@@ -34,8 +34,7 @@ void ZLMProxyManager::AddStreamPusherProxy(const ZLMStreamPusherProxyInfo& info,
     params["app"] = info.app;
     params["stream"] = info.stream;
     params["dst_url"] = info.url;
-    params["schema"] = info.schema;
-    params["rtp_type"] = info.rtp_type;
+    params["schema"] = info.schema;    
     ZLMRequestHelper::DoRequest(io_context_, pool_, config_, "addStreamPusherProxy", params, callback);
 }
 void ZLMProxyManager::DelStreamPusherProxy(const ZLMStreamPusherProxyInfo& info, ZLMRequestHelper::ResponseCallback callback) {
