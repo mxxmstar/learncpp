@@ -306,7 +306,7 @@ doReconnect()
 - `tags_processed_ = 0`
 - `frames_delivered_ = 0`
 
-**注意：** 关键帧缓存（`last_sps_pps_h264_` / `last_sps_pps_h265_`）**不会**被清除，用于快速恢复。
+**注意：** 关键帧缓存（`last_sps_pps_h264_` / `last_vps_sps_pps_h265_`）**不会**被清除，用于快速恢复。
 
 ---
 
@@ -326,7 +326,7 @@ void cacheKeyframe(int codec_id, const uint8_t* data, size_t size) {
     if (codec_id == 7) {
         last_sps_pps_h264_.assign(data, data + size);
     } else if (codec_id == 12) {
-        last_sps_pps_h265_.assign(data, data + size);
+        last_vps_sps_pps_h265_.assign(data, data + size);
     }
 }
 ```

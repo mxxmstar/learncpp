@@ -17,6 +17,12 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Windows MSVC: 添加 /FS 标志以支持并行编译时共享 PDB 文件
+if(MSVC)
+    add_compile_options(/FS)
+    message(STATUS "Added /FS flag for parallel compilation with shared PDB")
+endif()
+
 # 添加编译开关来控制是否构建测试
 option(BUILD_TESTS "Build tests" ON)
 

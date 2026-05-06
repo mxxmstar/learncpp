@@ -273,15 +273,28 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
                 // UINT8 输入：可能需要转换
                 auto element_type = input_tensor.get_element_type();
                 
+                // 安全检查：确保 input.data 有效（使用 cout）
+                if (!input.data) {
+                    std::cerr << "[ERROR] Invalid input data pointer" << std::endl;
+                    std::cerr << "  input.data = " << static_cast<const void*>(input.data) << std::endl;
+                    std::cerr << "  input.size_bytes = " << input.size_bytes << std::endl;
+                    std::cerr << std::flush;
+                    return InferenceOutput{
+                        .success = false,
+                        .error_message = "Invalid input data pointer"
+                    };
+                }
+                
                 if (element_type == ov::element::u8) {
                     // 模型接受 uint8，直接拷贝
                     std::memcpy(input_ptr, input.data, input.size_bytes);
                 } else if (element_type == ov::element::f32) {
                     // 模型需要 float，进行转换
+                    // 注意：input.size_bytes 是字节数，对于 uint8_t 来说等于元素数量
                     ConvertUint8ToFloat(
                         static_cast<const uint8_t*>(input.data),
                         static_cast<float*>(input_ptr),
-                        input.size_bytes  // uint8 的数量
+                        input.size_bytes  // uint8 的数量（字节数 = 元素数）
                     );
                 } else {
                     LOG_MAIN_WARN_AT("Unsupported element type conversion: {} -> {}",
@@ -292,6 +305,11 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
                 // FLOAT32 或其他类型，直接拷贝
                 std::memcpy(input_ptr, input.data, input.size_bytes);
             }
+        } else {
+            std::cerr << "[WARN] Empty input data:" << std::endl;
+            std::cerr << "  input.data = " << static_cast<const void*>(input.data) << std::endl;
+            std::cerr << "  input.size_bytes = " << input.size_bytes << std::endl;
+            std::cerr << std::flush;
         }
         
         // 3. 执行推理
@@ -348,10 +366,20 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
 }
 
 void OpenVinoCpuEngine::ConvertUint8ToFloat(const uint8_t* src, float* dst, size_t count) {
+    // 安全检查（使用 cout 立即输出）
+    if (!src || !dst || count == 0) {
+        std::cerr << "[ERROR] ConvertUint8ToFloat: invalid parameters" << std::endl;
+        std::cerr << "  src = " << static_cast<const void*>(src) << std::endl;
+        std::cerr << "  dst = " << static_cast<void*>(dst) << std::endl;
+        std::cerr << "  count = " << count << std::endl;
+        std::cerr << std::flush;
+        return;
+    }
+    
     // 将 uint8 [0, 255] 转换为 float [0.0, 1.0]
     const float scale = 1.0f / 255.0f;
     
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < count; ++i) {        
         dst[i] = static_cast<float>(src[i]) * scale;
     }
 }

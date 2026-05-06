@@ -12,9 +12,6 @@ enum class TensorDataType {
     FLOAT16     ///< half precision
 };
 
-/// @brief 前向声明
-struct VideoFrame;
-
 /// @brief 张量数据（支持 CPU/GPU）
 struct TensorData {
     void* data = nullptr;               ///< 数据指针（CPU 或 GPU）
@@ -50,15 +47,33 @@ struct TensorData {
         return tensor;
     }
     
-    /// @brief 从 VideoFrame 创建张量（零拷贝）
-    /// @param frame 视频帧（YUV 格式）
+    /// @brief 从原始数据创建张量（零拷贝）
+    /// @param data 数据指针（如 VideoFrame::data[0]）
+    /// @param size_bytes 数据大小（字节数）
     /// @param shape 期望的输出形状 [N, C, H, W]
     /// @param dtype 数据类型（默认 UINT8）
-    /// @return 张量数据（直接引用 frame 的内存）
-    /// @note 调用者必须保证 frame 的生命周期长于推理过程
-    static TensorData FromVideoFrame(const VideoFrame& frame,
-                                    const std::vector<int64_t>& shape,
-                                    TensorDataType dtype = TensorDataType::UINT8);
+    /// @return 张量数据（直接引用 data 内存）
+    /// @note 调用者必须保证 data 的生命周期长于推理过程
+    static TensorData FromRawData(const uint8_t* data,
+                                 size_t size_bytes,
+                                 const std::vector<int64_t>& shape,
+                                 TensorDataType dtype = TensorDataType::UINT8) {
+        TensorData tensor;
+        
+        if (data == nullptr || size_bytes == 0) {
+            // 空数据，返回无效张量
+            return tensor;
+        }
+        
+        // 零拷贝：直接引用数据内存
+        tensor.data = const_cast<uint8_t*>(data);
+        tensor.shape = shape;
+        tensor.is_gpu = false;
+        tensor.dtype = dtype;
+        tensor.size_bytes = size_bytes;  // 直接使用调用者提供的大小
+        
+        return tensor;
+    }
     
     /// @brief GPU 张量
     static TensorData FromGpu(void* gpu_ptr, 

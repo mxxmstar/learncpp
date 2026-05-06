@@ -9,7 +9,7 @@ extern "C" {
     void av_free(void *ptr);
 }
 
-/// @brief 通用视频帧结构（解耦 FFmpeg 和 OpenCV）
+/// @brief 通用视频帧结构
 struct VideoFrame {
     uint8_t* data[4];      // 图像数据指针（YUV/RGB 等）
     int linesize[4];       // 每行字节数
@@ -89,7 +89,7 @@ struct VideoFrame {
     VideoFrame& operator=(const VideoFrame&) = delete;
 };
 
-/// @brief 解码器接口（不依赖 OpenCV）
+/// @brief 解码器接口
 class IDecoder {
 public:
     /// @brief 帧回调函数类型（传递通用帧）

@@ -65,7 +65,7 @@ bool FfmpegDecoder::Open(const uint8_t* extradata, int extradata_size, int codec
             return false;
         }
         
-        // 3. 设置额外数据（SPS/PPS）
+        // 3. 设置额外数据（VPS/SPS//PPS）
         if (extradata && extradata_size > 0) {
             codec_ctx_->extradata = static_cast<uint8_t*>(av_malloc(extradata_size + AV_INPUT_BUFFER_PADDING_SIZE));
             if (!codec_ctx_->extradata) {

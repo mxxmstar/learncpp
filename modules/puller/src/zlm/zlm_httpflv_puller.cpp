@@ -606,6 +606,6 @@ void ZlmHttpFlvPuller::cacheKeyframe(int codec_id, const uint8_t* data, size_t s
     if (codec_id == 7) {
         last_sps_pps_h264_.assign(data, data + size);
     } else if (codec_id == 12) {
-        last_sps_pps_h265_.assign(data, data + size);
+        last_vps_sps_pps_h265_.assign(data, data + size);
     }
 }

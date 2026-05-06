@@ -115,17 +115,44 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_openvino_frontend.cpp")
     target_compile_features(test_openvino_frontend PRIVATE cxx_std_20)
 endif()
 
+# 测试7: Decoder-Inference 流水线测试（零拷贝优化）
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_decoder_inference_pipeline.cpp")
+    add_executable(test_decoder_inference_pipeline
+        test_decoder_inference_pipeline.cpp
+    )
+
+    target_link_libraries(test_decoder_inference_pipeline
+        PRIVATE
+            alg_lib
+            decoder_lib
+            common_lib
+            openvino::runtime
+            ${CMAKE_THREAD_LIBS_INIT}
+    )
+
+    target_include_directories(test_decoder_inference_pipeline
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_compile_features(test_decoder_inference_pipeline PRIVATE cxx_std_20)
+endif()
+
 # ============================================================================
 # OpenVINO DLL 自动复制配置
 # ============================================================================
 if(WIN32 AND TARGET openvino::runtime)
-    # 根据构建类型确定 DLL 目录
+    # 根据构建类型确定 DLL 目录和文件名
     if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_CFG_INTDIR STREQUAL "Debug")
         set(OPENVINO_DLL_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/bin")
         set(OPENVINO_DLL_SUFFIX "d")
+        set(TBB_DLL_NAME "tbb12_debug.dll")
+        set(PUGIXML_DLL_NAME "pugixml.dll")  # pugixml 没有 debug 后缀
     else()
         set(OPENVINO_DLL_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin")
         set(OPENVINO_DLL_SUFFIX "")
+        set(TBB_DLL_NAME "tbb12.dll")
+        set(PUGIXML_DLL_NAME "pugixml.dll")
     endif()
     
     # 定义需要复制的 OpenVINO DLL 列表
@@ -140,12 +167,12 @@ if(WIN32 AND TARGET openvino::runtime)
         "openvino_intel_gpu_plugin${OPENVINO_DLL_SUFFIX}.dll"
         "openvino_onnx_frontend${OPENVINO_DLL_SUFFIX}.dll"
         "openvino_c${OPENVINO_DLL_SUFFIX}.dll"
-        "tbb12.dll"
-        "pugixml.dll"
+        "${TBB_DLL_NAME}"
+        "${PUGIXML_DLL_NAME}"
     )
     
     # 为所有使用 OpenVINO 的目标添加后构建命令
-    foreach(target_name inference_example test_inference test_openvino_frontend)
+    foreach(target_name inference_example test_inference test_openvino_frontend test_decoder_inference_pipeline)
         if(TARGET ${target_name})
             # 复制必需的 DLL
             foreach(dll_name ${OPENVINO_REQUIRED_DLLS})

@@ -100,7 +100,7 @@ private:
     
     /// @brief 获取最后的 SPS/PPS 数据（用于快速恢复）
     const std::vector<uint8_t>& getLastSpsPpsH264() const { return last_sps_pps_h264_; }
-    const std::vector<uint8_t>& getLastSpsPpsH265() const { return last_sps_pps_h265_; }
+    const std::vector<uint8_t>& getLastSpsPpsH265() const { return last_vps_sps_pps_h265_; }
     
     // ==================== 成员变量 ====================
     boost::asio::io_context& io_ctx_;
@@ -126,8 +126,8 @@ private:
     /// @brief 最后的 SPS/PPS 数据（H.264）
     std::vector<uint8_t> last_sps_pps_h264_;
     
-    /// @brief 最后的 SPS/PPS 数据（H.265）
-    std::vector<uint8_t> last_sps_pps_h265_;
+    /// @brief 最后的 VPS/SPS/PPS 数据（H.265）
+    std::vector<uint8_t> last_vps_sps_pps_h265_;
     
     /// @brief 序列头回调函数
     SequenceHeaderCallback seq_callback_;
