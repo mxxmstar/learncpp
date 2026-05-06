@@ -99,4 +99,10 @@ private:
     uint64_t total_errors_ = 0;
     double total_time_ms_ = 0.0;
     std::chrono::steady_clock::time_point start_time_;
+    
+    /// @brief 辅助方法：将 uint8 转换为 float 并归一化到 [0, 1]
+    /// @param src 源数据（uint8）
+    /// @param dst 目标数据（float）
+    /// @param count 元素数量
+    void ConvertUint8ToFloat(const uint8_t* src, float* dst, size_t count);
 };

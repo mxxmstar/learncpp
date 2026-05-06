@@ -267,9 +267,31 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
         auto input_tensor = infer_request.get_input_tensor();
         void* input_ptr = input_tensor.data();
         
-        // 拷贝输入数据到推理缓冲区
+        // 根据数据类型处理输入
         if (input.data && input.size_bytes > 0) {
-            std::memcpy(input_ptr, input.data, input.size_bytes);
+            if (input.dtype == TensorDataType::UINT8) {
+                // UINT8 输入：可能需要转换
+                auto element_type = input_tensor.get_element_type();
+                
+                if (element_type == ov::element::u8) {
+                    // 模型接受 uint8，直接拷贝
+                    std::memcpy(input_ptr, input.data, input.size_bytes);
+                } else if (element_type == ov::element::f32) {
+                    // 模型需要 float，进行转换
+                    ConvertUint8ToFloat(
+                        static_cast<const uint8_t*>(input.data),
+                        static_cast<float*>(input_ptr),
+                        input.size_bytes  // uint8 的数量
+                    );
+                } else {
+                    LOG_MAIN_WARN_AT("Unsupported element type conversion: {} -> {}",
+                                   "uint8", element_type.get_type_name());
+                    std::memcpy(input_ptr, input.data, input.size_bytes);
+                }
+            } else {
+                // FLOAT32 或其他类型，直接拷贝
+                std::memcpy(input_ptr, input.data, input.size_bytes);
+            }
         }
         
         // 3. 执行推理
@@ -322,5 +344,14 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
             .success = false,
             .error_message = e.what()
         };
+    }
+}
+
+void OpenVinoCpuEngine::ConvertUint8ToFloat(const uint8_t* src, float* dst, size_t count) {
+    // 将 uint8 [0, 255] 转换为 float [0.0, 1.0]
+    const float scale = 1.0f / 255.0f;
+    
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = static_cast<float>(src[i]) * scale;
     }
 }
