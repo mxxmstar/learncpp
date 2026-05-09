@@ -1,7 +1,7 @@
 ﻿#include "videopipeline/video_pipeline.h"
 #include "preprocess/format_converter/opencv_format_converter.h"  // 可选组件
 #include "preprocess/format_converter/yuv_to_bgr_converter.h"     // YUV 到 BGR 转换
-#include "alg/grpc/grpc_video_sender.h"  // gRPC 视频发送器
+#include "preprocess/format_converter/yuv_to_jpeg_converter.h"    // YUV 到 JPEG 转换
 #include "common/log/logmanager.h"
 extern "C" {
 #include <libswscale/swscale.h>
@@ -14,38 +14,42 @@ VideoPipeline::VideoPipeline(boost::asio::io_context& io_ctx, const PipelineConf
 {
     // 1. 创建拉流器
     puller_ = std::make_unique<ZlmHttpFlvPuller>(io_ctx_);
-    puller_->SetReconnectParams(config_.reconnect_delay, config_.max_reconnect_attempts);
+    puller_->SetReconnectParams(config_.puller.reconnect_delay, config_.puller.max_reconnect_attempts);
     
     // 2. 创建解码器
     decoder_ = std::make_unique<FfmpegDecoder>();
-    decoder_->SetThreadCount(config_.decoder_threads);
+    decoder_->SetThreadCount(config_.decoder.decoder_threads);
     
-    // 3. 创建 OpenCV 格式转换器（可选）
-    if (config_.enable_preprocess) {
+    // 3. 创建预处理组件（可选）
+    if (config_.preprocess.enable_preprocess) {
         converter_ = std::make_unique<OpenCVFormatConverter>();
     }
     
-    // 4. 创建 YUV 到 BGR 转换器（用于 gRPC 发送）
-    if (config_.enable_grpc_send) {
-        yuv_converter_ = std::make_unique<YuvToBgrConverter>();
+    // 4. 创建格式转换器（根据算法后端需求）
+    std::string algo_type = config_.algorithm.getActiveAlgorithm();
+    if (algo_type == "opencv") {
+        // OpenCV 后端需要 YUV -> BGR 转换
+        yuv_to_bgr_converter_ = std::make_unique<YuvToBgrConverter>();
+        LOG_MAIN_INFO_AT("Created YUV to BGR converter for OpenCV backend");
+    } else if (algo_type == "grpc") {
+        // gRPC 后端需要 YUV -> JPEG 转换
+        yuv_to_jpeg_converter_ = std::make_unique<YuvToJpegConverter>(85);  // quality=85
+        LOG_MAIN_INFO_AT("Created YUV to JPEG converter for gRPC backend");
     }
     
-    // 5. 创建 gRPC 视频发送器（可选）
-    if (config_.enable_grpc_send) {
-        grpc_sender_ = std::make_unique<GrpcVideoSender>(
-            config_.grpc_server_address, 
-            config_.grpc_target_fps);
-        LOG_MAIN_INFO_AT("gRPC video sender created: address={}, target_fps={}", 
-                        config_.grpc_server_address, config_.grpc_target_fps);
+    // 5. 初始化算法后端
+    if (!initializeAlgorithmBackend()) {
+        LOG_MAIN_ERROR_AT("Failed to initialize algorithm backend");
+        // 不返回 false，允许无算法模式运行
     }
     
-    // 4. 创建队列
-    raw_queue_ = std::make_shared<RawPacketQueue>(config_.raw_queue_size);
-    decoded_queue_ = std::make_shared<FrameDataQueue>(config_.decoded_queue_size);
-    processed_queue_ = std::make_shared<FrameDataQueue>(config_.processed_queue_size);
+    // 6. 创建队列
+    raw_queue_ = std::make_shared<RawPacketQueue>(config_.decoder.raw_queue_size);
+    decoded_queue_ = std::make_shared<FrameDataQueue>(config_.decoder.decoded_queue_size);
+    processed_queue_ = std::make_shared<FrameDataQueue>(config_.preprocess.processed_queue_size);
     
-    LOG_MAIN_INFO_AT("VideoPipeline created: channel={}, url={}", 
-                    config_.channel_id, config_.stream_url);
+    LOG_MAIN_INFO_AT("VideoPipeline created: channel={}, url={}, algorithm={}", 
+                    config_.channel_id, config_.puller.stream_url, algo_type);
 }
 
 VideoPipeline::~VideoPipeline() {
@@ -61,7 +65,7 @@ bool VideoPipeline::start() {
     int cnt = 0;
     try {
         // 1. 启动拉流器（使用新的双回调接口）
-        bool success = puller_->Start(config_.stream_url,
+        bool success = puller_->Start(config_.puller.stream_url,
             [this, &cnt](int codec_id, const uint8_t* data, int size) {
                 /*++cnt;
                 LOG_MAIN_DEBUG_AT("Sequence header received: size={}, count={}", size, cnt);*/
@@ -76,16 +80,6 @@ bool VideoPipeline::start() {
         if (!success) {
             LOG_MAIN_ERROR_AT("Failed to start puller");
             return false;
-        }
-        
-        // 2. 启动 gRPC 视频发送器（如果启用）
-        if (grpc_sender_) {
-            if (!grpc_sender_->start()) {
-                LOG_MAIN_ERROR_AT("Failed to start gRPC sender");
-                puller_->Stop();
-                return false;
-            }
-            LOG_MAIN_INFO_AT("gRPC video sender started");
         }
         
         // 2. 启动解码线程
@@ -132,16 +126,14 @@ void VideoPipeline::stop() {
     
     running_ = false;
     
-    // 1. 停止拉流器
-    puller_->Stop();
-    
-    // 2. 停止 gRPC 发送器
-    if (grpc_sender_) {
-        grpc_sender_->stop();
-        LOG_MAIN_INFO_AT("gRPC video sender stopped");
+    // 1. 停止算法后端
+    if (algorithm_backend_) {
+        algorithm_backend_->stop();
+        LOG_MAIN_INFO_AT("Algorithm backend stopped");
     }
     
-    // 2. 停止解码线程
+    // 2. 停止拉流器
+    puller_->Stop();
     if (decoder_thread_.joinable()) {
         decoder_thread_.join();
     }
@@ -227,16 +219,62 @@ void VideoPipeline::onNaluReceived(const uint8_t* data, int size, int64_t pts) {
 /// @brief 解码器回调：接收解码后的帧
 void VideoPipeline::onFrameDecoded(VideoFrame&& frame) {
     frames_decoded_++;
-    LOG_MAIN_DEBUG_AT("frames_decoded_: {}, {}x{}, {}", 
-                         frames_decoded_.load(), 
-                         frame.width, frame.height, frame.format);
+    //LOG_MAIN_DEBUG_AT("frames_decoded_: {}, {}x{}, {}", 
+    //                     frames_decoded_.load(), 
+    //                     frame.width, frame.height, frame.format);
     
-    // 如果启用了 gRPC 发送，编码并发送帧
-    if (grpc_sender_) {
-        encodeAndSendToGrpc(frame);
+    // 使用算法后端处理帧
+    if (algorithm_backend_ && algorithm_backend_->isInitialized()) {
+        std::string algo_type = config_.algorithm.getActiveAlgorithm();
+        
+        if (algo_type == "openvino") {
+            // 路径 A: OpenVINO - 直接传入 YUV（零拷贝）
+            algorithm_backend_->processFrame(frame);
+            
+        } else if (algo_type == "opencv") {
+            // 路径 B: OpenCV - 先转换为 BGR，再处理
+            if (yuv_to_bgr_converter_) {
+                cv::Mat bgr = yuv_to_bgr_converter_->Convert(
+                    frame.data[0], frame.data[1], frame.data[2],
+                    frame.width, frame.height
+                );
+                
+                if (!bgr.empty()) {
+                    algorithm_backend_->processFrame(std::move(bgr), frame.pts);
+                } else {
+                    LOG_MAIN_WARN_AT("YUV to BGR conversion failed");
+                }
+            } else {
+                LOG_MAIN_WARN_AT("OpenCV backend requires YuvToBgrConverter");
+            }
+            
+        } else if (algo_type == "grpc") {
+            // 路径 C: gRPC - 编码为 JPEG 并发送
+            if (yuv_to_jpeg_converter_) {
+                // 预分配缓冲区（500KB）
+                static thread_local std::vector<uint8_t> jpeg_buffer(500 * 1024);
+                
+                size_t jpeg_size = yuv_to_jpeg_converter_->ConvertYuv420pZeroCopy(
+                    frame.data[0], frame.data[1], frame.data[2],
+                    frame.width, frame.height,
+                    jpeg_buffer.data(),
+                    jpeg_buffer.size()
+                );
+                
+                if (jpeg_size > 0) {
+                    // TODO: 调用 gRPC 后端发送
+                    // algorithm_backend_->processFrame(...) 会在 Phase 4 实现
+                    LOG_MAIN_DEBUG_AT("JPEG encoded: {} bytes", jpeg_size);
+                } else {
+                    LOG_MAIN_WARN_AT("YUV to JPEG conversion failed");
+                }
+            } else {
+                LOG_MAIN_WARN_AT("gRPC backend requires YuvToJpegConverter");
+            }
+        }
     }
     
-    // 如果启用了 OpenCV 格式转换器，转换为 cv::Mat
+    // 如果启用了 OpenCV 格式转换器，转换为 cv::Mat（用于可视化或其他用途）
     if (converter_) {
         int64_t pts = frame.pts;
         converter_->Process(std::move(frame), [this, pts](cv::Mat&& mat, int64_t) {
@@ -281,6 +319,9 @@ void VideoPipeline::onFrameProcessed(cv::Mat&& frame, int64_t pts) {
     }
 }
 
+// ⚠️ 已弃用：旧的 gRPC 编码和发送功能
+// 新架构使用算法后端（IAlgorithmBackend）替代
+/*
 /// @brief 编码并发送帧到 gRPC
 void VideoPipeline::encodeAndSendToGrpc(const VideoFrame& frame) {
     if (!yuv_converter_) {
@@ -407,5 +448,35 @@ void VideoPipeline::encodeAndSendToGrpc(const VideoFrame& frame) {
         LOG_MAIN_ERROR_AT("encodeAndSendToGrpc failed: {}", e.what());
         grpc_frames_failed_++;
     }
+}
+*/
+
+/// @brief 初始化算法后端
+bool VideoPipeline::initializeAlgorithmBackend() {
+    // 使用工厂创建算法后端
+    algorithm_backend_ = AlgorithmBackendFactory::create(config_.algorithm);
+    
+    if (!algorithm_backend_) {
+        LOG_MAIN_ERROR_AT("Failed to create algorithm backend");
+        return false;
+    }
+    
+    // 初始化后端
+    if (!algorithm_backend_->initialize(config_.algorithm)) {
+        LOG_MAIN_ERROR_AT("Failed to initialize algorithm backend: {}", 
+                         algorithm_backend_->getBackendType());
+        return false;
+    }
+    
+    // 设置结果回调
+    algorithm_backend_->setResultCallback([this](int channel_id, const DetectionResult& result) {
+        LOG_MAIN_DEBUG_AT("Algorithm result received: channel={}, boxes={}, faces={}",
+                         channel_id, result.boxes.size(), result.faces.size());
+        // TODO: 处理检测结果（可以发送到队列或调用回调）
+    });
+    
+    LOG_MAIN_INFO_AT("Algorithm backend initialized: type={}", 
+                    algorithm_backend_->getBackendType());
+    return true;
 }
 

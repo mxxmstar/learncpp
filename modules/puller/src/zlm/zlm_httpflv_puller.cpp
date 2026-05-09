@@ -413,8 +413,8 @@ int ZlmHttpFlvPuller::parseFlvTagHeader(const uint8_t* data, size_t size) {
         timestamp |= (static_cast<uint32_t>(data[10]) << 24);
     }
     
-    LOG_MAIN_DEBUG_AT("FLV Tag: type={}, timestamp={}ms, size={}",
-                     tag_type, timestamp, expected_tag_size_);
+    //LOG_MAIN_DEBUG_AT("FLV Tag: type={}, timestamp={}ms, size={}",
+    //                 tag_type, timestamp, expected_tag_size_);
     
     return tag_type;
 }
@@ -542,8 +542,8 @@ void ZlmHttpFlvPuller::extractNalu(const uint8_t* data, size_t size, int64_t pts
                 
                 static int debug_count = 0;
                 if (debug_count < 5 || nalu_type == 5) {  // 打印前5个和所有IDR帧
-                    LOG_MAIN_DEBUG_AT("NALU: type={}, len={}, offset={}, pts={}",
-                                     nalu_type, nalu_len, offset - 4, pts);
+                    // LOG_MAIN_DEBUG_AT("NALU: type={}, len={}, offset={}, pts={}",
+                    //                  nalu_type, nalu_len, offset - 4, pts);
                     if (debug_count < 5) debug_count++;
                 }
             }

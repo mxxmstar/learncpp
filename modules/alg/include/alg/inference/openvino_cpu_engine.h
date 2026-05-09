@@ -2,12 +2,14 @@
 
 #include "alg/inference/i_inference_engine.h"
 #include "alg/inference/tensor_data.h"
+#include "alg/inference/prepost_processor.h"
 #include <openvino/openvino.hpp>
 #include <thread>
 #include <mutex>
 #include <queue>
 #include <atomic>
 #include <chrono>
+#include <memory>
 
 /// @brief OpenVINO CPU 推理引擎
 class OpenVinoCpuEngine : public IInferenceEngine {
@@ -105,4 +107,11 @@ private:
     /// @param dst 目标数据（float）
     /// @param count 元素数量
     void ConvertUint8ToFloat(const uint8_t* src, float* dst, size_t count);
+    
+    // ==================== PrePostProcessor 支持 ====================
+    /// @brief 预处理器（可选）
+    std::unique_ptr<PrePostProcessor> preprocessor_;
+    
+    /// @brief 是否启用预处理
+    bool use_preprocessor_ = false;
 };

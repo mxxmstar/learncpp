@@ -51,7 +51,7 @@ bool VideoPipelineManager::addStream(int channel_id, const PipelineConfig& confi
         pipelines_[channel_id] = pipeline;
         
         LOG_MAIN_INFO_AT("Added stream: channel={}, url={}", 
-                        channel_id, config.stream_url);
+                        channel_id, config.puller.stream_url);
         return true;
     }
     catch (const std::exception& e) {

@@ -2,9 +2,10 @@
 
 #include "puller/zlm/zlm_httpflv_puller.h"
 #include "decoder/ffmpeg_decoder.h"
-#include "alg/grpc/grpc_video_sender.h"  // gRPC 视频发送器
 #include "videopipeline/frame_queue.h"
 #include "videopipeline/pipeline_config.h"
+#include "videopipeline/i_algorithm_backend.h"  // 算法后端接口
+#include "videopipeline/algorithm_backend_factory.h"  // 算法后端工厂
 #include <boost/asio.hpp>
 #include <thread>
 #include <atomic>
@@ -13,6 +14,7 @@
 // 前向声明（可选组件）
 class OpenCVFormatConverter;
 class YuvToBgrConverter;  // YUV 到 BGR 转换器
+class YuvToJpegConverter;  // YUV 到 JPEG 转换器
 
 /// @brief 视频处理流水线
 /// 将拉流、解码、处理三个环节串联起来
@@ -48,9 +50,13 @@ public:
     using FrameOutputCallback = std::function<void(int channel_id, cv::Mat&& frame, int64_t pts)>;
     void setFrameOutputCallback(FrameOutputCallback cb) { output_callback_ = std::move(cb); }
     
-    /// @brief 获取 gRPC 发送统计
-    uint64_t getGrpcFramesSent() const { return grpc_frames_sent_.load(); }
-    uint64_t getGrpcFramesFailed() const { return grpc_frames_failed_.load(); }
+    /// @brief 设置检测结果回调（通过算法后端）
+    using ResultCallback = std::function<void(int channel_id, const DetectionResult& result)>;
+    void setResultCallback(ResultCallback callback) {
+        if (algorithm_backend_) {
+            algorithm_backend_->setResultCallback(callback);
+        }
+    }
     
 private:
     // ==================== 内部回调处理 ====================
@@ -66,8 +72,8 @@ private:
     /// @brief 处理器回调：接收处理后的帧（如果使用 OpenCV）
     void onFrameProcessed(cv::Mat&& frame, int64_t pts);
     
-    /// @brief 编码并发送帧到 gRPC
-    void encodeAndSendToGrpc(const VideoFrame& frame);
+    /// @brief 初始化算法后端
+    bool initializeAlgorithmBackend();
     
     // ==================== 成员变量 ====================
     /// @brief 配置
@@ -85,11 +91,14 @@ private:
     /// @brief OpenCV 格式转换器（可选，用于 YUV -> BGR 转换）
     std::unique_ptr<OpenCVFormatConverter> converter_;
     
-    /// @brief YUV 到 BGR 转换器（用于 gRPC 发送）
-    std::unique_ptr<YuvToBgrConverter> yuv_converter_;
+    /// @brief YUV 到 BGR 转换器（用于 OpenCV 后端）
+    std::unique_ptr<YuvToBgrConverter> yuv_to_bgr_converter_;
     
-    /// @brief gRPC 视频发送器（可选）
-    std::unique_ptr<GrpcVideoSender> grpc_sender_;
+    /// @brief YUV 到 JPEG 转换器（用于 gRPC 后端）
+    std::unique_ptr<YuvToJpegConverter> yuv_to_jpeg_converter_;
+    
+    /// @brief 算法后端（策略模式）
+    std::unique_ptr<IAlgorithmBackend> algorithm_backend_;
     
     /// @brief 原始数据队列（Puller → Decoder）
     std::shared_ptr<RawPacketQueue> raw_queue_;
@@ -119,10 +128,6 @@ private:
     
     /// @brief 输出回调
     FrameOutputCallback output_callback_;
-    
-    /// @brief gRPC 发送统计
-    std::atomic<uint64_t> grpc_frames_sent_{0};
-    std::atomic<uint64_t> grpc_frames_failed_{0};
     
     /// @brief 解码工作线程
     std::thread decoder_thread_;

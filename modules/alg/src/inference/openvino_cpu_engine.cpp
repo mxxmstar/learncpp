@@ -19,16 +19,41 @@ OpenVinoCpuEngine::~OpenVinoCpuEngine() {
 
 bool OpenVinoCpuEngine::LoadModel(const InferenceConfig& config) {
     try {
+        std::cout << "[DEBUG] LoadModel started" << std::endl;
+        std::cout << "[DEBUG] Model path: " << config.model_path << std::endl;
+        std::cout << "[DEBUG] Device: " << config.device << std::endl;
+        std::cout << "[DEBUG] Async mode: " << (config.async_mode ? "true" : "false") << std::endl;
+        
         config_ = config;
         async_mode_ = config.async_mode;
         
         // 1. 读取模型
         LOG_MAIN_INFO_AT("Loading OpenVINO model from: {}", config.model_path);
+        std::cout << "[DEBUG] Calling core_.read_model..." << std::endl;
         auto model_ptr = core_.read_model(config.model_path);
+        std::cout << "[DEBUG] Model read successfully" << std::endl;
         
-        // 2. 编译模型
+        // 2. 配置 PrePostProcessor（如果启用，在编译之前应用）
+        if (config.enable_preprocessor) {
+            std::cout << "[DEBUG] Configuring PrePostProcessor before compilation..." << std::endl;
+            preprocessor_ = std::make_unique<PrePostProcessor>();
+            
+            auto processed_model = preprocessor_->Configure(model_ptr, config.preprocess_config);
+            if (processed_model) {
+                use_preprocessor_ = true;
+                model_ptr = processed_model;  // 使用处理后的模型
+                std::cout << "[DEBUG] PrePostProcessor configured successfully" << std::endl;
+            } else {
+                std::cerr << "[WARNING] Failed to configure PrePostProcessor, falling back to manual preprocessing" << std::endl;
+                use_preprocessor_ = false;
+                preprocessor_.reset();
+            }
+        }
+        
+        // 3. 编译模型
         std::string device = config.device.empty() ? "CPU" : config.device;
         LOG_MAIN_INFO_AT("Compiling model for device: {}", device);
+        std::cout << "[DEBUG] Compiling model for device: " << device << std::endl;
         
         // 设置性能提示
         ov::AnyMap properties;
@@ -41,21 +66,16 @@ bool OpenVinoCpuEngine::LoadModel(const InferenceConfig& config) {
                 ov::hint::PerformanceMode::LATENCY;
         }
         
+        std::cout << "[DEBUG] Calling core_.compile_model..." << std::endl;
         compiled_model_ = core_.compile_model(model_ptr, device, properties);
+        std::cout << "[DEBUG] Model compiled successfully" << std::endl;
         
-        // 3. 创建推理请求池
+        // 4. 创建推理请求池
         int num_requests = config.num_requests > 0 ? config.num_requests : 1;
         LOG_MAIN_INFO_AT("Creating {} inference requests", num_requests);
         infer_requests_.resize(num_requests);
         for (int i = 0; i < num_requests; ++i) {
             infer_requests_[i] = compiled_model_.create_infer_request();
-        }
-        
-        // 4. 启动异步工作线程（如果启用异步模式）
-        if (async_mode_) {
-            running_ = true;
-            worker_thread_ = std::thread(&OpenVinoCpuEngine::WorkerLoop, this);
-            LOG_MAIN_INFO_AT("Async worker thread started");
         }
         
         initialized_ = true;
@@ -78,6 +98,26 @@ bool OpenVinoCpuEngine::LoadModel(const InferenceConfig& config) {
                        }
                        return shape_str;
                    }());
+        
+        // 4. 启动异步工作线程（如果启用异步模式）
+        // 注意：必须在 initialized_ = true 之后启动，确保所有资源已就绪
+        if (async_mode_) {
+            // 如果已有线程在运行，先停止它
+            if (worker_thread_.joinable()) {
+                std::cout << "[DEBUG] Stopping existing worker thread..." << std::endl;
+                running_ = false;
+                queue_cv_.notify_all();
+                worker_thread_.join();
+                std::cout << "[DEBUG] Existing worker thread stopped" << std::endl;
+            }
+            
+            // 重新启动线程
+            running_ = true;
+            std::cout << "[DEBUG] Starting new worker thread..." << std::endl;
+            worker_thread_ = std::thread(&OpenVinoCpuEngine::WorkerLoop, this);
+            std::cout << "[DEBUG] Worker thread started successfully" << std::endl;
+            LOG_MAIN_INFO_AT("Async worker thread started");
+        }
         
         return true;
         
@@ -267,6 +307,24 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
         auto input_tensor = infer_request.get_input_tensor();
         void* input_ptr = input_tensor.data();
         
+        // 调试输出
+        std::cout << "[DEBUG ExecuteInference]" << std::endl;
+        std::cout << "  request_idx: " << request_idx << std::endl;
+        std::cout << "  infer_requests_.size(): " << infer_requests_.size() << std::endl;
+        std::cout << "  input_ptr: " << input_ptr << std::endl;
+        std::cout << "  input.data: " << static_cast<const void*>(input.data) << std::endl;
+        std::cout << "  input.size_bytes: " << input.size_bytes << std::endl;
+        std::cout << "  input.dtype: " << (input.dtype == TensorDataType::UINT8 ? "UINT8" : "FLOAT32") << std::endl;
+        
+        // 安全检查
+        if (!input_ptr) {
+            std::cerr << "[ERROR] input_ptr is NULL!" << std::endl;
+            return InferenceOutput{
+                .success = false,
+                .error_message = "Invalid input tensor pointer"
+            };
+        }
+        
         // 根据数据类型处理输入
         if (input.data && input.size_bytes > 0) {
             if (input.dtype == TensorDataType::UINT8) {
@@ -287,15 +345,36 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
                 
                 if (element_type == ov::element::u8) {
                     // 模型接受 uint8，直接拷贝
+                    std::cout << "[DEBUG] Copying UINT8 data directly" << std::endl;
                     std::memcpy(input_ptr, input.data, input.size_bytes);
                 } else if (element_type == ov::element::f32) {
                     // 模型需要 float，进行转换
                     // 注意：input.size_bytes 是字节数，对于 uint8_t 来说等于元素数量
+                    size_t element_count = input.size_bytes;  // uint8 的数量
+                    size_t required_bytes = element_count * sizeof(float);  // 需要的字节数
+                    size_t available_bytes = input_tensor.get_byte_size();  // 可用的字节数
+                    
+                    std::cout << "[DEBUG] Converting UINT8 to FLOAT32" << std::endl;
+                    std::cout << "  element_count: " << element_count << std::endl;
+                    std::cout << "  required_bytes: " << required_bytes << std::endl;
+                    std::cout << "  available_bytes: " << available_bytes << std::endl;
+                    
+                    if (required_bytes > available_bytes) {
+                        std::cerr << "[ERROR] Insufficient buffer space!" << std::endl;
+                        std::cerr << "  Required: " << required_bytes << " bytes" << std::endl;
+                        std::cerr << "  Available: " << available_bytes << " bytes" << std::endl;
+                        return InferenceOutput{
+                            .success = false,
+                            .error_message = "Insufficient buffer space for conversion"
+                        };
+                    }
+                    
                     ConvertUint8ToFloat(
                         static_cast<const uint8_t*>(input.data),
                         static_cast<float*>(input_ptr),
-                        input.size_bytes  // uint8 的数量（字节数 = 元素数）
+                        element_count  // 元素数量（不是字节数）
                     );
+                    std::cout << "[DEBUG] Conversion completed" << std::endl;
                 } else {
                     LOG_MAIN_WARN_AT("Unsupported element type conversion: {} -> {}",
                                    "uint8", element_type.get_type_name());

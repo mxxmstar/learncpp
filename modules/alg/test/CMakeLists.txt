@@ -138,6 +138,28 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_decoder_inference_pipeline.cpp")
     target_compile_features(test_decoder_inference_pipeline PRIVATE cxx_std_20)
 endif()
 
+# 测试8: PrePostProcessor 测试
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_prepost_processor.cpp")
+    add_executable(test_prepost_processor
+        test_prepost_processor.cpp
+    )
+
+    target_link_libraries(test_prepost_processor
+        PRIVATE
+            alg_lib
+            common_lib
+            openvino::runtime
+            ${CMAKE_THREAD_LIBS_INIT}
+    )
+
+    target_include_directories(test_prepost_processor
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_compile_features(test_prepost_processor PRIVATE cxx_std_20)
+endif()
+
 # ============================================================================
 # OpenVINO DLL 自动复制配置
 # ============================================================================
@@ -172,7 +194,7 @@ if(WIN32 AND TARGET openvino::runtime)
     )
     
     # 为所有使用 OpenVINO 的目标添加后构建命令
-    foreach(target_name inference_example test_inference test_openvino_frontend test_decoder_inference_pipeline)
+    foreach(target_name inference_example test_inference test_openvino_frontend test_decoder_inference_pipeline test_prepost_processor)
         if(TARGET ${target_name})
             # 复制必需的 DLL
             foreach(dll_name ${OPENVINO_REQUIRED_DLLS})
@@ -242,4 +264,7 @@ if(TARGET test_inference)
 endif()
 if(TARGET inference_example)
     message(STATUS "  - inference_example (example program)")
+endif()
+if(TARGET test_prepost_processor)
+    message(STATUS "  - test_prepost_processor (PrePostProcessor test)")
 endif()

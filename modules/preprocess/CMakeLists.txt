@@ -29,9 +29,8 @@ target_include_directories(preprocess_lib
 target_link_libraries(preprocess_lib
     PUBLIC
         ${OpenCV_LIBS}
-        decoder_lib  # preprocess 依赖 decoder 的 VideoFrame
+        decoder_lib  # preprocess 依赖 decoder 的 VideoFrame        
         common_lib
-        common_lib        # 通用service接口
 )
 
 # Windows 特定配置

@@ -6,6 +6,7 @@
 #include <memory>
 #include <map>
 #include <string>
+#include "alg/inference/prepost_processor.h"  // 包含 PreProcessConfig
 
 // 前向声明
 struct TensorData;
@@ -34,6 +35,10 @@ struct InferenceConfig {
     int max_workspace_size_mb = 512;
     bool fp16_mode = false;
     bool int8_mode = false;
+    
+    // PrePostProcessor 配置（可选）
+    bool enable_preprocessor = false;
+    PreProcessConfig preprocess_config;
 };
 
 /// @brief 推理结果

@@ -17,6 +17,7 @@ void signalHandler(int signum) {
 }
 
 int main() {
+#if 0
     // 设置信号处理
     std::signal(SIGINT, signalHandler);
     
@@ -35,10 +36,10 @@ int main() {
         // 配置流水线
         PipelineConfig config;
         config.channel_id = 1;
-        config.stream_url = "http://127.0.0.1/live/proxy_cam1.live.flv";
-        config.reconnect_delay = 3;
-        config.max_reconnect_attempts = -1;  // 无限重试
-        config.decoder_threads = 2;
+        config.puller.stream_url = "http://127.0.0.1/live/proxy_cam1.live.flv";
+        config.puller.reconnect_delay = 3;
+        config.puller.max_reconnect_attempts = -1;  // 无限重试
+        config.decoder.threads = 2;
         config.raw_queue_size = 64;
         config.decoded_queue_size = 16;
         config.processed_queue_size = 16;
@@ -55,7 +56,7 @@ int main() {
         
         std::cout << "Pipeline Configuration:" << std::endl;
         std::cout << "  Channel ID: " << config.channel_id << std::endl;
-        std::cout << "  Stream URL: " << config.stream_url << std::endl;
+        std::cout << "  Stream URL: " << config.puller.stream_url << std::endl;
         std::cout << "  Filters: ";
         for (const auto& f : config.filters) {
             std::cout << f << " ";
@@ -216,6 +217,6 @@ int main() {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
-    
+#endif    
     return 0;
 }
