@@ -21,8 +21,8 @@ std::shared_ptr<ov::Model> PrePostProcessor::Configure(std::shared_ptr<ov::Model
             config.input_format == ImageFormat::YUV420P ? "YUV420P" : "GRAY");
         LOG_MAIN_INFO_AT("  Target size: {}x{}", config.target_size.second, config.target_size.first);
         LOG_MAIN_INFO_AT("  Normalize: {}", config.normalize ? "yes" : "no");
-        LOG_MAIN_INFO_AT("  Output layout: {}", config.output_layout);
-        LOG_MAIN_INFO_AT("  Output type: {}", config.output_type);
+        LOG_MAIN_INFO_AT("  model layout: {}", config.layout);
+        LOG_MAIN_INFO_AT("  model type: {}", config.dtype);
         
         // 获取模型的输入信息
         auto input_info = model->inputs();
@@ -41,13 +41,25 @@ std::shared_ptr<ov::Model> PrePostProcessor::Configure(std::shared_ptr<ov::Model
         // 创建 PrePostProcessor
         ov::preprocess::PrePostProcessor ppp(model);
         
-        // 1. 设置输入预处理
+        // 1. 设置输入 Tensor 信息
+        SetupInputTensor(ppp);
+
+        // 2. 设置模型输入 Layout
+        SetupModelLayout(ppp);
+
+        // 3. 设置颜色转换
         SetupColorConversion(ppp);
+
+        // 4. 设置数据类型转换
+        SetupDataType(ppp);
+
+        // 5. Resize
         SetupResize(ppp);
+
+        // 6. Normalize
         SetupNormalization(ppp);
-        SetupLayoutAndType(ppp);
         
-        // 2. 构建模型（应用预处理）
+        // 7. 构建模型（应用预处理）
         auto processed_model = ppp.build();
         
         configured_ = true;
@@ -73,50 +85,163 @@ ov::InferRequest PrePostProcessor::CreateInferRequest() {
     throw std::runtime_error("Use Configure with model reference instead");
 }
 
+void PrePostProcessor::SetupInputTensor(ov::preprocess::PrePostProcessor& ppp) {
+    auto& input_info = ppp.input();
+    int h = config_.target_size.first;
+    int w = config_.target_size.second;
+    // 对于 YUV 格式，需要设置正确的颜色格式
+    // 注意：不要手动设置布局，让 OpenVINO 从模型自动推断
+    switch (config_.input_format) {
+        case ImageFormat::YUV420P: {
+            // YUV420P: 单平面格式
+            // 对于 YUV/I420/NV12：
+            // 必须显式指定：
+            // tensor layout
+            // tensor shape
+            // element type
+            input_info.tensor().set_element_type(ov::element::u8)
+                                .set_layout("NHWC")
+                                .set_spatial_static_shape(h * 3 / 2, w)
+                                .set_color_format(ov::preprocess::ColorFormat::I420_SINGLE_PLANE);
+            LOG_MAIN_DEBUG_AT("Input format: I420_SINGLE_PLANE (YUV420P)");
+            break;
+        }    
+        case ImageFormat::NV12: {
+            // NV12: 单平面格式
+            input_info.tensor().set_element_type(ov::element::u8)
+                                .set_layout("NHWC")
+                                .set_spatial_static_shape(h * 3 / 2, w)
+                                .set_color_format(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE);
+            LOG_MAIN_DEBUG_AT("Input format: NV12_SINGLE_PLANE");
+            break;
+        }    
+        case ImageFormat::NV21: {
+            // NV21: 使用 NV12 近似
+            input_info.tensor().set_element_type(ov::element::u8)
+                                .set_layout("NHWC")
+                                .set_spatial_static_shape(h * 3 / 2, w)
+                                .set_color_format(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE);
+            LOG_MAIN_DEBUG_AT("Input format: NV12_SINGLE_PLANE (NV21 approximated)");
+            break;
+        } 
+        case ImageFormat::RGB: {
+            input_info.tensor().set_element_type(ov::element::u8)
+                                .set_layout("NHWC")                                
+                                .set_color_format(ov::preprocess::ColorFormat::RGB);
+            LOG_MAIN_DEBUG_AT("Input format: RGB");
+            break;
+        } 
+        case ImageFormat::BGR: {
+            input_info.tensor().set_element_type(ov::element::u8)
+                                .set_layout("NHWC")                                
+                                .set_color_format(ov::preprocess::ColorFormat::BGR);
+            LOG_MAIN_DEBUG_AT("Input format: BGR");
+            break;
+        }
+        case ImageFormat::GRAY: {
+            input_info.tensor().set_element_type(ov::element::u8)
+                                .set_layout("NHWC")
+                                .set_color_format(ov::preprocess::ColorFormat::GRAY);
+            LOG_MAIN_DEBUG_AT("Input format: GRAY");
+            break;
+        }  
+        default: {
+            LOG_MAIN_WARN_AT("Unknown input format");
+            break;
+        }
+    }
+}
+
+void PrePostProcessor::SetupModelLayout(ov::preprocess::PrePostProcessor& ppp)
+{
+    auto& input = ppp.input();
+    if (config_.layout == "NCHW") {
+        ov::Layout layout("NCHW");
+        input.model().set_layout(layout);
+    } else if (config_.layout == "NHWC") {
+        ov::Layout layout("NHWC");
+        input.model().set_layout(layout);
+    } else {
+        LOG_MAIN_WARN_AT("Unknown layout: {}", config_.layout);
+    }
+    LOG_MAIN_DEBUG_AT("Model layout: {}", config_.layout);
+}
+
 void PrePostProcessor::SetupColorConversion(ov::preprocess::PrePostProcessor& ppp) {
     auto& input_info = ppp.input();
     
+    // 确定目标颜色格式（模型期望的格式）
+    ov::preprocess::ColorFormat target_format;
+    if (config_.model_expected_format == ImageFormat::BGR) {
+        target_format = ov::preprocess::ColorFormat::BGR;
+        LOG_MAIN_DEBUG_AT("Model expects BGR format");
+    } else {
+        target_format = ov::preprocess::ColorFormat::RGB;
+        LOG_MAIN_DEBUG_AT("Model expects RGB format");
+    }
+    
     // 根据输入格式设置颜色转换
     switch (config_.input_format) {
-        case ImageFormat::RGB:
-            // RGB 不需要转换
-            input_info.tensor().set_color_format(ov::preprocess::ColorFormat::RGB);
+        case ImageFormat::RGB: {
+            if (target_format == ov::preprocess::ColorFormat::BGR) {
+                // RGB -> BGR
+                input_info.preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+                LOG_MAIN_DEBUG_AT("Color conversion: RGB -> BGR");
+            } else {
+                LOG_MAIN_DEBUG_AT("No color conversion needed (RGB -> RGB)");
+            }
             break;
-            
-        case ImageFormat::BGR:
-            // BGR -> RGB（如果模型期望 RGB）
-            input_info.tensor().set_color_format(ov::preprocess::ColorFormat::BGR);
-            input_info.preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+        }
+        case ImageFormat::BGR: {
+            if (target_format == ov::preprocess::ColorFormat::RGB) {
+                // BGR -> RGB
+                input_info.preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+                LOG_MAIN_DEBUG_AT("Color conversion: BGR -> RGB");
+            } else {
+                LOG_MAIN_DEBUG_AT("No color conversion needed (BGR -> BGR)");
+            }
             break;
-            
-        case ImageFormat::NV12:
-            // NV12 -> RGB
-            input_info.tensor().set_color_format(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE);
-            input_info.preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+        }   
+        case ImageFormat::NV12: {
+            // NV12 -> 目标格式
+            input_info.preprocess().convert_color(target_format);
+            LOG_MAIN_DEBUG_AT("Color conversion: NV12 -> {}", 
+                target_format == ov::preprocess::ColorFormat::RGB ? "RGB" : "BGR");
             break;
-            
-        case ImageFormat::NV21:
-            // NV21 -> RGB (OpenVINO 不直接支持 NV21，需要手动转换或使用 NV12)
-            // 这里暂时使用 NV12，实际应用中可能需要额外的处理
-            LOG_MAIN_WARN_AT("NV21 format not directly supported, using NV12 as fallback");
-            input_info.tensor().set_color_format(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE);
-            input_info.preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+        }
+        case ImageFormat::NV21: {
+            // NV21 -> 目标格式 (OpenVINO 不直接支持 NV21，使用 NV12 作为近似)
+            input_info.preprocess().convert_color(target_format);
+            LOG_MAIN_DEBUG_AT("Color conversion: NV21 (as NV12) -> {}", 
+                target_format == ov::preprocess::ColorFormat::RGB ? "RGB" : "BGR");
             break;
-            
-        case ImageFormat::YUV420P:
-            // YUV420P (I420) -> RGB
-            input_info.tensor().set_color_format(ov::preprocess::ColorFormat::I420_SINGLE_PLANE);
-            input_info.preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+        }
+        case ImageFormat::YUV420P: {
+            // YUV420P (I420) -> 目标格式
+            input_info.preprocess().convert_color(target_format);
+            LOG_MAIN_DEBUG_AT("Color conversion: YUV420P -> {}", 
+                target_format == ov::preprocess::ColorFormat::RGB ? "RGB" : "BGR");
             break;
-            
-        case ImageFormat::GRAY:
+        }
+        case ImageFormat::GRAY: {
             // 灰度不需要颜色转换
-            input_info.tensor().set_color_format(ov::preprocess::ColorFormat::GRAY);
+            LOG_MAIN_DEBUG_AT("No color conversion for GRAY");
             break;
-            
-        default:
+        }
+        default: {
             LOG_MAIN_WARN_AT("Unknown input format, skipping color conversion");
             break;
+        }
+    }
+}
+
+void PrePostProcessor::SetupDataType(ov::preprocess::PrePostProcessor& ppp)
+{
+    auto& input = ppp.input();
+
+    if (config_.dtype == "f32") {
+        input.preprocess().convert_element_type(ov::element::f32);
+        LOG_MAIN_DEBUG_AT("Convert element type: u8 -> f32");
     }
 }
 
@@ -154,21 +279,3 @@ void PrePostProcessor::SetupNormalization(ov::preprocess::PrePostProcessor& ppp)
     }
 }
 
-void PrePostProcessor::SetupLayoutAndType(ov::preprocess::PrePostProcessor& ppp) {
-    auto& input_info = ppp.input();
-    auto& output_info = ppp.output();
-    
-    // 设置输出布局
-    if (config_.output_layout == "NCHW") {
-        output_info.tensor().set_layout("NCHW");
-    } else if (config_.output_layout == "NHWC") {
-        output_info.tensor().set_layout("NHWC");
-    }
-    
-    // 设置输出数据类型
-    if (config_.output_type == "f32") {
-        output_info.tensor().set_element_type(ov::element::f32);
-    } else if (config_.output_type == "u8") {
-        output_info.tensor().set_element_type(ov::element::u8);
-    }
-}

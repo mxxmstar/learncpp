@@ -38,15 +38,17 @@ public:
         // 根据解码器输出格式设置输入格式
         // FFmpeg 解码器通常输出 YUV420P (format=0) 或 NV12 (format=12)
         engine_config.preprocess_config.input_format = ImageFormat::YUV420P;  // 默认 YUV420P
+        engine_config.preprocess_config.model_expected_format = ImageFormat::RGB;  // YOLOv5 期望 RGB
         engine_config.preprocess_config.target_size = {640, 640};              // YOLOv5 默认尺寸
         engine_config.preprocess_config.normalize = true;                      // 归一化到 [0, 1]
         engine_config.preprocess_config.mean = {0.0f, 0.0f, 0.0f};            // 均值
         engine_config.preprocess_config.std = {255.0f, 255.0f, 255.0f};       // 标准差（除以 255）
-        engine_config.preprocess_config.output_layout = "NCHW";                // 输出布局
-        engine_config.preprocess_config.output_type = "f32";                   // 输出类型
+        engine_config.preprocess_config.layout = "NCHW";                // 输出布局
+        engine_config.preprocess_config.dtype = "f32";                   // 输出类型
         
         LOG_MAIN_INFO_AT("[OpenVINOBackend] PrePostProcessor enabled:");
         LOG_MAIN_INFO_AT("  Input format: YUV420P/NV12/NV21 (auto-detected)");
+        LOG_MAIN_INFO_AT("  Model expects: RGB");
         LOG_MAIN_INFO_AT("  Target size: 640x640");
         LOG_MAIN_INFO_AT("  Normalize: yes (mean=0, std=255)");
         
@@ -91,14 +93,16 @@ public:
             
             if (frame.format == 0) {  // AV_PIX_FMT_YUV420P
                 // YUV420P: Y + U + V 三个独立平面（连续内存）
+                // OpenVINO PrePostProcessor 期望的形状是 [N, H*3/2, W]
                 size_t y_size = static_cast<size_t>(frame.width) * frame.height;
                 size_t uv_size = y_size / 4;
                 size_t total_size = y_size + 2 * uv_size;  // Y + U + V
+                int64_t total_height = static_cast<int64_t>(frame.height * 3 / 2);  // H * 1.5
                 
                 tensor = std::make_unique<TensorData>(TensorData::FromRawData(
                     frame.data[0],  // Y 平面指针（连续内存：Y + U + V）
                     total_size,
-                    {1, static_cast<int64_t>(frame.height), static_cast<int64_t>(frame.width)},  // [N, H, W]
+                    {1, total_height, static_cast<int64_t>(frame.width)},  // [N, H*3/2, W]
                     TensorDataType::UINT8
                 ));
                 

@@ -232,7 +232,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    std::cout << "✓ VideoPipeline started successfully" << std::endl;
+    std::cout << "VideoPipeline started successfully" << std::endl;
     std::cout << "\nWaiting for frames..." << std::endl;
     std::cout << "(Press Ctrl+C to stop early)" << std::endl;
     
@@ -314,31 +314,31 @@ int main(int argc, char* argv[]) {
     bool test_passed = true;
     
     if (pipeline->getFramesReceived() == 0) {
-        std::cout << "✗ FAILED: No frames received from stream" << std::endl;
+        std::cout << "FAILED: No frames received from stream" << std::endl;
         test_passed = false;
     } else {
-        std::cout << "✓ PASSED: Frames received: " << pipeline->getFramesReceived() << std::endl;
+        std::cout << "PASSED: Frames received: " << pipeline->getFramesReceived() << std::endl;
     }
     
     if (pipeline->getFramesDecoded() == 0) {
-        std::cout << "✗ FAILED: No frames decoded" << std::endl;
+        std::cout << "FAILED: No frames decoded" << std::endl;
         test_passed = false;
     } else {
-        std::cout << "✓ PASSED: Frames decoded: " << pipeline->getFramesDecoded() << std::endl;
+        std::cout << "PASSED: Frames decoded: " << pipeline->getFramesDecoded() << std::endl;
     }
     
     if (pipeline->getFramesProcessed() == 0) {
-        std::cout << "⚠ WARNING: No frames processed by OpenVINO backend" << std::endl;
+        std::cout << "WARNING: No frames processed by OpenVINO backend" << std::endl;
         std::cout << "  This may be expected if no model was provided or backend is not initialized" << std::endl;
     } else {
-        std::cout << "✓ PASSED: Frames processed by OpenVINO: " << pipeline->getFramesProcessed() << std::endl;
+        std::cout << "PASSED: Frames processed by OpenVINO: " << pipeline->getFramesProcessed() << std::endl;
     }
     
     std::cout << std::string(70, '-') << std::endl;
     if (test_passed) {
-        std::cout << "# Overall: TEST PASSED ✓" << std::endl;
+        std::cout << "# Overall: TEST PASSED" << std::endl;
     } else {
-        std::cout << "# Overall: TEST FAILED ✗" << std::endl;
+        std::cout << "# Overall: TEST FAILED" << std::endl;
     }
     std::cout << std::string(70, '-') << std::endl;
     

@@ -35,6 +35,7 @@ config.num_requests = 4;
 // ✅ 启用 PrePostProcessor
 config.enable_preprocessor = true;
 config.preprocess_config.input_format = ImageFormat::NV12;  // 输入是 NV12 格式
+config.preprocess_config.model_expected_format = ImageFormat::RGB;  // ⚠️ 重要：模型期望的格式
 config.preprocess_config.target_size = {640, 640};           // 缩放到 640x640
 config.preprocess_config.normalize = true;                   // 归一化到 [0, 1]
 config.preprocess_config.mean = {0.0f, 0.0f, 0.0f};         // 均值
@@ -58,6 +59,11 @@ TensorData tensor = TensorData::FromRawData(
 
 auto output = engine->Infer(tensor);
 ```
+
+**⚠️ 重要提示**：`model_expected_format` 必须与模型训练时使用的颜色格式一致！
+- **YOLOv5/YOLOv8**：通常使用 **RGB**
+- **OpenCV 训练的模型**：可能使用 **BGR**
+- **不确定时**：查看模型文档或测试两种格式
 
 ### 2. 支持的输入格式
 

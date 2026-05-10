@@ -21,6 +21,10 @@ struct PreProcessConfig {
     /// @brief 输入图像格式
     ImageFormat input_format = ImageFormat::BGR;
     
+    /// @brief 模型期望的颜色格式（RGB 或 BGR）
+    /// 大多数 YOLO 模型期望 RGB，OpenCV 训练的模型可能期望 BGR
+    ImageFormat model_expected_format = ImageFormat::RGB;
+    
     /// @brief 目标尺寸 [H, W]
     std::pair<int, int> target_size = {640, 640};
     
@@ -33,11 +37,11 @@ struct PreProcessConfig {
     /// @brief 归一化标准差 (R, G, B)
     std::vector<float> std = {1.0f, 1.0f, 1.0f};
     
-    /// @brief 输出布局: NCHW 或 NHWC
-    std::string output_layout = "NCHW";
+    /// @brief 输入布局（模型期望的布局）NCHW 或 NHWC
+    std::string layout = "NCHW";
     
-    /// @brief 输出数据类型: f32 或 u8
-    std::string output_type = "f32";
+    /// @brief 输入数据类型: f32 或 u8
+    std::string dtype = "f32";
 };
 
 /// @brief OpenVINO 预处理器
@@ -72,17 +76,23 @@ public:
     bool IsConfigured() const { return configured_; }
 
 private:
+    /// @brief 设置输入 Tensor 信息
+    void SetupInputTensor(ov::preprocess::PrePostProcessor& ppp);
+
+    /// @brief 设置模型输入layout（布局和数据类型）
+    void SetupModelLayout(ov::preprocess::PrePostProcessor& ppp);
+    
     /// @brief 设置颜色空间转换
     void SetupColorConversion(ov::preprocess::PrePostProcessor& ppp);
     
+    /// @brief 配置数据类型转换
+    void SetupDataType(ov::preprocess::PrePostProcessor& ppp);
+
     /// @brief 设置缩放
     void SetupResize(ov::preprocess::PrePostProcessor& ppp);
     
     /// @brief 设置归一化
-    void SetupNormalization(ov::preprocess::PrePostProcessor& ppp);
-    
-    /// @brief 设置布局和类型转换
-    void SetupLayoutAndType(ov::preprocess::PrePostProcessor& ppp);
+    void SetupNormalization(ov::preprocess::PrePostProcessor& ppp);    
     
     // ==================== 成员变量 ====================
     /// @brief 预处理配置
