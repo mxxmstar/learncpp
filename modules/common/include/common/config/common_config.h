@@ -11,6 +11,8 @@
 #include <atomic>
 #include <any>
 
+#define DEBUG_MODE true
+
 /// @brief 主http服务器配置
 struct HttpServerConfig {
     std::string host = "127.0.0.1";
@@ -44,6 +46,7 @@ struct LogConfig {
     size_t max_files = 5;    
     bool console = true;
     bool json_format = false;
+    bool async = true;  // 是否使用异步日志（默认true，调试时可设为false）
 };
 
 /// @brief 线程池配置

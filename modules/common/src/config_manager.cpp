@@ -240,6 +240,7 @@ void ConfigManager::parseConfig(const YAML::Node& node) {
             if (log_node["rotation"]) log_config.rotation = log_node["rotation"].as<std::string>();
             if (log_node["console"]) log_config.console = log_node["console"].as<bool>();
             if (log_node["json_format"]) log_config.json_format = log_node["json_format"].as<bool>();
+            if (log_node["async"]) log_config.async = log_node["async"].as<bool>();
             
             config_.logs[log_name] = log_config;
         }

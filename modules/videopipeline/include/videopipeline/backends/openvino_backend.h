@@ -39,7 +39,8 @@ public:
         // FFmpeg 解码器通常输出 YUV420P (format=0) 或 NV12 (format=12)
         engine_config.preprocess_config.input_format = ImageFormat::YUV420P;  // 默认 YUV420P
         engine_config.preprocess_config.model_expected_format = ImageFormat::RGB;  // YOLOv5 期望 RGB
-        engine_config.preprocess_config.target_size = {640, 640};              // YOLOv5 默认尺寸
+        engine_config.preprocess_config.model_height = 640;
+        engine_config.preprocess_config.model_width = 640;              // YOLOv5 默认尺寸
         engine_config.preprocess_config.normalize = true;                      // 归一化到 [0, 1]
         engine_config.preprocess_config.mean = {0.0f, 0.0f, 0.0f};            // 均值
         engine_config.preprocess_config.std = {255.0f, 255.0f, 255.0f};       // 标准差（除以 255）

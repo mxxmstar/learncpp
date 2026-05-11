@@ -6,19 +6,29 @@ Logger::Logger(const LoggerConfig& config) : config_(config) {
     std::vector<spdlog::sink_ptr> sinks;
     buildSinks(config_, sinks);
 
-    // 创建线程池
-    if (spdlog::thread_pool() == nullptr) {
-        spdlog::init_thread_pool(8192, 1);
-    }   
-    
-    // 创建异步日志器
-    spd_logger_ = std::make_shared<spdlog::async_logger>(
-        config_.name,
-        sinks.begin(),
-        sinks.end(),
-        spdlog::thread_pool(),
-        spdlog::async_overflow_policy::block
-    );
+    // 根据配置决定使用同步还是异步日志器
+    if (config_.async) {
+        // 创建线程池（如果尚未创建）
+        if (spdlog::thread_pool() == nullptr) {
+            spdlog::init_thread_pool(8192, 1);
+        }   
+        
+        // 创建异步日志器
+        spd_logger_ = std::make_shared<spdlog::async_logger>(
+            config_.name,
+            sinks.begin(),
+            sinks.end(),
+            spdlog::thread_pool(),
+            spdlog::async_overflow_policy::block
+        );
+    } else {
+        // 创建同步日志器（调试模式）
+        spd_logger_ = std::make_shared<spdlog::logger>(
+            config_.name,
+            sinks.begin(),
+            sinks.end()
+        );
+    }
     
     // 设置格式
     // %t 线程ID
@@ -33,7 +43,13 @@ Logger::Logger(const LoggerConfig& config) : config_(config) {
 
     // 设置日志规则
     spd_logger_->set_level(config_.level);
-    spd_logger_->flush_on(spdlog::level::err);  // 错误日志立即刷新
+    
+    // 如果是同步模式，立即flush所有级别的日志，方便调试
+    if (!config_.async) {
+        spd_logger_->flush_on(spdlog::level::trace);  // 所有日志立即刷新
+    } else {
+        spd_logger_->flush_on(spdlog::level::err);  // 错误日志立即刷新
+    }
 }
 
 void Logger::SetLevel(spdlog::level::level_enum level) {

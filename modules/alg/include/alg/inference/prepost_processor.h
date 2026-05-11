@@ -18,15 +18,20 @@ enum class ImageFormat {
 
 /// @brief 预处理配置
 struct PreProcessConfig {
+    /// @brief 输入图像真实尺寸
+    int input_width = 1920;
+    int input_height = 1080;
+
+    /// @brief 模型输入尺寸
+    int model_width = 640;
+    int model_height = 640;
+
     /// @brief 输入图像格式
     ImageFormat input_format = ImageFormat::BGR;
     
     /// @brief 模型期望的颜色格式（RGB 或 BGR）
     /// 大多数 YOLO 模型期望 RGB，OpenCV 训练的模型可能期望 BGR
     ImageFormat model_expected_format = ImageFormat::RGB;
-    
-    /// @brief 目标尺寸 [H, W]
-    std::pair<int, int> target_size = {640, 640};
     
     /// @brief 是否归一化到 [0, 1]
     bool normalize = true;
@@ -35,7 +40,7 @@ struct PreProcessConfig {
     std::vector<float> mean = {0.0f, 0.0f, 0.0f};
     
     /// @brief 归一化标准差 (R, G, B)
-    std::vector<float> std = {1.0f, 1.0f, 1.0f};
+    std::vector<float> std = {255.0f, 255.0f, 255.0f};
     
     /// @brief 输入布局（模型期望的布局）NCHW 或 NHWC
     std::string layout = "NCHW";
@@ -64,10 +69,6 @@ public:
     /// @param config 预处理配置
     /// @return 应用预处理后的新模型
     std::shared_ptr<ov::Model> Configure(std::shared_ptr<ov::Model> model, const PreProcessConfig& config);
-    
-    /// @brief 创建带预处理的推理请求
-    /// @return 推理请求对象
-    ov::InferRequest CreateInferRequest();
     
     /// @brief 获取配置信息
     const PreProcessConfig& GetConfig() const { return config_; }
@@ -100,7 +101,4 @@ private:
     
     /// @brief 是否已配置
     bool configured_ = false;
-    
-    /// @brief OpenVINO Core（用于查询设备能力）
-    ov::Core core_;
 };

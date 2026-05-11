@@ -24,10 +24,18 @@ void LogManager::Init(const std::string& base_dir, int async_threads) {
     }
 
     // 创建简单的日志器（第一阶段）
-    auto main_config = LoggerConfig("main", spdlog::level::trace);
-    loggers_["main"] = std::make_shared<Logger>(main_config);
+    auto main_config = LoggerConfig("main");    
     auto error_config = LoggerConfig("error", spdlog::level::err);
-    error_config.write_to_console = false;
+#if DEBUG_MODE
+    main_config.level = spdlog::level::trace;    // 调试模式下，日志级别为 trace
+    main_config.async = false;  // 调试模式下，使用同步日志，确保日志按顺序输出，便于调试
+    error_config.async = false;  // 调试模式下，使用同步日志，确保错误日志按顺序输出，便于调试
+#else    
+    main_config.level = spdlog::level::info;    // 非调试模式下，日志级别为 info
+    main_config.async = true;  // 非调试模式下，使用异步日志，提高性能    
+    error_config.async = true;  // 非调试模式下，使用异步日志，提高性能    
+#endif
+    loggers_["main"] = std::make_shared<Logger>(main_config);
     loggers_["error"] = std::make_shared<Logger>(error_config);
     
     initialized_ = true;
@@ -212,6 +220,7 @@ LoggerConfig LogManager::ConvertToLoggerConfig(const LogConfig& cfg, const std::
     logger_cfg.log_dir = cfg.dir;
     logger_cfg.write_to_console = cfg.console;
     logger_cfg.is_json = cfg.json_format;
+    logger_cfg.async = cfg.async;  // 传递异步配置
     
     // 映射滚动策略
     if (cfg.rotation == "daily") {

@@ -24,12 +24,10 @@ public:
     InferenceOutput Infer(const TensorData& input) override;
     
     /// @brief 异步推理
-    bool InferAsync(const TensorData& input, 
-                   InferenceCallback callback) override;
+    bool InferAsync(const TensorData& input, InferenceCallback callback) override;
     
     /// @brief 批量推理
-    std::vector<InferenceOutput> InferBatch(
-        const std::vector<TensorData>& inputs) override;
+    std::vector<InferenceOutput> InferBatch(const std::vector<TensorData>& inputs) override;
     
     /// @brief 等待所有异步推理完成
     bool WaitAll() override;
@@ -57,7 +55,15 @@ private:
     
     /// @brief 执行单次推理
     InferenceOutput ExecuteInference(const TensorData& input);
-    
+
+    /// @brief 创建输入张量
+    ov::Tensor CreateInputTensor(const TensorData& input);    
+
+    /// @brief 任务队列
+    struct AsyncTask {
+        TensorData input;
+        InferenceCallback callback;
+    };
     // ==================== 成员变量 ====================
     /// @brief OpenVINO Core
     ov::Core core_;
@@ -67,11 +73,14 @@ private:
     
     /// @brief 推理请求池（支持并发）
     std::vector<ov::InferRequest> infer_requests_;
+
+    /// @brief request互斥锁（使用 unique_ptr 避免拷贝问题）
+    std::vector<std::unique_ptr<std::mutex>> infer_request_mutexes_;
     
     /// @brief 当前请求索引
     std::atomic<int> current_request_idx_{0};
     
-    /// @brief 配置
+    /// @brief 推理配置
     InferenceConfig config_;
     
     /// @brief 初始化状态
@@ -85,12 +94,8 @@ private:
     
     /// @brief 运行标志
     std::atomic<bool> running_{false};
-    
+        
     /// @brief 任务队列
-    struct AsyncTask {
-        TensorData input;
-        InferenceCallback callback;
-    };
     std::queue<AsyncTask> task_queue_;
     std::mutex queue_mutex_;
     std::condition_variable queue_cv_;
@@ -101,12 +106,6 @@ private:
     uint64_t total_errors_ = 0;
     double total_time_ms_ = 0.0;
     std::chrono::steady_clock::time_point start_time_;
-    
-    /// @brief 辅助方法：将 uint8 转换为 float 并归一化到 [0, 1]
-    /// @param src 源数据（uint8）
-    /// @param dst 目标数据（float）
-    /// @param count 元素数量
-    void ConvertUint8ToFloat(const uint8_t* src, float* dst, size_t count);
     
     // ==================== PrePostProcessor 支持 ====================
     /// @brief 预处理器（可选）

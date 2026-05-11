@@ -19,7 +19,7 @@ std::shared_ptr<ov::Model> PrePostProcessor::Configure(std::shared_ptr<ov::Model
             config.input_format == ImageFormat::NV12 ? "NV12" :
             config.input_format == ImageFormat::NV21 ? "NV21" :
             config.input_format == ImageFormat::YUV420P ? "YUV420P" : "GRAY");
-        LOG_MAIN_INFO_AT("  Target size: {}x{}", config.target_size.second, config.target_size.first);
+        LOG_MAIN_INFO_AT("  Model size: {}x{}", config.model_width, config.model_height);
         LOG_MAIN_INFO_AT("  Normalize: {}", config.normalize ? "yes" : "no");
         LOG_MAIN_INFO_AT("  model layout: {}", config.layout);
         LOG_MAIN_INFO_AT("  model type: {}", config.dtype);
@@ -74,21 +74,10 @@ std::shared_ptr<ov::Model> PrePostProcessor::Configure(std::shared_ptr<ov::Model
     }
 }
 
-ov::InferRequest PrePostProcessor::CreateInferRequest() {
-    if (!configured_) {
-        throw std::runtime_error("PrePostProcessor not configured");
-    }
-    
-    // 注意：这里需要从已配置的模型创建推理请求
-    // 由于我们修改了 model，需要在外部保存引用
-    // 这个函数暂时返回空，实际使用时需要传入 model
-    throw std::runtime_error("Use Configure with model reference instead");
-}
-
 void PrePostProcessor::SetupInputTensor(ov::preprocess::PrePostProcessor& ppp) {
     auto& input_info = ppp.input();
-    int h = config_.target_size.first;
-    int w = config_.target_size.second;
+    const int in_w = config_.input_width;
+    const int in_h = config_.input_height;
     // 对于 YUV 格式，需要设置正确的颜色格式
     // 注意：不要手动设置布局，让 OpenVINO 从模型自动推断
     switch (config_.input_format) {
@@ -101,7 +90,8 @@ void PrePostProcessor::SetupInputTensor(ov::preprocess::PrePostProcessor& ppp) {
             // element type
             input_info.tensor().set_element_type(ov::element::u8)
                                 .set_layout("NHWC")
-                                .set_spatial_static_shape(h * 3 / 2, w)
+                                // 让 PPP 接管 YUV，自动设置 spatial shape,不要手动设置
+                                // .set_spatial_static_shape(in_h * 3 / 2, in_w)
                                 .set_color_format(ov::preprocess::ColorFormat::I420_SINGLE_PLANE);
             LOG_MAIN_DEBUG_AT("Input format: I420_SINGLE_PLANE (YUV420P)");
             break;
@@ -110,7 +100,7 @@ void PrePostProcessor::SetupInputTensor(ov::preprocess::PrePostProcessor& ppp) {
             // NV12: 单平面格式
             input_info.tensor().set_element_type(ov::element::u8)
                                 .set_layout("NHWC")
-                                .set_spatial_static_shape(h * 3 / 2, w)
+                                // .set_spatial_static_shape(in_h * 3 / 2, in_w)
                                 .set_color_format(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE);
             LOG_MAIN_DEBUG_AT("Input format: NV12_SINGLE_PLANE");
             break;
@@ -119,21 +109,23 @@ void PrePostProcessor::SetupInputTensor(ov::preprocess::PrePostProcessor& ppp) {
             // NV21: 使用 NV12 近似
             input_info.tensor().set_element_type(ov::element::u8)
                                 .set_layout("NHWC")
-                                .set_spatial_static_shape(h * 3 / 2, w)
+                                // .set_spatial_static_shape(in_h * 3 / 2, in_w)
                                 .set_color_format(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE);
             LOG_MAIN_DEBUG_AT("Input format: NV12_SINGLE_PLANE (NV21 approximated)");
             break;
         } 
         case ImageFormat::RGB: {
             input_info.tensor().set_element_type(ov::element::u8)
-                                .set_layout("NHWC")                                
+                                .set_layout("NHWC")
+                                // .set_spatial_static_shape(in_h, in_w)
                                 .set_color_format(ov::preprocess::ColorFormat::RGB);
             LOG_MAIN_DEBUG_AT("Input format: RGB");
             break;
         } 
         case ImageFormat::BGR: {
             input_info.tensor().set_element_type(ov::element::u8)
-                                .set_layout("NHWC")                                
+                                .set_layout("NHWC")
+                                // .set_spatial_static_shape(in_h, in_w)
                                 .set_color_format(ov::preprocess::ColorFormat::BGR);
             LOG_MAIN_DEBUG_AT("Input format: BGR");
             break;
@@ -141,10 +133,11 @@ void PrePostProcessor::SetupInputTensor(ov::preprocess::PrePostProcessor& ppp) {
         case ImageFormat::GRAY: {
             input_info.tensor().set_element_type(ov::element::u8)
                                 .set_layout("NHWC")
+                                // .set_spatial_static_shape(in_h, in_w)
                                 .set_color_format(ov::preprocess::ColorFormat::GRAY);
             LOG_MAIN_DEBUG_AT("Input format: GRAY");
             break;
-        }  
+        }
         default: {
             LOG_MAIN_WARN_AT("Unknown input format");
             break;
@@ -248,10 +241,6 @@ void PrePostProcessor::SetupDataType(ov::preprocess::PrePostProcessor& ppp)
 void PrePostProcessor::SetupResize(ov::preprocess::PrePostProcessor& ppp) {
     auto& input_info = ppp.input();
     
-    // 设置目标尺寸
-    int target_h = config_.target_size.first;
-    int target_w = config_.target_size.second;
-    
     // 使用 linear 插值进行缩放（等同于 bilinear）
     input_info.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
     
@@ -270,12 +259,12 @@ void PrePostProcessor::SetupNormalization(ov::preprocess::PrePostProcessor& ppp)
     // mean 和 std 应该是针对每个通道的
     if (config_.mean.size() >= 3 && config_.std.size() >= 3) {
         // 对于 RGB 图像，分别设置每个通道的均值和标准差
-        input_info.preprocess().mean({config_.mean[0], config_.mean[1], config_.mean[2]});
-        input_info.preprocess().scale({config_.std[0], config_.std[1], config_.std[2]});
+        input_info.preprocess().mean(config_.mean);
+        input_info.preprocess().scale(config_.std);
     } else {
         // 使用默认值
         input_info.preprocess().mean({0.0f, 0.0f, 0.0f});
-        input_info.preprocess().scale({1.0f, 1.0f, 1.0f});
+        input_info.preprocess().scale({255.0f, 255.0f, 255.0f});
     }
 }
 

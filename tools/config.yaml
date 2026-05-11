@@ -22,6 +22,7 @@ logs:
     max_files: 5
     console: true
     json_format: false
+    async: true  # 是否使用异步日志（调试时可设为false）
   errorlog:
     level: error
     dir: ./logs
@@ -30,6 +31,7 @@ logs:
     rotation: daily
     console: true
     json_format: false
+    async: true  # 是否使用异步日志（调试时可设为false）
 
 zlm:
   zlm_host: 127.0.0.1

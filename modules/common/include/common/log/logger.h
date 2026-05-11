@@ -37,6 +37,8 @@ struct LoggerConfig {
     bool write_to_console = true;
     /// @brief 是否以 JSON 格式输出
     bool is_json = false;
+    /// @brief 是否使用异步日志（默认true，调试时可设为false）
+    bool async = true;
 };
 
 class Logger {

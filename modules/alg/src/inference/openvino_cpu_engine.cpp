@@ -1,6 +1,5 @@
 #include "alg/inference/openvino_cpu_engine.h"
 #include "common/log/logmanager.h"
-#include <iostream>
 #include <cstring>
 
 OpenVinoCpuEngine::OpenVinoCpuEngine() {
@@ -19,32 +18,32 @@ OpenVinoCpuEngine::~OpenVinoCpuEngine() {
 
 bool OpenVinoCpuEngine::LoadModel(const InferenceConfig& config) {
     try {
-        std::cout << "[DEBUG] LoadModel started" << std::endl;
-        std::cout << "[DEBUG] Model path: " << config.model_path << std::endl;
-        std::cout << "[DEBUG] Device: " << config.device << std::endl;
-        std::cout << "[DEBUG] Async mode: " << (config.async_mode ? "true" : "false") << std::endl;
+        LOG_MAIN_INFO_AT("LoadModel started");
+        LOG_MAIN_INFO_AT("Model path: {}", config.model_path);
+        LOG_MAIN_INFO_AT("Device: {}", config.device);
+        LOG_MAIN_INFO_AT("Async mode: {}", (config.async_mode ? "true" : "false"));
         
         config_ = config;
         async_mode_ = config.async_mode;
         
         // 1. 读取模型
-        LOG_MAIN_INFO_AT("Loading OpenVINO model from: {}", config.model_path);
-        std::cout << "[DEBUG] Calling core_.read_model..." << std::endl;
+        LOG_MAIN_DEBUG_AT("Loading OpenVINO model from: {}", config.model_path);
+        LOG_MAIN_DEBUG_AT("Calling core_.read_model...");
         auto model_ptr = core_.read_model(config.model_path);
-        std::cout << "[DEBUG] Model read successfully" << std::endl;
+        LOG_MAIN_INFO_AT("Model read successfully");
         
         // 2. 配置 PrePostProcessor（如果启用，在编译之前应用）
         if (config.enable_preprocessor) {
-            std::cout << "[DEBUG] Configuring PrePostProcessor before compilation..." << std::endl;
+            LOG_MAIN_INFO_AT("Configuring PrePostProcessor before compilation...");
             preprocessor_ = std::make_unique<PrePostProcessor>();
             
             auto processed_model = preprocessor_->Configure(model_ptr, config.preprocess_config);
             if (processed_model) {
                 use_preprocessor_ = true;
                 model_ptr = processed_model;  // 使用处理后的模型
-                std::cout << "[DEBUG] PrePostProcessor configured successfully" << std::endl;
+                LOG_MAIN_INFO_AT("PrePostProcessor configured successfully");
             } else {
-                std::cerr << "[WARNING] Failed to configure PrePostProcessor, falling back to manual preprocessing" << std::endl;
+                LOG_MAIN_INFO_AT("Failed to configure PrePostProcessor, falling back to manual preprocessing"); 
                 use_preprocessor_ = false;
                 preprocessor_.reset();
             }
@@ -52,8 +51,7 @@ bool OpenVinoCpuEngine::LoadModel(const InferenceConfig& config) {
         
         // 3. 编译模型
         std::string device = config.device.empty() ? "CPU" : config.device;
-        LOG_MAIN_INFO_AT("Compiling model for device: {}", device);
-        std::cout << "[DEBUG] Compiling model for device: " << device << std::endl;
+        LOG_MAIN_INFO_AT("Compiling model for device: {}", device);        
         
         // 设置性能提示
         ov::AnyMap properties;
@@ -66,16 +64,21 @@ bool OpenVinoCpuEngine::LoadModel(const InferenceConfig& config) {
                 ov::hint::PerformanceMode::LATENCY;
         }
         
-        std::cout << "[DEBUG] Calling core_.compile_model..." << std::endl;
+        LOG_MAIN_DEBUG_AT("Compiling model...");
         compiled_model_ = core_.compile_model(model_ptr, device, properties);
-        std::cout << "[DEBUG] Model compiled successfully" << std::endl;
+        LOG_MAIN_INFO_AT("Model compiled successfully");
         
         // 4. 创建推理请求池
         int num_requests = config.num_requests > 0 ? config.num_requests : 1;
         LOG_MAIN_INFO_AT("Creating {} inference requests", num_requests);
         infer_requests_.resize(num_requests);
+        
+        // std::mutex 不能被拷贝，使用 unique_ptr
+        infer_request_mutexes_.clear();
+        infer_request_mutexes_.reserve(num_requests);
         for (int i = 0; i < num_requests; ++i) {
             infer_requests_[i] = compiled_model_.create_infer_request();
+            infer_request_mutexes_.push_back(std::make_unique<std::mutex>());
         }
         
         initialized_ = true;
@@ -104,19 +107,18 @@ bool OpenVinoCpuEngine::LoadModel(const InferenceConfig& config) {
         if (async_mode_) {
             // 如果已有线程在运行，先停止它
             if (worker_thread_.joinable()) {
-                std::cout << "[DEBUG] Stopping existing worker thread..." << std::endl;
+                LOG_MAIN_INFO_AT("Stopping existing worker thread...");
                 running_ = false;
                 queue_cv_.notify_all();
                 worker_thread_.join();
-                std::cout << "[DEBUG] Existing worker thread stopped" << std::endl;
+                LOG_MAIN_INFO_AT("Existing worker thread stopped"); 
             }
             
             // 重新启动线程
             running_ = true;
-            std::cout << "[DEBUG] Starting new worker thread..." << std::endl;
+            LOG_MAIN_INFO_AT("Starting new worker thread...");
             worker_thread_ = std::thread(&OpenVinoCpuEngine::WorkerLoop, this);
-            std::cout << "[DEBUG] Worker thread started successfully" << std::endl;
-            LOG_MAIN_INFO_AT("Async worker thread started");
+            LOG_MAIN_DEBUG_AT("Async worker thread started");
         }
         
         return true;
@@ -295,101 +297,80 @@ void OpenVinoCpuEngine::WorkerLoop() {
     }
 }
 
+ov::Tensor OpenVinoCpuEngine::CreateInputTensor(const TensorData& input) {
+    // auto& cfg = config_.preprocess_config;
+    // ov::Shape shape;
+
+    // switch (cfg.input_format) {
+    //     case ImageFormat::YUV420P: {
+    //         shape = { 1, static_cast<size_t>(cfg.input_height * 3 / 2),
+    //                 static_cast<size_t>(cfg.input_width), 1 };
+    //         break;
+    //     }
+
+    //     case ImageFormat::NV12:
+    //     case ImageFormat::NV21: {
+    //         shape = { 1, static_cast<size_t>(cfg.input_height * 3 / 2),
+    //                 static_cast<size_t>(cfg.input_width), 1 };
+    //         break;
+    //     }
+
+    //     case ImageFormat::RGB:
+    //     case ImageFormat::BGR: {
+    //         shape = { 1, static_cast<size_t>(cfg.input_height),
+    //                 static_cast<size_t>(cfg.input_width), 3 };
+    //         break;
+    //     }
+
+    //     default: {
+    //         LOG_MAIN_ERROR_AT("Unsupported format: {}", static_cast<int>(cfg.input_format));
+    //         throw std::runtime_error("Unsupported format");
+    //     }
+    // }
+
+    // return ov::Tensor(ov::element::u8, shape, input.data);
+    
+    /// 从模型输入获取shape, 不要手动设置shape，由preprocessor自动设置！！！
+    auto shape = compiled_model_.input().get_shape();
+    return ov::Tensor(ov::element::u8, shape, (void*)input.data);
+}
+
 InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
     auto start_time = std::chrono::high_resolution_clock::now();
     
     try {
         // 1. 获取空闲的推理请求
         int request_idx = current_request_idx_.fetch_add(1) % infer_requests_.size();
+        
+        // 防止同一个request并发
+        std::lock_guard<std::mutex> request_lock(*infer_request_mutexes_[request_idx]);
         auto& infer_request = infer_requests_[request_idx];
         
         // 2. 设置输入数据
-        auto input_tensor = infer_request.get_input_tensor();
-        void* input_ptr = input_tensor.data();
+        if (use_preprocessor_ && preprocessor_) {
+            auto tensor = CreateInputTensor(input);
+            infer_request.set_input_tensor(tensor);
+        } else {
+            auto tensor = infer_request.get_input_tensor();
+            std::memcpy(tensor.data(), input.data, input.size_bytes);
+        }        
         
         // 调试输出
-        std::cout << "[DEBUG ExecuteInference]" << std::endl;
-        std::cout << "  request_idx: " << request_idx << std::endl;
-        std::cout << "  infer_requests_.size(): " << infer_requests_.size() << std::endl;
-        std::cout << "  input_ptr: " << input_ptr << std::endl;
-        std::cout << "  input.data: " << static_cast<const void*>(input.data) << std::endl;
-        std::cout << "  input.size_bytes: " << input.size_bytes << std::endl;
-        std::cout << "  input.dtype: " << (input.dtype == TensorDataType::UINT8 ? "UINT8" : "FLOAT32") << std::endl;
+        LOG_MAIN_DEBUG_AT("ExecuteInference");
+        LOG_MAIN_DEBUG_AT("  request_idx: {}", request_idx);
+        LOG_MAIN_DEBUG_AT("  infer_requests_.size(): {}", infer_requests_.size());        
+        LOG_MAIN_DEBUG_AT("  input.data: {}", static_cast<const void*>(input.data));
+        LOG_MAIN_DEBUG_AT("  input.size_bytes: {}", input.size_bytes);
+        LOG_MAIN_DEBUG_AT("  input.dtype: {}", (input.dtype == TensorDataType::UINT8 ? "UINT8" : "FLOAT32"));
         
         // 安全检查
-        if (!input_ptr) {
-            std::cerr << "[ERROR] input_ptr is NULL!" << std::endl;
+        if (!input.data) {
+            LOG_MAIN_ERROR_AT("input data is NULL!");
             return InferenceOutput{
                 .success = false,
-                .error_message = "Invalid input tensor pointer"
+                .error_message = "Invalid input data pointer"
             };
-        }
-        
-        // 根据数据类型处理输入
-        if (input.data && input.size_bytes > 0) {
-            if (input.dtype == TensorDataType::UINT8) {
-                // UINT8 输入：可能需要转换
-                auto element_type = input_tensor.get_element_type();
-                
-                // 安全检查：确保 input.data 有效（使用 cout）
-                if (!input.data) {
-                    std::cerr << "[ERROR] Invalid input data pointer" << std::endl;
-                    std::cerr << "  input.data = " << static_cast<const void*>(input.data) << std::endl;
-                    std::cerr << "  input.size_bytes = " << input.size_bytes << std::endl;
-                    std::cerr << std::flush;
-                    return InferenceOutput{
-                        .success = false,
-                        .error_message = "Invalid input data pointer"
-                    };
-                }
-                
-                if (element_type == ov::element::u8) {
-                    // 模型接受 uint8，直接拷贝
-                    std::cout << "[DEBUG] Copying UINT8 data directly" << std::endl;
-                    std::memcpy(input_ptr, input.data, input.size_bytes);
-                } else if (element_type == ov::element::f32) {
-                    // 模型需要 float，进行转换
-                    // 注意：input.size_bytes 是字节数，对于 uint8_t 来说等于元素数量
-                    size_t element_count = input.size_bytes;  // uint8 的数量
-                    size_t required_bytes = element_count * sizeof(float);  // 需要的字节数
-                    size_t available_bytes = input_tensor.get_byte_size();  // 可用的字节数
-                    
-                    std::cout << "[DEBUG] Converting UINT8 to FLOAT32" << std::endl;
-                    std::cout << "  element_count: " << element_count << std::endl;
-                    std::cout << "  required_bytes: " << required_bytes << std::endl;
-                    std::cout << "  available_bytes: " << available_bytes << std::endl;
-                    
-                    if (required_bytes > available_bytes) {
-                        std::cerr << "[ERROR] Insufficient buffer space!" << std::endl;
-                        std::cerr << "  Required: " << required_bytes << " bytes" << std::endl;
-                        std::cerr << "  Available: " << available_bytes << " bytes" << std::endl;
-                        return InferenceOutput{
-                            .success = false,
-                            .error_message = "Insufficient buffer space for conversion"
-                        };
-                    }
-                    
-                    ConvertUint8ToFloat(
-                        static_cast<const uint8_t*>(input.data),
-                        static_cast<float*>(input_ptr),
-                        element_count  // 元素数量（不是字节数）
-                    );
-                    std::cout << "[DEBUG] Conversion completed" << std::endl;
-                } else {
-                    LOG_MAIN_WARN_AT("Unsupported element type conversion: {} -> {}",
-                                   "uint8", element_type.get_type_name());
-                    std::memcpy(input_ptr, input.data, input.size_bytes);
-                }
-            } else {
-                // FLOAT32 或其他类型，直接拷贝
-                std::memcpy(input_ptr, input.data, input.size_bytes);
-            }
-        } else {
-            std::cerr << "[WARN] Empty input data:" << std::endl;
-            std::cerr << "  input.data = " << static_cast<const void*>(input.data) << std::endl;
-            std::cerr << "  input.size_bytes = " << input.size_bytes << std::endl;
-            std::cerr << std::flush;
-        }
+        }                
         
         // 3. 执行推理
         infer_request.infer();
@@ -399,6 +380,7 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
         output.success = true;
         
         auto outputs = compiled_model_.outputs();
+
         for (const auto& output_info : outputs) {
             std::string name = output_info.get_any_name();
             auto output_tensor = infer_request.get_tensor(name);
@@ -410,7 +392,7 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
             auto shape = output_tensor.get_shape();
             tensor_data.shape.assign(shape.begin(), shape.end());
             tensor_data.size_bytes = output_tensor.get_byte_size();
-            
+
             output.tensors[name] = tensor_data;
         }
         
@@ -441,24 +423,5 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
             .success = false,
             .error_message = e.what()
         };
-    }
-}
-
-void OpenVinoCpuEngine::ConvertUint8ToFloat(const uint8_t* src, float* dst, size_t count) {
-    // 安全检查（使用 cout 立即输出）
-    if (!src || !dst || count == 0) {
-        std::cerr << "[ERROR] ConvertUint8ToFloat: invalid parameters" << std::endl;
-        std::cerr << "  src = " << static_cast<const void*>(src) << std::endl;
-        std::cerr << "  dst = " << static_cast<void*>(dst) << std::endl;
-        std::cerr << "  count = " << count << std::endl;
-        std::cerr << std::flush;
-        return;
-    }
-    
-    // 将 uint8 [0, 255] 转换为 float [0.0, 1.0]
-    const float scale = 1.0f / 255.0f;
-    
-    for (size_t i = 0; i < count; ++i) {        
-        dst[i] = static_cast<float>(src[i]) * scale;
     }
 }
