@@ -36,15 +36,16 @@ void TestPrePostProcessor() {
     config.async_mode = true;
     
     // 启用 PrePostProcessor
-    config.enable_preprocessor = true;
-    config.preprocess_config.input_format = ImageFormat::YUV420P;
-    config.preprocess_config.target_size = {640, 640};
-    config.preprocess_config.normalize = true;
-    config.preprocess_config.mean = {0.0f, 0.0f, 0.0f};
-    config.preprocess_config.std = {255.0f, 255.0f, 255.0f};
-    config.preprocess_config.output_layout = "NCHW";
-    config.preprocess_config.output_type = "f32";
-    
+    config.enable_preprocessor = true;    
+    config.preprocess_config.input_format = ImageFormat::YUV420P;  // 默认 YUV420P
+    config.preprocess_config.model_expected_format = ImageFormat::RGB;  // YOLOv5 期望 RGB
+    config.preprocess_config.model_height = 640;
+    config.preprocess_config.model_width = 640;              // YOLOv5 默认尺寸
+    config.preprocess_config.normalize = true;                      // 归一化到 [0, 1]
+    config.preprocess_config.mean = { 0.0f, 0.0f, 0.0f };            // 均值
+    config.preprocess_config.std = { 255.0f, 255.0f, 255.0f };       // 标准差（除以 255）
+    config.preprocess_config.layout = "NCHW";                // 输出布局
+    config.preprocess_config.dtype = "f32";                   // 输出类型
     // 2. 创建推理引擎
     auto engine = InferenceEngineFactory::Create("openvino_cpu", config);
     if (!engine) {
