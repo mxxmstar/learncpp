@@ -110,6 +110,7 @@ add_subdirectory(modules/service)  # service 模块（所有 Service 实现）
 add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
 add_subdirectory(modules/api)  # api 模块（Web API 层，原 web 模块）
 add_subdirectory(modules/ffmpeg_opt)  # ffmpeg_opt 模块（FFmpeg 推流工具）
+# add_subdirectory(modules/pusher)  # pusher 模块（视频推流）
 
 # 主程序只包含 main.cpp，其他功能通过模块链接
 add_executable(${PROJECT_NAME} apps/main.cpp)
@@ -139,6 +140,7 @@ if(WIN32)
             common_lib  # 添加配置模块
             api_lib  # 添加 API 模块（Web API 层）
             application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
+            # pusher_lib  # 添加推流模块
             spdlog::spdlog
             Boost::asio
             Boost::system
