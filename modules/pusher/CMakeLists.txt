@@ -9,9 +9,7 @@ option(BUILD_PUSHER_TESTS "Build pusher tests" ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
-file(GLOB PUSHER_SOURCES
-    "src/*.cpp"
-)
+file(GLOB PUSHER_SOURCES "src/*.cpp")
 
 add_library(pusher_lib STATIC ${PUSHER_SOURCES})
 
@@ -22,7 +20,6 @@ target_include_directories(pusher_lib PUBLIC
 target_link_libraries(pusher_lib PUBLIC
     common_lib
     ffmpeg_opt_lib
-    opencv_world
 )
 
 if(WIN32)

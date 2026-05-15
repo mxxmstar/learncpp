@@ -31,10 +31,12 @@ target_link_libraries(videopipeline_lib
         ${OpenCV_LIBS}
         decoder_lib
         preprocess_lib
+        osd_lib       # OSD 渲染器
         postprocess_lib
         grpc_lib  # videopipeline 使用 gRPC 基础设施
-        alg_lib  # alg_lib 包含 grpc 算法处理器
+        alg_lib  # alg_lib 包含 gRPC 算法处理器
         puller_lib  # videopipeline 依赖 puller
+        pusher_lib  # 推流模块
         common_lib
         net_lib
         Boost::asio

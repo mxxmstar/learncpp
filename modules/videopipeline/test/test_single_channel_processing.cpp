@@ -4,8 +4,6 @@
 #include <csignal>
 #include "videopipeline/video_pipeline.h"
 #include "alg/i_algorithm.h"  // i_algorithm 在 alg 模块
-#include "postprocess/result_output.h"  // result_output 在 postprocess 模块
-#include "postprocess/osd/osd_renderer.h"  // OSD 渲染器在 postprocess 模块
 #include "common/log/logmanager.h"
 
 // 全局标志

@@ -83,6 +83,24 @@ target_link_libraries(test_openvino_basic
         openvino::runtime
 )
 
+# 测试6: 完整链路测试（OpenVINO + OSD + Pusher）
+add_executable(test_video_pipeline_full
+    test_video_pipeline_full.cpp
+)
+
+target_link_libraries(test_video_pipeline_full
+    PRIVATE
+        videopipeline_lib
+        pusher_lib
+        alg_lib
+        common_lib
+)
+
+target_include_directories(test_video_pipeline_full
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 # 注册测试
 enable_testing()
 
@@ -106,9 +124,15 @@ add_test(NAME test_video_pipeline_openvino
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+add_test(NAME test_video_pipeline_full
+    COMMAND test_video_pipeline_full
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # 打印测试信息
 message(STATUS "VideoPipeline module tests configured:")
 message(STATUS "  - test_single_channel_processing")
 message(STATUS "  - test_video_pipeline")
 message(STATUS "  - test_video_pipeline_grpc")
 message(STATUS "  - test_video_pipeline_openvino")
+message(STATUS "  - test_video_pipeline_full")

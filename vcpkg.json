@@ -19,6 +19,7 @@
     "ffmpeg",
     "opencv",
     "openvino",
+    "libyuv",
     "openssl",
     "grpc",
     "protobuf",

@@ -6,32 +6,6 @@
 #include <functional>
 #include <memory>
 
-/// @brief 检测结果（简化版，可根据需要扩展）
-struct DetectionResult {
-    int channel_id = 0;
-    int64_t timestamp = 0;
-    
-    // 目标检测框
-    struct BoundingBox {
-        float x, y, width, height;
-        float confidence;
-        int class_id;
-        std::string class_name;
-    };
-    
-    std::vector<BoundingBox> boxes;
-    
-    // 人脸检测
-    struct Face {
-        float x, y, width, height;
-        float confidence;
-    };
-    std::vector<Face> faces;
-    
-    // 其他自定义数据
-    std::map<std::string, std::any> metadata;
-};
-
 /// @brief 算法后端结果回调
 using AlgorithmResultCallback = std::function<void(int channel_id, const DetectionResult& result)>;
 

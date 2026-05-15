@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include "osd/osd_renderer.h"  // OSD 配置和元素定义
 
 /// @brief 拉流配置
 struct PullerConfig {
@@ -162,6 +163,20 @@ struct RecordingConfig {
     std::string save_path = "./recordings";
 };
 
+/// @brief OSD 配置
+struct OsdPipelineConfig {
+    /// @brief 是否启用 OSD 叠加
+    bool enabled = false;
+    
+    /// @brief OSD 配置参数
+    OsdConfig config;
+    
+    /// @brief 验证配置是否有效
+    bool isValid() const {
+        return true;  // enabled=false 时也有效
+    }
+};
+
 /// @brief 日志配置
 struct LogConfig {
     /// @brief 日志级别
@@ -186,6 +201,9 @@ struct PipelineConfig {
     
     /// @brief 预处理配置
     PreprocessConfig preprocess;
+    
+    /// @brief OSD 配置
+    OsdPipelineConfig osd;
     
     /// @brief 算法配置（gRPC/OpenVINO/OpenCV）
     AlgorithmConfig algorithm;

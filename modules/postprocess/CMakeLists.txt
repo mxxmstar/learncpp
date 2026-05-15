@@ -29,9 +29,8 @@ target_include_directories(postprocess_lib
 target_link_libraries(postprocess_lib
     PUBLIC
         ${OpenCV_LIBS}
-        decoder_lib  # 可能依赖 VideoFrame
+        decoder_lib  # 依赖 VideoFrame
         common_lib
-        common_lib        # 通用service接口
 )
 
 # Windows 特定配置
