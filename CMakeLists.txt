@@ -26,57 +26,55 @@ endif()
 # 添加编译开关来控制是否构建测试
 option(BUILD_TESTS "Build tests" ON)
 
+# 编译开关：完整视频管线（含解码/推流/AI），关闭则仅编译核心模块
+option(BUILD_FULL_PIPELINE "Build full video pipeline (decoder, AI, pusher, etc.)" OFF)
+
 # 设置可执行文件输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 # gRPC 模块已迁移到 modules/alg/grpc/
 # add_subdirectory(grpc)
 
-# 查找依赖 - 这些会被所有子模块共享
+# ==================== 查找依赖（所有模块共享） ====================
 # 0. 查找 fmt（log 模块需要）
 find_package(fmt CONFIG REQUIRED)
 # 1. 查找 spdlog（无额外组件）
 find_package(spdlog CONFIG REQUIRED)
-# 2. 查找 Boost，并指定需要的组件（asio 是 header-only，system 需要链接）
+# 2. 查找 Boost，并指定需要的组件（lockfree/beast/asio 为 header-only）
 find_package(Boost REQUIRED COMPONENTS asio system uuid json process pool filesystem lockfree beast)
-# 3. 查找 async_simple
-find_package(async_simple CONFIG REQUIRED)
-# 4. 查找 yaml-cpp
+# 3. 查找 yaml-cpp（common 模块需要）
 find_package(yaml-cpp CONFIG REQUIRED)
-# 4.5 查找 nlohmann_json（zlmediakit 和 api 模块需要）
-find_package(nlohmann_json CONFIG REQUIRED)
-# 4.6 查找 SQLite3（sqlite 模块需要）
-if(WIN32)
-    find_package(unofficial-sqlite3 CONFIG REQUIRED)
-else()
-    find_package(SQLite3 REQUIRED)
+
+# ==================== 仅全管线模式需要的依赖 ====================
+if(BUILD_FULL_PIPELINE)
+    if(WIN32)
+        find_package(unofficial-sqlite3 CONFIG REQUIRED)
+    else()
+        find_package(SQLite3 REQUIRED)
+    endif()
+    find_package(ffmpeg REQUIRED)
+    # 设置 FFmpeg 库变量（供测试使用）
+    if(WIN32)
+        set(FFMPEG_LIBRARIES 
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avcodec.lib"
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avformat.lib"
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avutil.lib"
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/swresample.lib"
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/swscale.lib"
+        )
+    else()
+        set(FFMPEG_LIBRARIES avcodec avformat avutil swresample swscale)
+    endif()
+    find_package(OpenCV REQUIRED)
+    if(NOT DEFINED OpenCV_LIBS)
+        set(OpenCV_LIBS opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio opencv_highgui)
+    endif()
+    find_package(gRPC CONFIG REQUIRED)
+    find_package(Protobuf CONFIG REQUIRED)
+    find_package(OpenVINO REQUIRED)
+    find_package(nlohmann_json CONFIG REQUIRED)
+    find_package(async_simple CONFIG REQUIRED)
 endif()
-# 5. 查找 FFmpeg（用于视频编解码模块）fmpeg 包使用的是传统的 FindFFMPEG 模块，而不是现代的 Config 模式。
-find_package(ffmpeg REQUIRED)
-# 设置 FFmpeg 库变量（供测试使用）- 使用完整路径
-if(WIN32)
-    set(FFMPEG_LIBRARIES 
-        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avcodec.lib"
-        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avformat.lib"
-        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/avutil.lib"
-        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/swresample.lib"
-        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/swscale.lib"
-    )
-else()
-    set(FFMPEG_LIBRARIES avcodec avformat avutil swresample swscale)
-endif()
-# 6. 查找 OpenCV（用于视频处理模块）
-find_package(OpenCV REQUIRED)
-# 设置 OpenCV 库变量
-if(NOT DEFINED OpenCV_LIBS)
-    # 如果 OpenCV_LIBS 未定义，手动指定常用模块
-    set(OpenCV_LIBS opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio opencv_highgui)
-endif()
-# 7. 查找 gRPC 和 Protobuf
-find_package(gRPC CONFIG REQUIRED)
-find_package(Protobuf CONFIG REQUIRED)
-# 8. 查找 OpenVINO（用于 alg/inference 模块）
-find_package(OpenVINO REQUIRED)
 
 # 定义预处理器宏来解决 WinSock 冲突
 if(WIN32)
@@ -92,26 +90,32 @@ if(MSVC)
     #add_compile_options(/ZI)
 endif()
 
-# 添加模块化库（按依赖顺序）- 在 find_package 之后
-# add_subdirectory(modules/log)  # 已迁移到 common
-add_subdirectory(modules/net)
-add_subdirectory(modules/puller)  # puller 模块依赖 net 和 log
-add_subdirectory(modules/camera)  # camera 模块依赖 log 和 net
-add_subdirectory(modules/decoder)  # decoder 模块依赖 FFmpeg 和 log
-add_subdirectory(modules/preprocess)  # preprocess 模块依赖 OpenCV, decoder 和 log
-add_subdirectory(modules/osd)  # osd 模块（OSD 渲染器）
-add_subdirectory(modules/postprocess)  # postprocess 模块依赖 OpenCV, decoder 和 log
-add_subdirectory(modules/grpc)  # grpc 模块（通用 gRPC 基础设施）
-add_subdirectory(modules/alg)  # alg 模块依赖 grpc, OpenCV 和 log
-add_subdirectory(modules/videopipeline)  # videopipeline 模块依赖多个模块
-add_subdirectory(modules/sqlite)
-add_subdirectory(modules/zlmediakit)
+# 添加模块化库（按依赖顺序）
+# ==================== 核心模块（始终编译） ====================
 add_subdirectory(modules/common)  # common 模块（IService 接口，log, config）
-add_subdirectory(modules/service)  # service 模块（所有 Service 实现）
-add_subdirectory(modules/application)  # application 模块（ServiceContainer, Application）
-add_subdirectory(modules/api)  # api 模块（Web API 层，原 web 模块）
-add_subdirectory(modules/ffmpeg_opt)  # ffmpeg_opt 模块（FFmpeg 推流工具）
-add_subdirectory(modules/pusher)  # pusher 模块（视频推流）
+add_subdirectory(modules/puller)  # puller 模块依赖 common
+add_subdirectory(modules/stream)  # stream 模块（统一流媒体输入源）
+add_subdirectory(modules/media)   # media 模块（纯C媒体包定义 + 队列/池/分配器）
+
+# ==================== 全管线模块（仅 BUILD_FULL_PIPELINE=ON） ====================
+if(BUILD_FULL_PIPELINE)
+    add_subdirectory(modules/net)
+    add_subdirectory(modules/camera)
+    add_subdirectory(modules/decoder)
+    add_subdirectory(modules/preprocess)
+    add_subdirectory(modules/osd)
+    add_subdirectory(modules/postprocess)
+    add_subdirectory(modules/grpc)
+    add_subdirectory(modules/alg)
+    add_subdirectory(modules/videopipeline)
+    add_subdirectory(modules/sqlite)
+    add_subdirectory(modules/zlmediakit)
+    add_subdirectory(modules/service)
+    add_subdirectory(modules/application)
+    add_subdirectory(modules/api)
+    add_subdirectory(modules/ffmpeg_opt)
+    add_subdirectory(modules/pusher)
+endif()
 
 # 主程序只包含 main.cpp，其他功能通过模块链接
 add_executable(${PROJECT_NAME} apps/main.cpp)
@@ -123,25 +127,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/grpc/incl
 
 # 针对 Windows 平台链接特定库
 if(WIN32)
+    # ===== 始终链接的核心模块 =====
     target_link_libraries(${PROJECT_NAME}
         PRIVATE
-            common_lib        # 通用service接口
-            common_lib  # 添加日志模块
-            net_lib  # 添加网络模块
-            puller_lib  # 添加拉流器模块
-            camera_lib  # 添加相机模块
-            decoder_lib  # 添加解码器模块
-            preprocess_lib  # 添加预处理模块
-            postprocess_lib  # 添加后处理模块
-            grpc_lib  # 添加 gRPC 基础设施模块
-            alg_lib  # 添加算法模块（依赖 grpc_lib）
-            videopipeline_lib  # 添加视频管道模块
-            sqlite_lib  # 添加 SQLite 模块
-            zlmediakit_lib  # 添加 ZLMediaKit 模块
-            common_lib  # 添加配置模块
-            api_lib  # 添加 API 模块（Web API 层）
-            application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
-            pusher_lib  # 添加推流模块
+            common_lib        # 通用service接口 + log
+            common_lib
+            puller_lib        # 拉流器模块
+            stream_lib        # 流媒体输入源模块
+            media_lib         # 媒体包模块
             spdlog::spdlog
             Boost::asio
             Boost::system
@@ -149,17 +142,41 @@ if(WIN32)
             Boost::json
             Boost::process
             Boost::pool
-            async_simple::async_simple
             yaml-cpp::yaml-cpp
-            ${OpenCV_LIBS}
-            ${FFMPEG_LIBRARIES}
-            ntdll
-            user32
-            shell32
     )
+
+    # ===== 全管线模式额外链接 =====
+    if(BUILD_FULL_PIPELINE)
+        target_link_libraries(${PROJECT_NAME}
+            PRIVATE
+                net_lib
+                camera_lib
+                decoder_lib
+                preprocess_lib
+                postprocess_lib
+                grpc_lib
+                alg_lib
+                videopipeline_lib
+                sqlite_lib
+                zlmediakit_lib
+                api_lib
+                application_lib
+                pusher_lib
+                async_simple::async_simple
+                ${OpenCV_LIBS}
+                ${FFMPEG_LIBRARIES}
+                ntdll
+                user32
+                shell32
+        )
+    endif()
 else()
     target_link_libraries(${PROJECT_NAME}
         PRIVATE
+            common_lib
+            puller_lib
+            stream_lib
+            media_lib
             spdlog::spdlog
             Boost::asio
             Boost::system
@@ -167,10 +184,15 @@ else()
             Boost::json
             Boost::process
             Boost::pool
-            async_simple::async_simple
             yaml-cpp::yaml-cpp
-            sqlite3
     )
+    if(BUILD_FULL_PIPELINE)
+        target_link_libraries(${PROJECT_NAME}
+            PRIVATE
+                async_simple::async_simple
+                sqlite3
+        )
+    endif()
 endif()
 
 # myapp_lib 已废弃，功能由各模块提供
@@ -250,56 +272,75 @@ if(BUILD_TESTS)
         apps/app_with_framework.cpp
     )
     
-    target_include_directories(app_with_framework PRIVATE include)
+    target_include_directories(app_with_framework 
+        PRIVATE 
+            include
+            modules/application/include
+            modules/service/include
+    )
     
     if(WIN32)
         target_link_libraries(app_with_framework
             PRIVATE
-            common_lib        # 通用service接口
-            service_lib       # IService 接口
-            common_lib  # 添加日志模块
-            net_lib  # 添加网络模块
-            puller_lib  # 添加拉流器模块
-            camera_lib  # 添加相机模块
-            decoder_lib  # 添加解码器模块
-            preprocess_lib  # 添加预处理模块
-            postprocess_lib  # 添加后处理模块
-            grpc_lib  # 添加 gRPC 基础设施模块
-            alg_lib  # 添加算法模块（依赖 grpc_lib）
-            videopipeline_lib  # 添加视频管道模块
-            sqlite_lib  # 添加 SQLite 模块
-            zlmediakit_lib  # 添加 ZLMediaKit 模块
-            common_lib  # 添加配置模块
-            api_lib  # 添加 API 模块（Web API 层）
-            http_server_service_lib   # HttpServerService
-            http_client_pool_service_lib  # HttpClientPoolService
-            zlm_service_lib   # ZLMService
-            application_lib  # 添加应用框架模块（IService, ServiceContainer, Application）
-            spdlog::spdlog
-            Boost::asio
-            Boost::system
-            Boost::uuid
-            Boost::json
-            Boost::process
-            Boost::pool
-            async_simple::async_simple
-            yaml-cpp::yaml-cpp
-            ${OpenCV_LIBS}
-            ${FFMPEG_LIBRARIES}
-            ntdll
-            user32
-            shell32
+                common_lib
+                puller_lib
+                stream_lib
+                media_lib
+                spdlog::spdlog
+                Boost::asio
+                Boost::system
+                Boost::uuid
+                Boost::json
+                Boost::process
+                Boost::pool
+                yaml-cpp::yaml-cpp
         )
+        if(BUILD_FULL_PIPELINE)
+            target_link_libraries(app_with_framework
+                PRIVATE
+                    net_lib
+                    camera_lib
+                    decoder_lib
+                    preprocess_lib
+                    postprocess_lib
+                    grpc_lib
+                    alg_lib
+                    videopipeline_lib
+                    sqlite_lib
+                    zlmediakit_lib
+                    api_lib
+                    service_lib
+                    application_lib
+                    http_server_service_lib
+                    http_client_pool_service_lib
+                    zlm_service_lib
+                    async_simple::async_simple
+                    ${OpenCV_LIBS}
+                    ${FFMPEG_LIBRARIES}
+                    ntdll
+                    user32
+                    shell32
+            )
+        endif()
     else()
         target_link_libraries(app_with_framework
             PRIVATE
-                application_lib
                 common_lib
+                puller_lib
+                stream_lib
+                media_lib
                 spdlog::spdlog
                 Boost::asio
                 Boost::system
                 yaml-cpp::yaml-cpp
         )
+        if(BUILD_FULL_PIPELINE)
+            target_link_libraries(app_with_framework
+                PRIVATE
+                    application_lib
+                    async_simple::async_simple
+            )
+        endif()
     endif()
 endif()
 

@@ -1,19 +1,21 @@
-﻿#include "application/application.h"
-#include "common/config/common_config.h"
-// #include "video_pipeline/video_pipeline.h"  // 暂时注释，videopipeline 模块未启用
-#include "common/log/logmanager.h"
+﻿//#include "application/application.h"
+//#include "common/config/common_config.h"
+//// #include "video_pipeline/video_pipeline.h"  // 暂时注释，videopipeline 模块未启用
+//#include "common/log/logmanager.h"
+//#include <iostream>
+//#include <thread>
+//#include <chrono>
+//#include <boost/asio.hpp>
+//
+//#include "service/iservice.h"
+//#include "service/zlm/zlm_service.h"
+//#include "service/http_client/http_client_pool_service.h"
+//#include "service/http_server/http_server_service.h"
+//#include "api/api_router_registrar.h"
 #include <iostream>
-#include <thread>
-#include <chrono>
-#include <boost/asio.hpp>
-
-#include "service/iservice.h"
-#include "service/zlm/zlm_service.h"
-#include "service/http_client/http_client_pool_service.h"
-#include "service/http_server/http_server_service.h"
-#include "api/api_router_registrar.h"
 
 int main() {
+#if 0
     try {
         // === 第一次初始化：LogManager 简单初始化 ===
         LogManager& log_mgr = LogManager::getInstance();
@@ -186,4 +188,5 @@ int main() {
         LogManager::getInstance().FlushAll();  // 确保错误日志输出
         return 1;
     }
+#endif
 }

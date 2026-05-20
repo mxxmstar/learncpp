@@ -24,7 +24,7 @@ target_include_directories(${PROJECT_NAME}
 find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
-find_package(Boost REQUIRED COMPONENTS json system filesystem process)
+find_package(Boost REQUIRED COMPONENTS json system filesystem process lockfree)
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
@@ -35,6 +35,7 @@ target_link_libraries(${PROJECT_NAME}
         Boost::system
         Boost::filesystem
         Boost::process
+        Boost::lockfree
 )
 
 # Windows 特定配置

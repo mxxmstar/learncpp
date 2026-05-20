@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     std::string device = "CPU";
     std::string push_url = "rtsp://127.0.0.1:554/live/test";
     int channel_id = 1;
-    int test_duration_sec = 60;
+    int test_duration_sec = 600;
 
     if (argc > 1) stream_url = argv[1];
     if (argc > 2) model_path = argv[2];

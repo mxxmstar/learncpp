@@ -356,12 +356,12 @@ InferenceOutput OpenVinoCpuEngine::ExecuteInference(const TensorData& input) {
         }        
         
         // 调试输出
-        LOG_MAIN_DEBUG_AT("ExecuteInference");
-        LOG_MAIN_DEBUG_AT("  request_idx: {}", request_idx);
-        LOG_MAIN_DEBUG_AT("  infer_requests_.size(): {}", infer_requests_.size());        
-        LOG_MAIN_DEBUG_AT("  input.data: {}", static_cast<const void*>(input.data));
-        LOG_MAIN_DEBUG_AT("  input.size_bytes: {}", input.size_bytes);
-        LOG_MAIN_DEBUG_AT("  input.dtype: {}", (input.dtype == TensorDataType::UINT8 ? "UINT8" : "FLOAT32"));
+        // LOG_MAIN_DEBUG_AT("ExecuteInference");
+        // LOG_MAIN_DEBUG_AT("  request_idx: {}", request_idx);
+        // LOG_MAIN_DEBUG_AT("  infer_requests_.size(): {}", infer_requests_.size());        
+        // LOG_MAIN_DEBUG_AT("  input.data: {}", static_cast<const void*>(input.data));
+        // LOG_MAIN_DEBUG_AT("  input.size_bytes: {}", input.size_bytes);
+        // LOG_MAIN_DEBUG_AT("  input.dtype: {}", (input.dtype == TensorDataType::UINT8 ? "UINT8" : "FLOAT32"));
         
         // 安全检查
         if (!input.data) {

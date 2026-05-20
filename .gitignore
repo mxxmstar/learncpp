@@ -2,6 +2,10 @@ build/
 out/
 bin/
 logs/
+temp/
+build_verify/
+*.obj
+
 
 modules/*/lib/
 
