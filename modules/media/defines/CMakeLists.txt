@@ -12,11 +12,11 @@ option(BUILD_MEDIA_TESTS "Build media defines tests" ON)
 # ==================== 编译库 ====================
 file(GLOB DEFINES_SOURCES "src/*.cpp")
 
-add_library(media_lib STATIC )
+add_library(media_lib STATIC ${DEFINES_SOURCES})
 
 target_include_directories(media_lib
     PUBLIC
-        $<BUILD_INTERFACE:/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
@@ -33,23 +33,28 @@ find_path(FFMPEG_INCLUDE_DIR
 find_library(AVCODEC_LIBRARY
     NAMES avcodec
     PATHS
-        "/vcpkg/packages/ffmpeg_x64-windows/lib"
-        "/vcpkg_installed/x64-windows/debug/lib"
-        "/vcpkg_installed/x64-windows/lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib"
+)
+
+find_library(AVFORMAT_LIBRARY
+    NAMES avformat
+    PATHS
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib"
 )
 
 find_library(AVUTIL_LIBRARY
     NAMES avutil
     PATHS
-        "/vcpkg/packages/ffmpeg_x64-windows/lib"
-        "/vcpkg_installed/x64-windows/debug/lib"
-        "/vcpkg_installed/x64-windows/lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib"
+        "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/lib"
 )
 
 if(FFMPEG_INCLUDE_DIR)
     target_include_directories(media_lib
         PUBLIC
-            ""
+            ${FFMPEG_INCLUDE_DIR}
     )
 endif()
 
@@ -60,11 +65,15 @@ target_link_libraries(media_lib
 )
 
 if(AVCODEC_LIBRARY)
-    target_link_libraries(media_lib PUBLIC "")
+    target_link_libraries(media_lib PUBLIC ${AVCODEC_LIBRARY})
+endif()
+
+if(AVFORMAT_LIBRARY)
+    target_link_libraries(media_lib PUBLIC ${AVFORMAT_LIBRARY})
 endif()
 
 if(AVUTIL_LIBRARY)
-    target_link_libraries(media_lib PUBLIC "")
+    target_link_libraries(media_lib PUBLIC ${AVUTIL_LIBRARY})
 endif()
 
 # ==================== 平台配置 ====================
@@ -77,7 +86,7 @@ if(MSVC)
 endif()
 
 # ==================== 测试子目录 ====================
-if(BUILD_MEDIA_TESTS AND EXISTS "/test")
+if(BUILD_MEDIA_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
     enable_testing()
     add_subdirectory(test)
 endif()

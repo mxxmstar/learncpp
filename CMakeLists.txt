@@ -94,7 +94,6 @@ endif()
 # ==================== 核心模块（始终编译） ====================
 add_subdirectory(modules/common)  # common 模块（IService 接口，log, config）
 add_subdirectory(modules/puller)  # puller 模块依赖 common
-add_subdirectory(modules/stream)  # stream 模块（统一流媒体输入源）
 add_subdirectory(modules/media)   # media 模块（纯C媒体包定义 + 队列/池/分配器）
 
 # ==================== 全管线模块（仅 BUILD_FULL_PIPELINE=ON） ====================
@@ -133,7 +132,7 @@ if(WIN32)
             common_lib        # 通用service接口 + log
             common_lib
             puller_lib        # 拉流器模块
-            stream_lib        # 流媒体输入源模块
+            #stream_lib        # 流媒体输入源模块
             media_lib         # 媒体包模块
             spdlog::spdlog
             Boost::asio
@@ -175,7 +174,7 @@ else()
         PRIVATE
             common_lib
             puller_lib
-            stream_lib
+            #stream_lib
             media_lib
             spdlog::spdlog
             Boost::asio
@@ -284,7 +283,7 @@ if(BUILD_TESTS)
             PRIVATE
                 common_lib
                 puller_lib
-                stream_lib
+                #stream_lib
                 media_lib
                 spdlog::spdlog
                 Boost::asio
@@ -327,7 +326,7 @@ if(BUILD_TESTS)
             PRIVATE
                 common_lib
                 puller_lib
-                stream_lib
+                #stream_lib
                 media_lib
                 spdlog::spdlog
                 Boost::asio

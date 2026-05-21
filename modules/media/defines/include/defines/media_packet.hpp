@@ -9,41 +9,41 @@
 
 /// 媒体流类型
 enum class MediaType {
-    kUnknown = 0,      ///< 未知
-    kVideo,            ///< 视频
-    kAudio,            ///< 音频
-    kMetadata,         ///< 元数据
-    kSequenceHeader,   ///< 编码序列头（如 SPS/PPS）
+    UNKNOWN = 0,      ///< 未知
+    VIDEO,            ///< 视频
+    AUDIO,            ///< 音频
+    // METADATA,         ///< 元数据
+    // SEQUENCE_HEADER,   ///< 编码序列头（如 SPS/PPS）
 };
 
 /// 编码格式（值参考 FFmpeg 的 AVCodecID）
 enum class CodecType : int {
-    kUnknown = 0,
-    kH264    = 7,
-    kH265    = 12,
-    kAAC     = 15,
-    kG711A   = 7,
-    kG711U   = 8,
-    kOpus    = 31,
+    UNKNOWN = 0,
+    H264    = 7,
+    H265    = 12,
+    AAC     = 15,
+    G711A   = 7,
+    G711U   = 8,
+    OPUS    = 31,
 };
 
 /// 后端引擎句柄，用于传递特定引擎的内部对象指针
 struct BackendHandle {
     enum Type {
-        kNone = 0,     ///< 无后端
-        kFFmpeg,       ///< FFmpeg AVPacket / AVFrame
-        kOpenH264,     ///< OpenH264 编码器
-        kWebRTC,       ///< WebRTC 内部缓冲区
+        NONE = 0,     ///< 无后端
+        FFMPEG,       ///< FFmpeg AVPacket / AVFrame
+        OPENH264,     ///< OpenH264 编码器
+        WEBRTC,       ///< WebRTC 内部缓冲区
     };
-    Type type{kNone};  ///< 后端类型
+    Type type{NONE};  ///< 后端类型
     void* ptr{nullptr};///< 后端内部对象指针
 };
 
 /// 媒体包：一个编码帧或编码帧分片的数据及其描述信息
 class MediaPacket {
 public:
-    MediaType  type{MediaType::kUnknown};         ///< 媒体流类型
-    CodecType  codec{CodecType::kUnknown};        ///< 编码格式
+    MediaType  type{MediaType::UNKNOWN};         ///< 媒体流类型
+    CodecType  codec{CodecType::UNKNOWN};        ///< 编码格式
     int64_t    pts{0};                            ///< 显示时间戳（微秒）
     int64_t    dts{0};                            ///< 解码时间戳（微秒）
     bool       keyframe{false};                   ///< 是否为关键帧

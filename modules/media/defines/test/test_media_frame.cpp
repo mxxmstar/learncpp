@@ -4,10 +4,25 @@
 #include "defines/media_frame.hpp"
 #include "defines/media_frame.h"
 #include "defines/media_buffer.h"
-#include "defines/simple_buffer.hpp"
+#include "defines/i_media_buffer.hpp"
 #include "common/log/logmanager.h"
 #include <cassert>
 #include <cstring>
+#include <cstdlib>
+#include <memory>
+
+// 测试用的最小 IMediaBuffer 实现
+struct TestBuffer : IMediaBuffer {
+    uint8_t* data_{nullptr};
+    size_t   size_{0};
+    explicit TestBuffer(size_t s) : size_(s) {
+        if (s > 0) data_ = static_cast<uint8_t*>(std::malloc(s));
+    }
+    ~TestBuffer() override { std::free(data_); }
+    uint8_t* Data() override { return data_; }
+    const uint8_t* Data() const override { return data_; }
+    size_t Size() const override { return size_; }
+};
 
 static void test_cpp_frame_defaults() {
     MediaFrame frame;
@@ -39,7 +54,7 @@ static void test_cpp_frame_data_y_uv() {
     frame.width = 4;
     frame.height = 4;
     frame.pixel_format = PixelFormat::kNV12;
-    auto buf = std::make_shared<SimpleBuffer>(4 * 4 + 4 * 2);
+    auto buf = std::make_shared<TestBuffer>(4 * 4 + 4 * 2);
     frame.buffer = buf;
     std::memset(buf->Data(), 0xA0, 4 * 4);
     std::memset(buf->Data() + 4 * 4, 0xB0, 4 * 2);

@@ -16,7 +16,7 @@ typedef enum pixel_format {
     PIXEL_FORMAT_UNKNOWN = 0,
     PIXEL_FORMAT_NV12,     ///< YUV420sp (Y + UV 交错)
     PIXEL_FORMAT_NV21,     ///< YUV420sp (UV 顺序相反)
-    PIXEL_FORMAT_I420,     ///< YUV420p (三个平面)
+    PIXEL_FORMAT_YUV420P,     ///< YUV420p (三个平面)
     PIXEL_FORMAT_BGR24,    ///< BGR 24 位
     PIXEL_FORMAT_RGB24,    ///< RGB 24 位
     PIXEL_FORMAT_GRAY8,    ///< 8 位灰度
@@ -33,12 +33,12 @@ typedef struct media_frame_t {
     media_buffer_t* buffer;         ///< packed 图像数据
 } media_frame_t;
 
-/// 零初始化 media_frame_t
+/// 初始化 media_frame_t
 void media_frame_init(media_frame_t* frame);
 /// 释放内部 buffer 后将所有字段置零
 void media_frame_clear(media_frame_t* frame);
 /// 根据宽高和像素格式计算 packed 所需总字节数
-int32_t media_frame_calc_video_size(int32_t w, int32_t h, pixel_format_t fmt);
+int32_t media_frame_calc_video_size(int32_t w, int32_t h, pixel_format_t pix_fmt);
 
 #ifdef __cplusplus
 }

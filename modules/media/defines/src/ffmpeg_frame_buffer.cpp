@@ -1,5 +1,5 @@
 // @file ffmpeg_frame_buffer.cpp
-// FFmpeg AVFrame 包装器的实现：多平面 �?连续内存 pack�?
+// FFmpeg AVFrame wrapper implementation: multi-plane to packed memory
 #include "defines/ffmpeg_frame_buffer.hpp"
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -8,18 +8,21 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 
-// 遍历 AVFrame 各数据平面，逐行拷贝�?packed_data_ 连续内存�?FFmpegFrameBuffer::FFmpegFrameBuffer(AVFrame* frame, size_t total_size)
+// Iterate through AVFrame data planes, copy line by line to packed_data_ continuous memory
+FFmpegFrameBuffer::FFmpegFrameBuffer(AVFrame* frame, size_t total_size)
     : frame_(frame), packed_size_(total_size) {
     if (frame_ && total_size > 0) {
         packed_data_ = static_cast<uint8_t*>(std::malloc(total_size));
         if (!packed_data_) return;
         uint8_t* dst = packed_data_;
         for (int i = 0; i < AV_NUM_DATA_POINTERS && frame->data[i]; ++i) {
-            // 平面 1 (U) �?2 (V) 使用 av_image_get_linesize 获取行跨�?            int row_bytes = (i == 1 || i == 2)
-                ? av_image_get_linesize(frame->pix_fmt, frame->width, i)
+            // Plane 1 (U) and 2 (V) use av_image_get_linesize to get row stride
+            int row_bytes = (i == 1 || i == 2)
+                ? av_image_get_linesize(static_cast<AVPixelFormat>(frame->format), frame->width, i)
                 : frame->linesize[i];
             if (row_bytes <= 0) break;
-            // 平面 1/2 高度为总高度的一半（YUV420�?            int h = (i == 0) ? frame->height
+            // Plane 1/2 height is half of total height (YUV420)
+            int h = (i == 0) ? frame->height
                   : (i == 1 || i == 2) ? AV_CEIL_RSHIFT(frame->height, 1)
                   : 0;
             if (h <= 0) break;

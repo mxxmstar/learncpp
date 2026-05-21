@@ -1,5 +1,5 @@
 // @file ffmpeg_packet_buffer.cpp
-// FFmpeg AVPacket 包装器的实现�?
+// FFmpeg AVPacket wrapper implementation
 #include "defines/ffmpeg_packet_buffer.hpp"
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -8,9 +8,7 @@ extern "C" {
 FFmpegPacketBuffer::FFmpegPacketBuffer(AVPacket* pkt) : pkt_(pkt) {}
 
 FFmpegPacketBuffer::~FFmpegPacketBuffer() {
-    if (pkt_) {
-        av_packet_free(&pkt_);
-    }
+    if (pkt_) av_packet_free(&pkt_);
 }
 
 uint8_t* FFmpegPacketBuffer::Data() {
