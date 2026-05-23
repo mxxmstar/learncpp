@@ -12,8 +12,6 @@ enum class MediaType {
     UNKNOWN = 0,      ///< 未知
     VIDEO,            ///< 视频
     AUDIO,            ///< 音频
-    // METADATA,         ///< 元数据
-    // SEQUENCE_HEADER,   ///< 编码序列头（如 SPS/PPS）
 };
 
 /// 编码格式（值参考 FFmpeg 的 AVCodecID）

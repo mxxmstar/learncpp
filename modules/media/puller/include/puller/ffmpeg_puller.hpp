@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-#include "i_puller.hpp"
+#include "puller/i_puller.hpp"
+#include "common/pool/object_pool.hpp"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -8,38 +9,63 @@ extern "C" {
 
 /// @brief 基于 FFmpeg 的拉流器实现
 ///
-/// 继承 IPuller，仅实现三个传输原语：
-///   - OnConnect()    — 打开 FFmpeg 上下文、查找视频流、发送 StreamInfo
-///   - OnRead()       — av_read_frame → MediaPacket → DispatchPacket
-///   - OnDisconnect() — avformat_close_input
+/// 实现 IPuller 纯虚接口，仅负责：
+///   - Open()       — 创建 AVFormatContext、查找视频流、缓存 StreamInfo
+///   - ReadPacket() — av_read_frame → MediaPacket（零拷贝 FFmpegPacketBuffer）
+///   - Close()      — avformat_close_input
 ///
-/// 重连、超时、状态机、统计等通用逻辑全部由 IPuller 基类管理。
+/// 不负责重连 / watchdog / 状态机 / 统计（均由 StreamSession 管理）。
 class FFmpegPuller : public IPuller {
 public:
-    /// @brief 构造
-    /// @param io_ctx 外部传入的 io_context
-    explicit FFmpegPuller(boost::asio::io_context& io_ctx);
-
+    FFmpegPuller();
     ~FFmpegPuller() override;
 
-    /// @brief AVCodecID → CodecType 映射（公开工具函数）
+    // ==================== IPuller ====================
+
+    bool Open(const std::string& url) override;
+    void Close() override;
+    bool ReadPacket(std::shared_ptr<MediaPacket>& packet) override;
+    StreamInfo GetStreamInfo() const override;
+    void SetEventCallback(EventCallback cb) override;
+
+    // ==================== 工具 ====================
+
+    /// @brief AVCodecID → CodecType 映射
     static CodecType MapCodecID(AVCodecID id);
 
-protected:
-    bool       OnConnect() override;
-    ReadResult OnRead()    override;
-    void       OnDisconnect() override;
+    // ==================== 扩展配置 ====================
+
+    void SetConnectTimeoutMs(int ms);
+    void SetReadTimeoutMs(int ms);
+    void SetLowLatency(bool enable);
+    void SetCredentials(const std::string& username,
+                        const std::string& password);
 
 private:
-    /// @brief 中断回调上下文
+    /// @brief FFmpeg 中断回调上下文
     struct InterruptContext {
         std::atomic<bool> interrupted{false};
         std::chrono::steady_clock::time_point start_time;
-        int timeout_ms;
+        int timeout_ms{5000};
     };
 
-    AVFormatContext*    fmt_ctx_{nullptr};          ///< FFmpeg 格式上下文
-    int                 video_stream_idx_{-1};       ///< 选中视频流的索引
-    AVCodecParameters*  codecpar_{nullptr};          ///< 选中视频流的编码参数
-    InterruptContext    interrupt_ctx_;              ///< 中断回调上下文
+    // ── FFmpeg 资源 ──
+    AVFormatContext*   fmt_ctx_{nullptr};     ///< 格式上下文
+    int                video_stream_idx_{-1};  ///< 选中视频流索引
+    AVCodecParameters* codecpar_{nullptr};     ///< 选中流的编码参数
+    InterruptContext   interrupt_ctx_;         ///< 中断回调上下文
+    StreamInfo         cached_info_;           ///< 缓存的流信息
+
+    // ── 配置 ──
+    int    connect_timeout_ms_{5000};          ///< 连接超时（毫秒）
+    int    read_timeout_ms_{10000};            ///< 读超时（毫秒）
+    bool   low_latency_{true};                 ///< 低延迟模式
+    std::string username_;                     ///< 鉴权用户名
+    std::string password_;                     ///< 鉴权密码
+
+    // ── 对象池 ──
+    ObjectPool<AVPacket> packet_pool_;         ///< AVPacket 对象池
+
+    // ── 回调 ──
+    EventCallback event_cb_;                   ///< 事件回调
 };

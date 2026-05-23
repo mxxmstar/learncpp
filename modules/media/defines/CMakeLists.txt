@@ -11,12 +11,17 @@ option(BUILD_MEDIA_TESTS "Build media defines tests" ON)
 
 # ==================== 编译库 ====================
 file(GLOB DEFINES_SOURCES "src/*.cpp")
+file(GLOB STREAM_SOURCES "../stream/src/*.cpp")
 
-add_library(media_lib STATIC ${DEFINES_SOURCES})
+add_library(media_lib STATIC ${DEFINES_SOURCES} ${STREAM_SOURCES})
 
 target_include_directories(media_lib
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../stream/include>
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../puller/include>
         $<INSTALL_INTERFACE:include>
 )
 

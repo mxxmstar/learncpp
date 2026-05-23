@@ -4,6 +4,7 @@ bin/
 logs/
 temp/
 build_verify/
+build_check/
 *.obj
 
 

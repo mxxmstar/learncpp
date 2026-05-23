@@ -18,6 +18,7 @@ foreach(test_file ${PULLER_TEST_SOURCES})
     target_include_directories(${test_target} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../defines/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../stream/include
     )
 
     if(FFMPEG_INCLUDE_DIR)

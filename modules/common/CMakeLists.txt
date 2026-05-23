@@ -9,6 +9,7 @@ file(GLOB_RECURSE LIB_SOURCES
     "src/*.cpp"
     "include/common/log/*.h"
     "include/common/config/*.h"
+    "include/common/pool/*.hpp"
 )
 
 # 创建库

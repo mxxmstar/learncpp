@@ -11,6 +11,17 @@ FFmpegPacketBuffer::~FFmpegPacketBuffer() {
     if (pkt_) av_packet_free(&pkt_);
 }
 
+FFmpegPacketBuffer::FFmpegPacketBuffer(FFmpegPacketBuffer&& other) noexcept : pkt_(other.pkt_) {
+    other.pkt_ = nullptr;
+}
+
+FFmpegPacketBuffer& FFmpegPacketBuffer::operator=(FFmpegPacketBuffer&& other) noexcept {
+    if (pkt_) av_packet_free(&pkt_);
+    pkt_ = other.pkt_;
+    other.pkt_ = nullptr;
+    return *this;
+}
+
 uint8_t* FFmpegPacketBuffer::Data() {
     return pkt_ ? pkt_->data : nullptr;
 }

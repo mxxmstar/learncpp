@@ -12,6 +12,14 @@ public:
     /// 接管 pkt 所有权，析构时调用 av_packet_free
     explicit FFmpegPacketBuffer(AVPacket* pkt);
     ~FFmpegPacketBuffer() override;
+
+    // 禁止拷贝
+    FFmpegPacketBuffer(const FFmpegPacketBuffer&) = delete;
+    FFmpegPacketBuffer& operator=(const FFmpegPacketBuffer&) = delete;
+
+    FFmpegPacketBuffer(FFmpegPacketBuffer&& other) noexcept;
+    FFmpegPacketBuffer& operator=(FFmpegPacketBuffer&& other) noexcept;
+    
     uint8_t* Data() override;
     const uint8_t* Data() const override;
     size_t Size() const override;
