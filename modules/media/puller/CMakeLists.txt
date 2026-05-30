@@ -25,7 +25,7 @@ endif()
 
 target_link_libraries(media_puller_lib
     PUBLIC
-        media_lib
+        media_defines_lib
         common_lib
 )
 

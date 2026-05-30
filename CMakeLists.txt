@@ -1,4 +1,7 @@
-﻿cmake_minimum_required(VERSION 3.18)
+﻿if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+cmake_minimum_required(VERSION 3.18)
 
 # ⚠️ 重要：vcpkg toolchain 必须在 project() 之前设置
 # 自动检测本地 vcpkg（如果存在）
@@ -8,7 +11,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
 endif()
 
 project(MySelfContainedApp LANGUAGES CXX)
-
 # 设置 CMake 策略以消除 Boost 警告
 if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)

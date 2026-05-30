@@ -17,7 +17,14 @@
         }
       ],
       "environment": {
-        "VCPKG_FORCE_SYSTEM_BINARIES": "cmake"
+        "VCPKG_FORCE_SYSTEM_BINARIES": "cmake",
+        "VCPKG_CODEPAGE": "936",
+        "VSLANG": "1033",
+        "LANG": "en_US.UTF-8",
+        "LC_ALL": "en_US.UTF-8",
+        "LANGUAGE": "en_US",
+        "PYTHONIOENCODING": "UTF-8",
+        "RCFLAGS": "/mu"
       }
     }
   ]

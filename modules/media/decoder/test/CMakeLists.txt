@@ -1,17 +1,17 @@
-# modules/media/puller/test/CMakeLists.txt
-# puller 子模块测试构建。
+# modules/media/decoder/test/CMakeLists.txt
+# decoder 子模块测试构建。
 
-if(NOT BUILD_PULLER_TESTS)
+if(NOT BUILD_DECODER_TESTS)
     return()
 endif()
 
 enable_testing()
 
-file(GLOB PULLER_TEST_SOURCES "*.cpp")
+file(GLOB DECODER_TEST_SOURCES "*.cpp")
 
-foreach(test_file ${PULLER_TEST_SOURCES})
+foreach(test_file ${DECODER_TEST_SOURCES})
     get_filename_component(test_name ${test_file} NAME_WE)
-    set(test_target "test_puller_${test_name}")
+    set(test_target "test_decoder_${test_name}")
 
     add_executable(${test_target} ${test_file})
 
@@ -19,6 +19,7 @@ foreach(test_file ${PULLER_TEST_SOURCES})
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../defines/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../stream/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../puller/include
     )
 
     if(FFMPEG_INCLUDE_DIR)
@@ -26,7 +27,7 @@ foreach(test_file ${PULLER_TEST_SOURCES})
     endif()
 
     target_link_libraries(${test_target} PRIVATE
-        media_puller_lib
+        media_decoder_lib
         media_defines_lib
         common_lib
         Boost::asio
@@ -43,5 +44,5 @@ foreach(test_file ${PULLER_TEST_SOURCES})
     endif()
 
     add_test(NAME ${test_target} COMMAND ${test_target})
-    message(STATUS "Added puller test: ${test_target}")
+    message(STATUS "Added decoder test: ${test_target}")
 endforeach()

@@ -8,10 +8,10 @@
 #include "i_media_buffer.hpp"
 
 /// 媒体流类型
-enum class MediaType {
-    UNKNOWN = 0,      ///< 未知
+enum class MediaType {    
     VIDEO,            ///< 视频
     AUDIO,            ///< 音频
+    UNKNOWN = 0,      ///< 未知
 };
 
 /// 编码格式（值参考 FFmpeg 的 AVCodecID）

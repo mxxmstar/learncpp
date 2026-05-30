@@ -16,7 +16,7 @@ foreach(test_file )
 
     target_link_libraries(
         PRIVATE
-            media_lib
+            media_defines_lib
             common_lib
     )
 

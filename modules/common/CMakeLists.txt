@@ -10,6 +10,7 @@ file(GLOB_RECURSE LIB_SOURCES
     "include/common/log/*.h"
     "include/common/config/*.h"
     "include/common/pool/*.hpp"
+    "include/common/thread/*.h"
 )
 
 # 创建库
@@ -25,7 +26,7 @@ target_include_directories(${PROJECT_NAME}
 find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
-find_package(Boost REQUIRED COMPONENTS json system filesystem process lockfree)
+find_package(Boost REQUIRED COMPONENTS json system filesystem process lockfree asio)
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
@@ -37,11 +38,12 @@ target_link_libraries(${PROJECT_NAME}
         Boost::filesystem
         Boost::process
         Boost::lockfree
+        Boost::asio
 )
 
 # Windows 特定配置
 if(WIN32)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC _WIN32_WINNT=0x0601 WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
 
 # 测试（可选）

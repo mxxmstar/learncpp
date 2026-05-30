@@ -22,14 +22,26 @@ enum class PixelFormat {
 /// 视频帧：解码后的图像数据及其描述信息
 class MediaFrame {
 public:
+    MediaType    type{MediaType::VIDEO};              ///< 媒体类型（VIDEO/AUDIO）
+    PixelFormat pixel_format{PixelFormat::kUnknown}; ///< 像素格式
     int32_t     width{0};                           ///< 图像宽度（像素）
     int32_t     height{0};                          ///< 图像高度（像素）
-    int32_t     stride_y{0};                        ///< Y 平面行跨度（字节）
-    int32_t     stride_uv{0};                       ///< UV 平面行跨度（字节）
-    PixelFormat pixel_format{PixelFormat::kUnknown}; ///< 像素格式
+
+    /// ===========图像数据相关==========
+    int32_t     stride[4] {0};                      ///< 平面行跨度（字节）    
+    int32_t     plane_offset[4] {0};                ///< 平面数据偏移（字节）
+    int32_t     plane_count{0};                     ///< 平面数量
+
+    /// ===========时间戳相关==========
     int64_t     pts{0};                             ///< 显示时间戳（微秒）
-    std::shared_ptr<IMediaBuffer> buffer;             ///< packed 图像数据
-    BackendHandle backend;                           ///< 后端引擎句柄
+    int64_t     dts{0};                             ///< 解码时间戳（微秒）
+    int64_t     duration{0};                        ///< 帧持续时间（微秒）
+
+    /// ===========metadata==========
+    bool        keyframe{false};                    ///< 是否为关键帧
+
+    std::shared_ptr<IMediaBuffer> buffer;           ///< packed 图像数据
+    BackendHandle backend;                          ///< 后端引擎句柄
 
 public:
     /// 根据宽高和像素格式计算 packed 所需总字节数
@@ -50,12 +62,12 @@ public:
         }
     }
 
-    /// 获取 Y 平面数据指针
-    uint8_t* DataY() { return buffer ? buffer->Data() : nullptr; }
+    // /// 获取 Y 平面数据指针
+    // uint8_t* DataY() { return buffer ? buffer->Data() : nullptr; }
 
-    /// 获取 UV 平面数据指针（仅 NV12/NV21，紧接在 Y 平面之后）
-    uint8_t* DataUV() {
-        if (!buffer || width <= 0 || height <= 0) return nullptr;
-        return buffer->Data() + static_cast<size_t>(width) * height;
-    }
+    // /// 获取 UV 平面数据指针（仅 NV12/NV21，紧接在 Y 平面之后）
+    // uint8_t* DataUV() {
+    //     if (!buffer || width <= 0 || height <= 0) return nullptr;
+    //     return buffer->Data() + static_cast<size_t>(width) * height;
+    // }
 };

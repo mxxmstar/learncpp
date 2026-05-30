@@ -13,15 +13,17 @@ option(BUILD_MEDIA_TESTS "Build media defines tests" ON)
 file(GLOB DEFINES_SOURCES "src/*.cpp")
 file(GLOB STREAM_SOURCES "../stream/src/*.cpp")
 
-add_library(media_lib STATIC ${DEFINES_SOURCES} ${STREAM_SOURCES})
+add_library(media_defines_lib STATIC ${DEFINES_SOURCES} ${STREAM_SOURCES})
 
-target_include_directories(media_lib
+target_include_directories(media_defines_lib
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../stream/include>
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../puller/include>
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decoder/include>
         $<INSTALL_INTERFACE:include>
 )
 
@@ -57,33 +59,33 @@ find_library(AVUTIL_LIBRARY
 )
 
 if(FFMPEG_INCLUDE_DIR)
-    target_include_directories(media_lib
+    target_include_directories(media_defines_lib
         PUBLIC
             ${FFMPEG_INCLUDE_DIR}
     )
 endif()
 
 # ==================== 链接依赖 ====================
-target_link_libraries(media_lib
+target_link_libraries(media_defines_lib
     PUBLIC
         common_lib
 )
 
 if(AVCODEC_LIBRARY)
-    target_link_libraries(media_lib PUBLIC ${AVCODEC_LIBRARY})
+    target_link_libraries(media_defines_lib PUBLIC ${AVCODEC_LIBRARY})
 endif()
 
 if(AVFORMAT_LIBRARY)
-    target_link_libraries(media_lib PUBLIC ${AVFORMAT_LIBRARY})
+    target_link_libraries(media_defines_lib PUBLIC ${AVFORMAT_LIBRARY})
 endif()
 
 if(AVUTIL_LIBRARY)
-    target_link_libraries(media_lib PUBLIC ${AVUTIL_LIBRARY})
+    target_link_libraries(media_defines_lib PUBLIC ${AVUTIL_LIBRARY})
 endif()
 
 # ==================== 平台配置 ====================
 if(WIN32)
-    target_compile_definitions(media_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
+    target_compile_definitions(media_defines_lib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
 
 if(MSVC)

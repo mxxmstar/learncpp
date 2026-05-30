@@ -61,7 +61,7 @@ public:
 
     /// @brief 队列是否已满
     bool full() const {
-        return const_cast<boost::lockfree::spsc_queue<T>&>(queue_).full();
+        return queue_.write_available() == 0;
     }
 
     /// @brief 当前可用读取数

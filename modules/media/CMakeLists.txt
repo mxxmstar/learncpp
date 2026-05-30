@@ -5,3 +5,4 @@ project(media_module LANGUAGES C CXX)
 
 add_subdirectory(defines)
 add_subdirectory(puller)
+add_subdirectory(decoder)
