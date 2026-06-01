@@ -10,6 +10,7 @@ file(GLOB_RECURSE LIB_SOURCES
     "include/common/log/*.h"
     "include/common/config/*.h"
     "include/common/pool/*.hpp"
+    "include/common/process/*.h"
     "include/common/thread/*.h"
 )
 
@@ -36,9 +37,10 @@ target_link_libraries(${PROJECT_NAME}
         Boost::json
         Boost::system
         Boost::filesystem
-        Boost::process
         Boost::lockfree
         Boost::asio
+    PRIVATE
+        Boost::process
 )
 
 # Windows 特定配置

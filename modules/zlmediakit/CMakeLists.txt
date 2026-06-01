@@ -30,7 +30,6 @@ target_link_libraries(zlmediakit_lib
     PUBLIC
         nlohmann_json::nlohmann_json
         Boost::filesystem
-        Boost::process
         application_lib   # zlmediakit 模块依赖 application 模块
         common_lib        # IService, log, config
         net_lib           # http_client_lib, io_context_pool_lib

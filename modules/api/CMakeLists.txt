@@ -32,7 +32,6 @@ target_link_libraries(api_lib
         nlohmann_json::nlohmann_json
         yaml-cpp::yaml-cpp
         Boost::filesystem
-        Boost::process
         application_lib   # api 模块依赖 application 模块
         common_lib        # IService, log, config
         net_lib           # http_server_lib, websocket_lib

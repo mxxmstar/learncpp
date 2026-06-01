@@ -6,9 +6,9 @@
 #include <chrono>
 #include <boost/json.hpp>
 #include <boost/asio.hpp>
-#include <boost/process.hpp>
 #include <optional>
 #include "common/config/common_config.h"
+#include "common/process/process.h"
 #include "zlmediakit/zlm_httpclient.h"
 #include "zlmediakit/zlm_hookserver.h"
 
@@ -45,13 +45,14 @@ private:
     /// @brief 启动 ZLMediaKit 进程（非调试模式: 运行在子进程中）
     bool startZLMProcessNormal();
 
-    void onProcessExit(int exit_code, const std::error_code& ec);    
+    bool launchZLMProcess(const common::process::ProcessOptions& options, const char* mode);
+    void onProcessExit(int exit_code, const boost::system::error_code& ec);
 private:
     boost::asio::io_context& ctx_;
     Config config_;
     std::atomic<ServiceStatus> status_{ServiceStatus::STATUS_STOPPED};    
     /// @brief ZLMediaKit 进程对象,使用std::optional包装以支持延迟初始化
-    std::optional<boost::process::process> zlm_process_;
+    std::optional<common::process::Process> zlm_process_;
 };
 
 class ZLMManager {

@@ -11,13 +11,12 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-find_package(Boost REQUIRED COMPONENTS json filesystem system process)
+find_package(Boost REQUIRED COMPONENTS json filesystem system)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
     Boost::json
     Boost::filesystem
-    Boost::process
     Boost::system
     yaml-cpp::yaml-cpp
     common_lib        # IService, log, config
