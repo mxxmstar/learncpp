@@ -11,7 +11,7 @@ option(BUILD_MEDIA_TESTS "Build media defines tests" ON)
 
 # ==================== 编译库 ====================
 file(GLOB DEFINES_SOURCES "src/*.cpp")
-file(GLOB STREAM_SOURCES "../stream/src/*.cpp")
+file(GLOB_RECURSE STREAM_SOURCES "../stream/src/*.cpp")
 
 add_library(media_defines_lib STATIC ${DEFINES_SOURCES} ${STREAM_SOURCES})
 

@@ -22,7 +22,9 @@ inline static const char* StateNameImpl(StreamSession::State s) {
 StreamSession::StreamSession(boost::asio::io_context& io)
     : io_(io)
     , reconnect_timer_(io)
-    , watchdog_timer_(io) {
+    , watchdog_timer_(io)
+    , decoder_timer_(io)
+    , jitter_buffer_(std::make_unique<AdaptiveJitterBuffer>()) {
 }
 
 StreamSession::~StreamSession() {
@@ -45,6 +47,27 @@ void StreamSession::SetReconnectIntervalMs(int ms) {
 
 void StreamSession::SetMaxReconnectCount(int count) {
     max_reconnect_count_ = count;
+}
+
+void StreamSession::SetJitterBufferIntervalMs(int ms) {
+    jitter_buffer_interval_ms_ = ms > 0 ? ms : 0;
+}
+
+void StreamSession::SetJitterBufferConfig(const AdaptiveJitterBuffer::Config& config) {
+    jitter_buffer_ = std::make_unique<AdaptiveJitterBuffer>(config);
+}
+
+void StreamSession::ApplyPullerConfig(const StreamSourceConfig& config) {
+    if (!puller_)
+        return;
+
+    puller_->SetConnectTimeoutMs(config.session.connect_timeout_ms);
+    puller_->SetReadTimeoutMs(config.session.read_timeout_ms);
+    puller_->SetLowLatency(config.puller.low_latency);
+    puller_->SetCredentials(config.puller.username, config.puller.password);
+    puller_->SetRtspTransport(config.puller.rtsp_transport);
+    puller_->SetRtspAutoSwitchToTcp(config.puller.rtsp_auto_switch_tcp);
+    puller_->SetRtspAutoSwitchTimeoutMs(config.puller.rtsp_auto_switch_timeout_ms);
 }
 
 void StreamSession::SetWatchdogIntervalMs(int ms) {
@@ -100,6 +123,7 @@ bool StreamSession::Start() {
     stats_ = {};
     async_bytes_received_ = 0;
     async_packets_received_ = 0;
+    ClearJitterBuffer();
 
     SetState(State::KCONNECTED);
 
@@ -109,6 +133,8 @@ bool StreamSession::Start() {
     // 启动 Watchdog
     if (watchdog_interval_ms_ > 0)
         StartWatchdog();
+    if (jitter_buffer_interval_ms_ > 0)
+        StartDecoderDriveTimer();
 
     return true;
 }
@@ -127,6 +153,8 @@ void StreamSession::Stop() {
     boost::system::error_code ec;
     reconnect_timer_.cancel();
     watchdog_timer_.cancel();
+    decoder_timer_.cancel();
+    ClearJitterBuffer();
 
     // 关闭拉流器（这会同时中断阻塞中的 av_read_frame，使读循环退出）
     if (puller_)
@@ -151,6 +179,7 @@ void StreamSession::Connect() {
 
     reconnect_count_ = 0;
     last_read_time_ = std::chrono::steady_clock::now();
+    ClearJitterBuffer();
     SetState(State::KCONNECTED);
 
     // 重新 post 读循环（io_context 线程池仍在运行）
@@ -163,6 +192,8 @@ void StreamSession::Connect() {
         watchdog_timer_.cancel();
         StartWatchdog();
     }
+    if (jitter_buffer_interval_ms_ > 0)
+        StartDecoderDriveTimer();
 }
 
 // ── 内部：读循环（通过 io_context::post 调度，单次执行） ───────
@@ -191,15 +222,10 @@ void StreamSession::ReadLoop() {
         async_packets_received_++;
         last_read_time_ = std::chrono::steady_clock::now();
 
-        // 分发
-        PacketCallback cb;
-        {
-            std::lock_guard<std::mutex> lock(cb_mutex_);
-            cb = packet_cb_;
-        }
-        if (cb) {
-            cb(std::move(packet));
-        }
+        if (jitter_buffer_interval_ms_ > 0)
+            EnqueuePacket(std::move(packet));
+        else
+            DispatchPacket(std::move(packet));
 
         // 继续下一轮
         boost::asio::post(io_, [self = shared_from_this()]() { self->ReadLoop(); });
@@ -211,6 +237,58 @@ void StreamSession::ReadLoop() {
     }
 }
 
+void StreamSession::StartDecoderDriveTimer() {
+    if (!running_ || jitter_buffer_interval_ms_ <= 0)
+        return;
+
+    decoder_timer_.expires_after(
+        std::chrono::milliseconds(jitter_buffer_interval_ms_));
+    decoder_timer_.async_wait(
+        [self = shared_from_this()](boost::system::error_code ec) {
+            self->OnDecoderDriveTimer(ec);
+        });
+}
+
+void StreamSession::OnDecoderDriveTimer(const boost::system::error_code& ec) {
+    if (ec || !running_ || jitter_buffer_interval_ms_ <= 0)
+        return;
+
+    if (state_.load() != State::KCONNECTED)
+        return;
+
+    std::shared_ptr<MediaPacket> packet;
+    if (jitter_buffer_)
+        packet = jitter_buffer_->PopReady();
+
+    if (packet)
+        DispatchPacket(std::move(packet));
+
+    StartDecoderDriveTimer();
+}
+
+void StreamSession::EnqueuePacket(std::shared_ptr<MediaPacket> packet) {
+    if (!packet)
+        return;
+
+    if (jitter_buffer_ && !jitter_buffer_->Push(std::move(packet)))
+        LOG_MAIN_DEBUG_AT("Jitter buffer full, dropping incoming packet");
+}
+
+void StreamSession::DispatchPacket(std::shared_ptr<MediaPacket> packet) {
+    PacketCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(cb_mutex_);
+        cb = packet_cb_;
+    }
+    if (cb)
+        cb(std::move(packet));
+}
+
+void StreamSession::ClearJitterBuffer() {
+    if (jitter_buffer_)
+        jitter_buffer_->Reset();
+}
+
 // ── 内部：异步重连 ────────────────────────────────────────────────
 
 void StreamSession::DoReconnect() {
@@ -218,6 +296,8 @@ void StreamSession::DoReconnect() {
         return;
 
     SetState(State::KRECONNECTING);
+    decoder_timer_.cancel();
+    ClearJitterBuffer();
 
     // 关闭旧连接
     if (puller_)

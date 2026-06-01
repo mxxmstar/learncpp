@@ -1,5 +1,7 @@
 #include "stream/stream_source.h"
 
+#include <cstddef>
+
 #include "common/log/logmanager.h"
 
 // ── ctor / dtor ────────────────────────────────────────────────────
@@ -112,6 +114,19 @@ void StreamSource::ApplyConfig() {
     session_->SetReconnectIntervalMs(config_.session.reconnect_interval_ms);
     session_->SetMaxReconnectCount(config_.session.max_reconnect_count);
     session_->SetWatchdogIntervalMs(config_.session.watchdog_interval_ms);
+    session_->SetJitterBufferIntervalMs(config_.session.jitter_buffer_interval_ms);
+
+    AdaptiveJitterBuffer::Config jitter_config;
+    jitter_config.capacity_packets =
+        config_.session.jitter_buffer_capacity_packets > 0
+            ? static_cast<std::size_t>(config_.session.jitter_buffer_capacity_packets)
+            : 1;
+    jitter_config.min_delay_ms = config_.session.jitter_buffer_min_delay_ms;
+    jitter_config.max_delay_ms = config_.session.jitter_buffer_max_delay_ms;
+    jitter_config.safety_margin_ms = config_.session.jitter_buffer_safety_margin_ms;
+    jitter_config.alpha = config_.session.jitter_buffer_alpha;
+    session_->SetJitterBufferConfig(jitter_config);
+    session_->ApplyPullerConfig(config_);
 
     // ── puller 层配置（需向下转型） ──
     // FFmpegPuller 提供了 SetXxx 扩展接口，可直接在这里调用

@@ -3,6 +3,10 @@
 #include "common/log/logmanager.h"
 #include "defines/ffmpeg_packet_buffer.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <cerrno>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
@@ -17,6 +21,23 @@ FFmpegPuller::~FFmpegPuller() {
     Close();
 }
 
+std::string FFmpegPuller::BuildRtspTransportOption() const {
+    std::string transport = rtsp_transport_.empty() ? "udp" : rtsp_transport_;
+    std::transform(transport.begin(), transport.end(), transport.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+
+    if (!rtsp_auto_switch_tcp_)
+        return transport;
+
+    if (transport.find("tcp") != std::string::npos)
+        return transport;
+
+    if (transport == "udp")
+        return "udp+tcp";
+
+    return transport + "+tcp";
+}
+
 // ── IPuller ─────────────────────────────────────────────────────────
 
 bool FFmpegPuller::Open(const std::string& url) {
@@ -27,10 +48,16 @@ bool FFmpegPuller::Open(const std::string& url) {
         return false;
     }
 
+    const int rtsp_io_timeout_ms = rtsp_auto_switch_tcp_
+        ? rtsp_auto_switch_timeout_ms_
+        : read_timeout_ms_;
+    const int open_timeout_ms = std::max(connect_timeout_ms_, rtsp_io_timeout_ms);
+
     // 2. 设置中断回调（超时控制）
     interrupt_ctx_.interrupted = false;
+    interrupt_ctx_.timed_out = false;
     interrupt_ctx_.start_time  = std::chrono::steady_clock::now();
-    interrupt_ctx_.timeout_ms  = connect_timeout_ms_;
+    interrupt_ctx_.timeout_ms  = open_timeout_ms;
 
     fmt_ctx_->interrupt_callback.callback = [](void* ctx) -> int {
         auto* ic = static_cast<InterruptContext*>(ctx);
@@ -40,7 +67,8 @@ bool FFmpegPuller::Open(const std::string& url) {
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             now - ic->start_time).count();
         if (ic->timeout_ms > 0 && elapsed > ic->timeout_ms) {
-            LOG_MAIN_WARN_AT("Connection timeout after {} ms", elapsed);
+            ic->timed_out = true;
+            LOG_MAIN_WARN_AT("FFmpeg IO timeout after {} ms", elapsed);
             return 1;
         }
         return 0;
@@ -49,8 +77,10 @@ bool FFmpegPuller::Open(const std::string& url) {
 
     // 3. 设置传输选项
     AVDictionary* opts = nullptr;
-    av_dict_set_int(&opts, "stimeout", read_timeout_ms_ * 1000, 0);
-    av_dict_set_int(&opts, "timeout",  connect_timeout_ms_, 0);
+    const std::string rtsp_transport = BuildRtspTransportOption();
+    av_dict_set(&opts, "rtsp_transport", rtsp_transport.c_str(), 0);
+    av_dict_set_int(&opts, "stimeout", static_cast<int64_t>(rtsp_io_timeout_ms) * 1000, 0);
+    av_dict_set_int(&opts, "timeout",  static_cast<int64_t>(rtsp_io_timeout_ms) * 1000, 0);
     if (low_latency_) {
         av_dict_set(&opts, "fflags", "nobuffer", 0);
         av_dict_set(&opts, "flags",  "low_delay", 0);
@@ -114,6 +144,7 @@ bool FFmpegPuller::Open(const std::string& url) {
 
 void FFmpegPuller::Close() {
     interrupt_ctx_.interrupted = true;
+    std::lock_guard<std::mutex> lock(io_mutex_);
     if (fmt_ctx_) {
         avformat_close_input(&fmt_ctx_);
         fmt_ctx_ = nullptr;
@@ -124,6 +155,7 @@ void FFmpegPuller::Close() {
 }
 
 bool FFmpegPuller::ReadPacket(std::shared_ptr<MediaPacket>& packet) {
+    std::lock_guard<std::mutex> lock(io_mutex_);
     if (fmt_ctx_ == nullptr) {
         LOG_MAIN_ERROR_AT("fmt_ctx_ is nullptr");
         return false;
@@ -143,6 +175,9 @@ bool FFmpegPuller::ReadPacket(std::shared_ptr<MediaPacket>& packet) {
     }
 
     // 2. 读取一帧
+    interrupt_ctx_.timed_out = false;
+    interrupt_ctx_.start_time = std::chrono::steady_clock::now();
+    interrupt_ctx_.timeout_ms = read_timeout_ms_;
     int ret = av_read_frame(fmt_ctx_, pkt);
     if (ret < 0) {
         av_packet_unref(pkt);
@@ -150,6 +185,19 @@ bool FFmpegPuller::ReadPacket(std::shared_ptr<MediaPacket>& packet) {
         if (ret == AVERROR_EOF) {
             LOG_MAIN_DEBUG_AT("av_read_frame EOF");
             return false;
+        }
+        if (interrupt_ctx_.interrupted.load()) {
+            LOG_MAIN_DEBUG_AT("av_read_frame interrupted");
+            return false;
+        }
+        bool transient_error = ret == AVERROR(EAGAIN) || interrupt_ctx_.timed_out.load();
+#ifdef ETIMEDOUT
+        transient_error = transient_error || ret == AVERROR(ETIMEDOUT);
+#endif
+        if (transient_error) {
+            packet = nullptr;
+            LOG_MAIN_DEBUG_AT("av_read_frame timeout/transient error, keep reading");
+            return true;
         }
         char buf[AV_ERROR_MAX_STRING_SIZE];
         av_make_error_string(buf, AV_ERROR_MAX_STRING_SIZE, ret);
@@ -208,11 +256,11 @@ void FFmpegPuller::SetEventCallback(EventCallback cb) {
 // ── 扩展配置 ────────────────────────────────────────────────────────
 
 void FFmpegPuller::SetConnectTimeoutMs(int ms) {
-    connect_timeout_ms_ = ms;
+    connect_timeout_ms_ = ms > 0 ? ms : 0;
 }
 
 void FFmpegPuller::SetReadTimeoutMs(int ms) {
-    read_timeout_ms_ = ms;
+    read_timeout_ms_ = ms > 0 ? ms : 0;
 }
 
 void FFmpegPuller::SetLowLatency(bool enable) {
@@ -223,6 +271,18 @@ void FFmpegPuller::SetCredentials(const std::string& username,
                                   const std::string& password) {
     username_ = username;
     password_ = password;
+}
+
+void FFmpegPuller::SetRtspTransport(const std::string& transport) {
+    rtsp_transport_ = transport.empty() ? "udp" : transport;
+}
+
+void FFmpegPuller::SetRtspAutoSwitchToTcp(bool enable) {
+    rtsp_auto_switch_tcp_ = enable;
+}
+
+void FFmpegPuller::SetRtspAutoSwitchTimeoutMs(int ms) {
+    rtsp_auto_switch_timeout_ms_ = ms > 0 ? ms : 0;
 }
 
 // ── MapCodecID ──────────────────────────────────────────────────────

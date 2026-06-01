@@ -193,28 +193,28 @@ bool FFmpegDecoder::ReceiveFrames() {
         }
 
         // ── 构建 FFmpegFrameBuffer（接管 frame 所有权） ──
-        auto fb = std::make_shared<FFmpegFrameBuffer>(frame,
-                                                      static_cast<size_t>(size));
+        auto fb = std::make_shared<FFmpegFrameBuffer>(frame, static_cast<size_t>(size));
 
         // ── 分配新 frame 用于下一轮 ──
+        // TODO: 优化内存分配
         frame = av_frame_alloc();
         if (!frame) {
             LOG_MAIN_ERROR_AT("FFmpegDecoder:ReceiveFrames: "
                               "av_frame_alloc OOM after decode");
+            av_frame_free(&frame);
             return false;
         }
 
         // ── 填充 MediaFrame ──
         auto mf = std::make_shared<MediaFrame>();
         mf->type          = MediaType::VIDEO;
-        mf->pixel_format  = MapAVPixelFormat(
-            static_cast<AVPixelFormat>(fb->GetFrame()->format));
+        mf->pixel_format  = MapAVPixelFormat(static_cast<AVPixelFormat>(fb->GetFrame()->format));
         mf->width         = fb->GetFrame()->width;
         mf->height        = fb->GetFrame()->height;
         mf->pts           = fb->GetFrame()->pts;
         mf->dts           = fb->GetFrame()->pkt_dts;
-        mf->duration      = fb->GetFrame()->pkt_duration;
-        mf->keyframe      = fb->GetFrame()->key_frame != 0;
+        mf->duration      = fb->GetFrame()->duration;
+        mf->keyframe      = (fb->GetFrame()->flags & AV_FRAME_FLAG_KEY) != 0;
         mf->buffer        = fb;
 
         mf->backend.type  = BackendHandle::FFMPEG;

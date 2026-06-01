@@ -3,6 +3,8 @@
 #include "puller/i_puller.hpp"
 #include "common/pool/object_pool.hpp"
 
+#include <mutex>
+
 extern "C" {
 #include <libavformat/avformat.h>
 }
@@ -35,19 +37,25 @@ public:
 
     // ==================== 扩展配置 ====================
 
-    void SetConnectTimeoutMs(int ms);
-    void SetReadTimeoutMs(int ms);
-    void SetLowLatency(bool enable);
+    void SetConnectTimeoutMs(int ms) override;
+    void SetReadTimeoutMs(int ms) override;
+    void SetLowLatency(bool enable) override;
     void SetCredentials(const std::string& username,
-                        const std::string& password);
+                        const std::string& password) override;
+    void SetRtspTransport(const std::string& transport) override;
+    void SetRtspAutoSwitchToTcp(bool enable) override;
+    void SetRtspAutoSwitchTimeoutMs(int ms) override;
 
 private:
     /// @brief FFmpeg 中断回调上下文
     struct InterruptContext {
         std::atomic<bool> interrupted{false};
+        std::atomic<bool> timed_out{false};
         std::chrono::steady_clock::time_point start_time;
         int timeout_ms{5000};
     };
+
+    std::string BuildRtspTransportOption() const;
 
     // ── FFmpeg 资源 ──
     AVFormatContext*   fmt_ctx_{nullptr};     ///< 格式上下文
@@ -55,11 +63,15 @@ private:
     AVCodecParameters* codecpar_{nullptr};     ///< 选中流的编码参数
     InterruptContext   interrupt_ctx_;         ///< 中断回调上下文
     StreamInfo         cached_info_;           ///< 缓存的流信息
+    std::mutex         io_mutex_;              ///< 避免 Close 与 av_read_frame 并发关闭句柄
 
     // ── 配置 ──
     int    connect_timeout_ms_{5000};          ///< 连接超时（毫秒）
     int    read_timeout_ms_{10000};            ///< 读超时（毫秒）
     bool   low_latency_{true};                 ///< 低延迟模式
+    std::string rtsp_transport_{"udp"};         ///< RTSP transport: udp / tcp / ...
+    bool   rtsp_auto_switch_tcp_{false};       ///< UDP 超时后是否允许 FFmpeg 尝试 TCP
+    int    rtsp_auto_switch_timeout_ms_{10000};///< UDP->TCP 切换等待时间（毫秒）
     std::string username_;                     ///< 鉴权用户名
     std::string password_;                     ///< 鉴权密码
 

@@ -4,9 +4,10 @@
  * @file spsc_queue.h
  * @brief Single Producer Single Consumer 无锁队列
  *
- * 提供两种实现�? *   - SpscQueue<T>�?         有界（boost::lockfree::spsc_queue 包装），
- *                             构造时指定固定容量，满�?push 失败
- *   - UnboundedSpscQueue<T>�?无界（mutex + deque），
+ * 提供两种实现：
+ *   - SpscQueue<T>：          有界（boost::lockfree::spsc_queue 包装），
+ *                             构造时指定固定容量，满则 push 失败
+ *   - UnboundedSpscQueue<T>： 无界（mutex + deque），
  *                             可任意增长，适合不允许丢包的场景
  */
 
@@ -21,17 +22,21 @@
 namespace common {
 
 // ============================================================================
-// BoundedSpscQueue �?有界 SPSC 无锁队列
+// BoundedSpscQueue — 有界 SPSC 无锁队列
 // 基于 boost::lockfree::spsc_queue，固定容量，满时 push 返回 false
-// 线程安全：单生产�?+ 单消费�?// ============================================================================
+// 线程安全：单生产者 + 单消费者
+// ============================================================================
 template<typename T>
 class BoundedSpscQueue {
 public:
-    /// @brief 构造函�?    /// @param capacity 队列容量（必须是 2 的幂次，或由 boost 内部处理�?    explicit BoundedSpscQueue(size_t capacity)
+    /// @brief 构造函数
+    /// @param capacity 队列容量（必须是 2 的幂次，或由 boost 内部处理）
+    explicit BoundedSpscQueue(size_t capacity)
         : capacity_(capacity)
         , queue_(capacity) {}
 
-    /// @brief 推入元素（非阻塞�?    /// @param item 元素
+    /// @brief 推入元素（非阻塞）
+    /// @param item 元素
     /// @return true 成功，false 队列已满
     bool push(const T& item) {
         return queue_.push(item);
@@ -42,7 +47,8 @@ public:
         return queue_.push(std::move(item));
     }
 
-    /// @brief 弹出元素（非阻塞�?    /// @param item 输出参数
+    /// @brief 弹出元素（非阻塞）
+    /// @param item 输出参数
     /// @return true 成功，false 队列为空
     bool pop(T& item) {
         return queue_.pop(item);
@@ -58,11 +64,13 @@ public:
         return queue_.write_available() == 0;
     }
 
-    /// @brief 当前可用读取�?    size_t size() const {
+    /// @brief 当前可用读取数
+    size_t size() const {
         return queue_.read_available();
     }
 
-    /// @brief 当前可用写入�?    size_t available() const {
+    /// @brief 当前可用写入数
+    size_t available() const {
         return queue_.write_available();
     }
 
@@ -83,15 +91,17 @@ private:
 };
 
 // ============================================================================
-// UnboundedSpscQueue �?无界 SPSC 队列
+// UnboundedSpscQueue — 无界 SPSC 队列
 // 基于 std::deque + mutex，可无限增长，适合不允许丢包的场景
-// 线程安全：单生产�?+ 单消费�?// ============================================================================
+// 线程安全：单生产者 + 单消费者
+// ============================================================================
 template<typename T>
 class UnboundedSpscQueue {
 public:
     UnboundedSpscQueue() = default;
 
-    /// @brief 推入元素（阻塞，永不失败�?    void push(const T& item) {
+    /// @brief 推入元素（阻塞，永不失败）
+    void push(const T& item) {
         {
             std::lock_guard<std::mutex> lock(mutex_);
             queue_.push_back(item);
@@ -110,7 +120,8 @@ public:
 
     /// @brief 弹出元素（阻塞等待）
     /// @param item 输出参数
-    /// @return true 成功，false 队列已关�?    bool pop(T& item) {
+    /// @return true 成功，false 队列已关闭
+    bool pop(T& item) {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait(lock, [this]() { return !queue_.empty() || closed_; });
         if (queue_.empty()) return false;
@@ -119,8 +130,10 @@ public:
         return true;
     }
 
-    /// @brief 弹出元素（带超时�?    /// @param item 输出参数
-    /// @param timeout 最大等待时�?    /// @return true 成功，false 超时或已关闭
+    /// @brief 弹出元素（带超时）
+    /// @param item 输出参数
+    /// @param timeout 最大等待时间
+    /// @return true 成功，false 超时或已关闭
     bool pop_for(T& item, const std::chrono::milliseconds& timeout) {
         std::unique_lock<std::mutex> lock(mutex_);
         if (!cv_.wait_for(lock, timeout, [this]() { return !queue_.empty() || closed_; })) {
@@ -132,7 +145,8 @@ public:
         return true;
     }
 
-    /// @brief 非阻塞尝试弹�?    bool try_pop(T& item) {
+    /// @brief 非阻塞尝试弹出
+    bool try_pop(T& item) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (queue_.empty()) return false;
         item = std::move(queue_.front());
@@ -167,7 +181,8 @@ public:
         cv_.notify_all();
     }
 
-    /// @brief 重置队列（清�?+ 重新打开�?    void reset() {
+    /// @brief 重置队列（清空 + 重新打开）
+    void reset() {
         std::lock_guard<std::mutex> lock(mutex_);
         queue_.clear();
         closed_ = false;
@@ -179,5 +194,4 @@ private:
     std::condition_variable cv_;
     bool closed_{false};
 };
-
 } // namespace common

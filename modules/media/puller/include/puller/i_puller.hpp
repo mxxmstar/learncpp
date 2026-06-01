@@ -54,4 +54,14 @@ public:
 
     /// @brief 设置事件回调
     virtual void SetEventCallback(EventCallback cb) = 0;
+
+    // ==================== 可选配置 ====================
+
+    virtual void SetConnectTimeoutMs(int) {}
+    virtual void SetReadTimeoutMs(int) {}
+    virtual void SetLowLatency(bool) {}
+    virtual void SetCredentials(const std::string&, const std::string&) {}
+    virtual void SetRtspTransport(const std::string&) {}
+    virtual void SetRtspAutoSwitchToTcp(bool) {}
+    virtual void SetRtspAutoSwitchTimeoutMs(int) {}
 };

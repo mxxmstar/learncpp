@@ -12,6 +12,8 @@
 #include "defines/media_packet.hpp"
 #include "stream/stream_info.h"
 #include "puller/i_puller.hpp"
+#include "stream/session/source_config.h"
+#include "stream/jitterbuffer/adaptive_jitter_buffer.h"
 
 /// @brief 流会话
 ///
@@ -76,6 +78,11 @@ public:
     /// @brief 设置最大重连次数（-1 无限制）
     void SetMaxReconnectCount(int count);
 
+    /// @brief 设置 jitter buffer 出队间隔（0 关闭，直接分发）
+    void SetJitterBufferIntervalMs(int ms);
+    void SetJitterBufferConfig(const AdaptiveJitterBuffer::Config& config);
+    void ApplyPullerConfig(const StreamSourceConfig& config);
+
     /// @brief 设置 Watchdog 间隔（0 关闭）
     void SetWatchdogIntervalMs(int ms);
 
@@ -118,6 +125,11 @@ private:
 
     /// @brief 发起异步重连
     void DoReconnect();
+    void StartDecoderDriveTimer();
+    void OnDecoderDriveTimer(const boost::system::error_code& ec);
+    void EnqueuePacket(std::shared_ptr<MediaPacket> packet);
+    void DispatchPacket(std::shared_ptr<MediaPacket> packet);
+    void ClearJitterBuffer();
 
     /// @brief 启动 Watchdog 定时器
     void StartWatchdog();
@@ -141,11 +153,13 @@ private:
 
     boost::asio::steady_timer reconnect_timer_;      ///< 重连延迟定时器
     boost::asio::steady_timer watchdog_timer_;       ///< Watchdog 定时器
+    boost::asio::steady_timer decoder_timer_;        ///< Decoder drive timer
 
     // ── 配置 ──
     int reconnect_interval_ms_{3000};   ///< 重连间隔
     int max_reconnect_count_{-1};       ///< 最大重连次数
     int watchdog_interval_ms_{0};       ///< Watchdog 间隔
+    int jitter_buffer_interval_ms_{0};  ///< Jitter buffer dispatch interval
 
     // ── 重连状态 ──
     int reconnect_count_{0};                            ///< 当前连续重连次数
@@ -155,6 +169,9 @@ private:
     std::atomic<uint64_t> async_bytes_received_{0};   ///< 周期内字节（原子）
     std::atomic<uint64_t> async_packets_received_{0}; ///< 周期内包数（原子）
     Stats stats_;                                      ///< 累积统计快照
+
+    // ── Jitter buffer ──
+    std::unique_ptr<AdaptiveJitterBuffer> jitter_buffer_;
 
     // ── 回调 ──
     std::mutex cb_mutex_;                ///< 保护回调 setter，防止启动后又修改了回调函数
