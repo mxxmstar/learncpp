@@ -6,7 +6,7 @@
  * 包括：基本操作、边界条件、多线程并发
  */
 
-#include "common/thread/spsc_queue.h"
+#include "common/queue/spsc_queue.h"
 #include <cassert>
 #include <thread>
 #include <vector>

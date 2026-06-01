@@ -1,81 +1,64 @@
 #pragma once
 
-#include "common/thread/executor.h"
-#include "common/thread/mailbox.h"
-#include "common/thread/node.h"
+/// @file asio_scheduler.h
+/// @brief 基于 Asio 的生产级调度器
+///
+/// 与教学版 Scheduler 功能相同，但使用 strand 确保 Drain 串行执行。
+/// 采用两层 Post 机制：
+/// 1. 外层 Post 计入执行器的 pending 计数
+/// 2. 内层 post(strand) 确保串行化
+
+#include "common/runtime/asio/asio_executor.h"
+#include "common/runtime/scheduler_types.h"
+#include "common/runtime/mailbox.h"
+#include "common/runtime/node.h"
+
+#include <boost/asio/post.hpp>
+#include <boost/asio/strand.hpp>
 
 #include <atomic>
 #include <cstddef>
-#include <cstdint>
 #include <exception>
 #include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 
-namespace common::thread {
+namespace common::runtime::asio {
 
-struct NodeMetricsSnapshot {
-    std::uint64_t enqueued{0};
-    std::uint64_t processed{0};
-    std::uint64_t dropped{0};
-    std::uint64_t rejected{0};
-    std::uint64_t errors{0};
-};
-
-struct NodeMetrics {
-    std::atomic<std::uint64_t> enqueued{0};
-    std::atomic<std::uint64_t> processed{0};
-    std::atomic<std::uint64_t> dropped{0};
-    std::atomic<std::uint64_t> rejected{0};
-    std::atomic<std::uint64_t> errors{0};
-
-    NodeMetricsSnapshot Snapshot() const {
-        return {
-            enqueued.load(),
-            processed.load(),
-            dropped.load(),
-            rejected.load(),
-            errors.load()
-        };
-    }
-};
-
-struct NodeOptions {
-    std::string executor_name{"single"};
-    std::size_t mailbox_capacity{64};
-    std::size_t max_batch_size{64};
-    MailBoxKind mailbox_kind{MailBoxKind::SPSC};
-    BackpressurePolicy backpressure{BackpressurePolicy::DropOldest};
-};
-
+/// @brief 基于 Asio 的节点上下文
 template <typename Frame>
-struct NodeContext {
-    NodeContext(std::string node_id,
-                std::shared_ptr<INode<Frame>> node_instance,
-                IExecutor* bound_executor,
-                NodeOptions node_options)
+struct AsioNodeContext {
+    using Strand = boost::asio::strand<boost::asio::io_context::executor_type>;
+
+    AsioNodeContext(std::string node_id,
+                    std::shared_ptr<INode<Frame>> node_instance,
+                    AsioExecutor* bound_executor,
+                    NodeOptions node_options)
         : id(std::move(node_id))
         , node(std::move(node_instance))
         , executor(bound_executor)
         , options(std::move(node_options))
         , mailbox(CreateMailBox<Frame>(
               options.mailbox_kind,
-              options.backpressure == BackpressurePolicy::Unbounded ? 0 : options.mailbox_capacity)) {}
+              options.backpressure == BackpressurePolicy::Unbounded ? 0 : options.mailbox_capacity))
+        , strand(executor->GetIOContext().get_executor()) {}
 
     std::string id;
     std::shared_ptr<INode<Frame>> node;
-    IExecutor* executor{nullptr};
+    AsioExecutor* executor{nullptr};
     NodeOptions options;
     std::unique_ptr<IMailBox<Frame>> mailbox;
     NodeMetrics metrics;
     std::atomic_bool scheduled{false};
+    Strand strand;
 };
 
+/// @brief 基于 Asio 的调度器
 template <typename Frame>
-class Scheduler {
+class AsioScheduler {
 public:
-    using Context = NodeContext<Frame>;
+    using Context = AsioNodeContext<Frame>;
     using ErrorHandler = std::function<void(const std::string&, std::exception_ptr)>;
 
     void SetErrorHandler(ErrorHandler handler) {
@@ -106,16 +89,14 @@ public:
     }
 
     void Schedule(Context* ctx) {
-        if (!ctx || !ctx->node || !ctx->executor) {
-            return;
-        }
+        if (!ctx || !ctx->node || !ctx->executor) return;
 
         bool expected = false;
-        if (!ctx->scheduled.compare_exchange_strong(expected, true)) {
-            return;
-        }
+        if (!ctx->scheduled.compare_exchange_strong(expected, true)) return;
 
-        if (!ctx->executor->Post([this, ctx]() { Drain(ctx); })) {
+        if (!ctx->executor->Post([this, ctx]() {
+                boost::asio::post(ctx->strand, [this, ctx]() { Drain(ctx); });
+            })) {
             ctx->scheduled.store(false);
             ctx->metrics.rejected.fetch_add(1);
         }
@@ -132,26 +113,19 @@ private:
                 ctx->metrics.processed.fetch_add(1);
             } catch (...) {
                 ctx->metrics.errors.fetch_add(1);
-                if (error_handler_) {
-                    error_handler_(ctx->id, std::current_exception());
-                }
+                if (error_handler_) error_handler_(ctx->id, std::current_exception());
             }
 
             ++processed_in_batch;
             if (ctx->options.max_batch_size != 0 &&
-                processed_in_batch >= ctx->options.max_batch_size) {
-                break;
-            }
+                processed_in_batch >= ctx->options.max_batch_size) break;
         }
 
         ctx->scheduled.store(false);
-
-        if (!ctx->mailbox->Empty()) {
-            Schedule(ctx);
-        }
+        if (!ctx->mailbox->Empty()) Schedule(ctx);
     }
 
     ErrorHandler error_handler_;
 };
 
-} // namespace common::thread
+} // namespace common::runtime::asio

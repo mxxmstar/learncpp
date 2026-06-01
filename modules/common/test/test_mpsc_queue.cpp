@@ -6,7 +6,7 @@
  * 重点验证多生产者并发安全
  */
 
-#include "common/thread/mpsc_queue.h"
+#include "common/queue/mpsc_queue.h"
 #include <cassert>
 #include <thread>
 #include <vector>

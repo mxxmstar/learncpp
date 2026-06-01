@@ -1,8 +1,8 @@
 # Common Thread Runtime Guide
 
-本文档说明 `modules/common/include/common/thread/runtime_framework.h` 中的教学版线程运行时。它根据“Node + Mailbox + Executor + Scheduler”的模型拆分职责，便于理解实时 AI Runtime 中线程和节点的关系。
+本文档说明 `modules/common/include/common/runtime/__example/runtime_framework.h` 中的教学版线程运行时。它根据“Node + Mailbox + Executor + Scheduler”的模型拆分职责，便于理解实时 AI Runtime 中线程和节点的关系。
 
-> 注意：该实现会继续保留，适合作为学习和对照版本。项目实际推荐优先使用 Asio 版 `common/thread/asio_runtime_framework.h`。
+> 注意：该实现会继续保留，适合作为学习和对照版本。项目实际推荐优先使用 Asio 版 `common/runtime/asio/asio_runtime_framework.h`。
 
 ## 核心原则
 
@@ -26,7 +26,7 @@ Runtime 负责连接 graph，Scheduler 负责调度，Executor 负责真实线�
 Passive Node 只实现 `Process(frame)`：
 
 ```cpp
-class MyNode : public common::thread::INode<FramePtr> {
+class MyNode : public common::runtime::INode<FramePtr> {
 public:
     void Process(FramePtr frame) override {
         // 只处理数据，不管理线程
@@ -38,7 +38,7 @@ public:
 Active Source Node 自己产生数据，因此有 `Start()` 和 `Stop()`：
 
 ```cpp
-class CameraSource : public common::thread::ISourceNode<FramePtr> {
+class CameraSource : public common::runtime::ISourceNode<FramePtr> {
 public:
     void Start() override {
         Emit(frame);
@@ -106,14 +106,14 @@ Runtime 负责：
 示例：
 
 ```cpp
-using Runtime = common::thread::Runtime<FramePtr>;
+using Runtime = common::runtime::Runtime<FramePtr>;
 
 Runtime runtime;
 runtime.AddDefaultExecutors();
 
-common::thread::NodeOptions options;
+common::runtime::NodeOptions options;
 options.executor_name = "cpu";
-options.backpressure = common::thread::BackpressurePolicy::DropOldest;
+options.backpressure = common::runtime::BackpressurePolicy::DropOldest;
 options.mailbox_capacity = 8;
 
 runtime.AddSource("camera", camera_source);
@@ -122,7 +122,7 @@ runtime.AddNode("infer", infer_node, {
     .executor_name = "inference",
     .mailbox_capacity = 2,
     .max_batch_size = 1,
-    .backpressure = common::thread::BackpressurePolicy::DropOldest,
+    .backpressure = common::runtime::BackpressurePolicy::DropOldest,
 });
 
 runtime.Connect("camera", "preprocess");

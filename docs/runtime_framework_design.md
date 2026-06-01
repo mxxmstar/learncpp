@@ -76,7 +76,7 @@
 
 | 特性 | Teaching Runtime | Asio Runtime |
 |------|------------------|--------------|
-| 命名空间 | `common::thread` | `common::thread::asio` |
+| 命名空间 | `common::runtime` | `common::runtime::asio` |
 | Executor | `IExecutor` / `ThreadPoolExecutor` | `AsioExecutor` |
 | 调度 | CAS 单标识 + 批量 Drain | CAS + Boost.Asio `strand` 串行化 |
 | 线程模型 | `std::thread` + condition_variable | `boost::asio::io_context` + work_guard |
@@ -89,7 +89,7 @@
 
 ### 2.1 Node（节点）
 
-**文件：** `include/common/thread/node.h`
+**文件：** `include/common/runtime/node.h`
 
 #### `INode<Frame>` — 被动处理节点
 
@@ -132,7 +132,7 @@ protected:
 
 ### 2.2 Mailbox（信箱）
 
-**文件：** `include/common/thread/mailbox.h`
+**文件：** `include/common/runtime/mailbox.h`
 
 Mailbox 是节点间异步通信的通道。框架提供两种实现：`SPSCMailBox`（默认，无锁高性能）和 `MPMCMailBox`（兼容多生产者语义），通过 `MailBoxKind` 枚举在 `NodeOptions` 中选择。
 
@@ -268,7 +268,7 @@ std::unique_ptr<IMailBox<T>> CreateMailBox(MailBoxKind kind, std::size_t capacit
 
 ### 2.3 Executor（执行器）
 
-**文件：** `include/common/thread/executor.h`
+**文件：** `include/common/runtime/__example/executor.h`
 
 #### `IExecutor` 抽象接口
 
@@ -326,7 +326,7 @@ class ThreadPoolExecutor : public IExecutor {
 
 ### 2.4 Scheduler（调度器）
 
-**文件：** `include/common/thread/scheduler.h`
+**文件：** `include/common/runtime/__example/scheduler.h`
 
 Scheduler 是连接 Mailbox 与 Executor 的桥梁，负责"何时执行哪个节点的 Process"。
 
@@ -430,7 +430,7 @@ class Scheduler<Frame> {
 
 ### 2.5 Runtime（运行时协调器）
 
-**文件：** `include/common/thread/runtime.h`
+**文件：** `include/common/runtime/__example/runtime.h`
 
 Runtime 是整个框架的顶层入口，管理节点的注册、连接、生命周期和外部数据注入。
 
@@ -522,7 +522,7 @@ void Stop() {
 
 ## 3. Teaching Runtime（教学版）
 
-**聚合头文件：** `include/common/thread/runtime_framework.h`
+**聚合头文件：** `include/common/runtime/__example/runtime_framework.h`
 
 ### 3.1 ThreadPoolExecutor
 
@@ -546,25 +546,25 @@ void Stop() {
 **典型使用方式：**
 
 ```cpp
-#include "common/thread/runtime_framework.h"
+#include "common/runtime/__example/runtime_framework.h"
 
 struct Frame { int data; };
 
-class MultiplyNode : public common::thread::INode<Frame> {
+class MultiplyNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         frame.data *= 2;
         Emit(std::move(frame));
     }
 };
 
-class CollectNode : public common::thread::INode<Frame> {
+class CollectNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         results_.push_back(frame.data);
     }
     std::vector<int> results_;
 };
 
-class RangeSource : public common::thread::ISourceNode<Frame> {
+class RangeSource : public common::runtime::ISourceNode<Frame> {
     void Start() override {
         for (int i = 0; i < 10; ++i)
             Emit(Frame{i});
@@ -573,7 +573,7 @@ class RangeSource : public common::thread::ISourceNode<Frame> {
 };
 
 // 构建管线
-common::thread::Runtime<Frame> rt;
+common::runtime::Runtime<Frame> rt;
 rt.AddDefaultExecutors();                              // cpu + inference + io
 rt.AddNode("multiply", std::make_shared<MultiplyNode>(),
            {.executor_name = "cpu"});
@@ -589,11 +589,11 @@ rt.Stop();    // 停止
 
 ## 4. Asio Runtime（生产级）
 
-**聚合头文件：** `include/common/thread/asio_runtime_framework.h`
+**聚合头文件：** `include/common/runtime/asio/asio_runtime_framework.h`
 
 ### 4.1 AsioExecutor
 
-**文件：** `include/common/thread/asio_executor.h`
+**文件：** `include/common/runtime/asio/asio_executor.h`
 
 #### 核心实现
 
@@ -654,7 +654,7 @@ class IOAsioExecutor;            // 1 线程
 
 ### 4.2 AsioScheduler 与 Strand
 
-**文件：** `include/common/thread/asio_scheduler.h`
+**文件：** `include/common/runtime/asio/asio_scheduler.h`
 
 #### AsioNodeContext — 扩展上下文
 
@@ -731,7 +731,7 @@ class AsioScheduler {
 
 ### 4.3 AsioRuntime
 
-**文件：** `include/common/thread/asio_runtime.h`
+**文件：** `include/common/runtime/asio/asio_runtime.h`
 
 接口与 `Runtime` **完全相同**，只是内部使用 `AsioExecutor`、`AsioNodeContext`、`AsioScheduler`。
 
@@ -746,18 +746,18 @@ class AsioRuntime {
 **使用方式参考：**
 
 ```cpp
-#include "common/thread/asio_runtime_framework.h"
+#include "common/runtime/asio/asio_runtime_framework.h"
 
 struct Frame { cv::Mat image; };
 
-class DecodeNode : public common::thread::INode<Frame> {
+class DecodeNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         frame.image = decode(frame.image);
         Emit(std::move(frame));
     }
 };
 
-class InferNode : public common::thread::INode<Frame> {
+class InferNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         auto result = model_->infer(frame.image);
         Emit(Frame{result});
@@ -765,7 +765,7 @@ class InferNode : public common::thread::INode<Frame> {
 };
 
 // AsioRuntime 生产级管线
-common::thread::asio::AsioRuntime<Frame> rt;
+common::runtime::asio::AsioRuntime<Frame> rt;
 rt.AddDefaultExecutors();                         // cpu / inference / io
 rt.AddNode("decode",  std::make_shared<DecodeNode>(),
            {.executor_name = "cpu", .backpressure = BackpressurePolicy::DropOldest});
@@ -786,7 +786,7 @@ rt.Push("decode", Frame{read_frame()});
 
 ### 5.1 BoundedSpscQueue / UnboundedSpscQueue
 
-**文件：** `include/common/thread/spsc_queue.h` | 命名空间：`common`
+**文件：** `include/common/queue/spsc_queue.h` | 命名空间：`common`
 
 基于 `boost::lockfree::spsc_queue` 和 `std::deque`，适用于**单生产者-单消费者**场景。
 
@@ -838,7 +838,7 @@ class UnboundedSpscQueue {
 
 ### 5.2 BoundedMpscQueue / UnboundedMpscQueue
 
-**文件：** `include/common/thread/mpsc_queue.h` | 命名空间：`common`
+**文件：** `include/common/queue/mpsc_queue.h` | 命名空间：`common`
 
 基于 `boost::lockfree::queue`，适用于**多生产者-单消费者**场景。
 
@@ -1073,7 +1073,7 @@ class ZLMService : public IService {
 ### 使用 AsioRuntime 构建
 
 ```cpp
-#include "common/thread/asio_runtime_framework.h"
+#include "common/runtime/asio/asio_runtime_framework.h"
 #include "common/log/logmanager.h"
 
 struct Frame {
@@ -1082,7 +1082,7 @@ struct Frame {
     std::vector<float> features; // 推理结果
 };
 
-class DecodeNode : public common::thread::INode<Frame> {
+class DecodeNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         LOG_MAIN_INFO_AT("[Decode] seq={}", frame.seq);
         // 模拟解码
@@ -1091,7 +1091,7 @@ class DecodeNode : public common::thread::INode<Frame> {
     }
 };
 
-class PreprocessNode : public common::thread::INode<Frame> {
+class PreprocessNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         LOG_MAIN_INFO_AT("[Preproc] seq={}", frame.seq);
         // 缩放/归一化
@@ -1099,7 +1099,7 @@ class PreprocessNode : public common::thread::INode<Frame> {
     }
 };
 
-class InferNode : public common::thread::INode<Frame> {
+class InferNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         LOG_MAIN_INFO_AT("[Infer] seq={}", frame.seq);
         frame.features = {0.1f, 0.2f, 0.3f}; // 模拟推理
@@ -1107,7 +1107,7 @@ class InferNode : public common::thread::INode<Frame> {
     }
 };
 
-class PushNode : public common::thread::INode<Frame> {
+class PushNode : public common::runtime::INode<Frame> {
     void Process(Frame frame) override {
         LOG_MAIN_INFO_AT("[Push] seq={} features={}", frame.seq, frame.features.size());
     }
@@ -1117,7 +1117,7 @@ int main() {
     LogManager::getInstance().Init("./logs", 1);
 
     // 构建 Asio 运行时管线
-    common::thread::asio::AsioRuntime<Frame> rt;
+    common::runtime::asio::AsioRuntime<Frame> rt;
     rt.AddDefaultExecutors(4);  // cpu(4线程), inference(1线程), io(1线程)
 
     rt.AddNode("decode", std::make_shared<DecodeNode>(),
@@ -1178,7 +1178,7 @@ file(GLOB_RECURSE LIB_SOURCES
     "include/common/log/*.h"
     "include/common/config/*.h"
     "include/common/pool/*.hpp"
-    "include/common/thread/*.h"
+    "include/common/runtime/*.h"
 )
 
 add_library(${PROJECT_NAME} ${LIB_SOURCES})

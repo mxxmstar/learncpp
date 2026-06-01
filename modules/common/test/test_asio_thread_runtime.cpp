@@ -1,4 +1,4 @@
-#include "common/thread/asio_runtime_framework.h"
+#include "common/runtime/asio/asio_runtime_framework.h"
 
 #include <atomic>
 #include <cassert>
@@ -9,12 +9,12 @@
 #include <thread>
 #include <vector>
 
-using common::thread::BackpressurePolicy;
-using common::thread::INode;
-using common::thread::ISourceNode;
-using common::thread::NodeMetricsSnapshot;
-using common::thread::NodeOptions;
-using common::thread::asio::AsioRuntime;
+using common::runtime::BackpressurePolicy;
+using common::runtime::INode;
+using common::runtime::ISourceNode;
+using common::runtime::NodeMetricsSnapshot;
+using common::runtime::NodeOptions;
+using common::runtime::asio::AsioRuntime;
 
 class AsioMultiplyNode : public INode<int> {
 public:

@@ -11,7 +11,9 @@ file(GLOB_RECURSE LIB_SOURCES
     "include/common/config/*.h"
     "include/common/pool/*.hpp"
     "include/common/process/*.h"
-    "include/common/thread/*.h"
+    "include/common/runtime/*.h"
+    "include/common/queue/*.h"
+    "include/common/queue/third_part/*.h"
 )
 
 # 创建库

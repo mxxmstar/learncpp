@@ -1,6 +1,14 @@
 #pragma once
 
-#include "common/thread/mpsc_queue.h"
+/// @file executor.h
+/// @brief 教学版线程池执行器
+///
+/// 为每个工作线程分配一个独立的 MpscExecutorTaskQueue，
+/// 任务通过轮询分配到各线程队列，避免单队列锁竞争。
+///
+/// 派生类：SingleThreadExecutor / InferenceExecutor / IOExecutor
+
+#include "common/queue/mpsc_queue.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -13,14 +21,15 @@
 #include <utility>
 #include <vector>
 
-namespace common::thread {
+namespace common::runtime {
 
+/// @brief 可执行任务类型
 using ExecutorTask = std::function<void()>;
 
+/// @brief 执行器任务队列抽象接口
 class IExecutorTaskQueue {
 public:
     virtual ~IExecutorTaskQueue() = default;
-
     virtual bool Push(ExecutorTask task) = 0;
     virtual bool TryPop(ExecutorTask& task) = 0;
     virtual bool WaitPop(ExecutorTask& task) = 0;
@@ -31,6 +40,7 @@ public:
     virtual std::size_t Size() const = 0;
 };
 
+/// @brief 基于 MPSC 无锁队列的任务队列实现
 class MpscExecutorTaskQueue : public IExecutorTaskQueue {
 public:
     MpscExecutorTaskQueue() = default;
@@ -113,12 +123,11 @@ private:
     std::condition_variable cv_;
 };
 
+/// @brief 执行器抽象接口
 class IExecutor {
 public:
     using Task = ExecutorTask;
-
     virtual ~IExecutor() = default;
-
     virtual void Start() = 0;
     virtual void Stop() = 0;
     virtual bool Post(Task task) = 0;
@@ -126,24 +135,21 @@ public:
     virtual std::size_t Pending() const = 0;
 };
 
+/// @brief 线程池执行器
 class ThreadPoolExecutor : public IExecutor {
 public:
     explicit ThreadPoolExecutor(std::string name, std::size_t thread_count = 1)
         : name_(std::move(name))
         , thread_count_(thread_count == 0 ? 1 : thread_count) {}
 
-    ~ThreadPoolExecutor() override {
-        Stop();
-    }
+    ~ThreadPoolExecutor() override { Stop(); }
 
     ThreadPoolExecutor(const ThreadPoolExecutor&) = delete;
     ThreadPoolExecutor& operator=(const ThreadPoolExecutor&) = delete;
 
     void Start() override {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (running_) {
-            return;
-        }
+        if (running_) return;
 
         stopping_ = false;
         running_ = true;
@@ -165,20 +171,14 @@ public:
     void Stop() override {
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (!running_) {
-                return;
-            }
+            if (!running_) return;
 
             stopping_ = true;
-            for (auto& queue : task_queues_) {
-                queue->Close();
-            }
+            for (auto& queue : task_queues_) queue->Close();
         }
 
         for (auto& worker : workers_) {
-            if (worker.joinable()) {
-                worker.join();
-            }
+            if (worker.joinable()) worker.join();
         }
 
         std::lock_guard<std::mutex> lock(mutex_);
@@ -190,25 +190,18 @@ public:
 
     bool Post(Task task) override {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!running_ || stopping_ || task_queues_.empty()) {
-            return false;
-        }
+        if (!running_ || stopping_ || task_queues_.empty()) return false;
 
         auto index = next_queue_.fetch_add(1) % task_queues_.size();
         return task_queues_[index]->Push(std::move(task));
     }
 
-    const std::string& Name() const override {
-        return name_;
-    }
+    const std::string& Name() const override { return name_; }
 
     std::size_t Pending() const override {
         std::lock_guard<std::mutex> lock(mutex_);
-
         std::size_t pending = active_tasks_.load();
-        for (const auto& queue : task_queues_) {
-            pending += queue->Size();
-        }
+        for (const auto& queue : task_queues_) pending += queue->Size();
         return pending;
     }
 
@@ -217,12 +210,7 @@ protected:
         Task task;
         while (queue.WaitPop(task)) {
             active_tasks_.fetch_add(1);
-
-            try {
-                task();
-            } catch (...) {
-            }
-
+            try { task(); } catch (...) {}
             active_tasks_.fetch_sub(1);
         }
     }
@@ -257,4 +245,4 @@ public:
         : ThreadPoolExecutor(std::move(name), thread_count) {}
 };
 
-} // namespace common::thread
+} // namespace common::runtime

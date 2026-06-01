@@ -1,4 +1,4 @@
-#include "common/thread/runtime_framework.h"
+#include "common/runtime/__example/runtime_framework.h"
 
 #include <atomic>
 #include <cassert>
@@ -9,14 +9,14 @@
 #include <thread>
 #include <vector>
 
-using common::thread::BackpressurePolicy;
-using common::thread::INode;
-using common::thread::ISourceNode;
-using common::thread::MpscExecutorTaskQueue;
-using common::thread::NodeMetricsSnapshot;
-using common::thread::NodeOptions;
-using common::thread::Runtime;
-using common::thread::SPSCMailBox;
+using common::runtime::BackpressurePolicy;
+using common::runtime::INode;
+using common::runtime::ISourceNode;
+using common::runtime::MpscExecutorTaskQueue;
+using common::runtime::NodeMetricsSnapshot;
+using common::runtime::NodeOptions;
+using common::runtime::Runtime;
+using common::runtime::SPSCMailBox;
 
 class MultiplyNode : public INode<int> {
 public:
@@ -80,11 +80,11 @@ static void TestMailboxDropOldest() {
     SPSCMailBox<int> mailbox(2);
 
     assert(mailbox.Push(1, BackpressurePolicy::DropOldest) ==
-           common::thread::MailboxPushResult::Accepted);
+           common::runtime::MailboxPushResult::Accepted);
     assert(mailbox.Push(2, BackpressurePolicy::DropOldest) ==
-           common::thread::MailboxPushResult::Accepted);
+           common::runtime::MailboxPushResult::Accepted);
     assert(mailbox.Push(3, BackpressurePolicy::DropOldest) ==
-           common::thread::MailboxPushResult::DroppedOldest);
+           common::runtime::MailboxPushResult::DroppedOldest);
 
     int value = 0;
     assert(mailbox.TryPop(value));
@@ -112,7 +112,7 @@ static void TestExecutorMpscQueue() {
     }
 
     int received = 0;
-    common::thread::ExecutorTask task;
+    common::runtime::ExecutorTask task;
     while (received < 100) {
         if (queue.WaitPop(task)) {
             task();
