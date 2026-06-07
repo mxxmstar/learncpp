@@ -195,6 +195,7 @@ bool FFmpegDecoder::ReceiveFrames() {
         // ── 构建 FFmpegFrameBuffer（接管 frame 所有权） ──
         auto fb = std::make_shared<FFmpegFrameBuffer>(frame, static_cast<size_t>(size));
 
+        // 上面已经将frame的所有权转移给了fb,这里需要重新分配新 frame
         // ── 分配新 frame 用于下一轮 ──
         // TODO: 优化内存分配
         frame = av_frame_alloc();

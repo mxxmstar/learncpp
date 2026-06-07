@@ -115,7 +115,6 @@ if(BUILD_FULL_PIPELINE)
     add_subdirectory(modules/application)
     add_subdirectory(modules/api)
     add_subdirectory(modules/ffmpeg_opt)
-    add_subdirectory(modules/pusher)
 endif()
 
 # 主程序只包含 main.cpp，其他功能通过模块链接
@@ -162,7 +161,7 @@ if(WIN32)
                 zlmediakit_lib
                 api_lib
                 application_lib
-                pusher_lib
+                media_pusher_lib
                 async_simple::async_simple
                 ${OpenCV_LIBS}
                 ${FFMPEG_LIBRARIES}

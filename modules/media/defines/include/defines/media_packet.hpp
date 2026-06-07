@@ -5,13 +5,15 @@
 #include <cstdint>
 #include <cstddef>
 #include <memory>
+
 #include "i_media_buffer.hpp"
 
-/// 媒体流类型
-enum class MediaType {    
-    VIDEO,            ///< 视频
-    AUDIO,            ///< 音频
-    UNKNOWN = 0,      ///< 未知
+enum class MediaType : int {
+    UNKNOWN = 0,
+    VIDEO = 1,
+    AUDIO = 2,
+    METADATA = 3,
+    SEQUENCE_HEADER = 4,
 };
 
 /// 编码格式（值参考 FFmpeg 的 AVCodecID）
